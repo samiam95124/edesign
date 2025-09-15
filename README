@@ -29,3 +29,8 @@ text based descriptions with PMOS and NMOS transistors as the basic element of
 design. It features a complete assembly language for transitor based netlists,
 with macro processing capabilities. It has both a digital and an analong 
 simulator. It has many utilties for constructing and manipulating netlists.
+
+cif
+
+Contains programs to manipulate cif format, as well as design examples.
+
