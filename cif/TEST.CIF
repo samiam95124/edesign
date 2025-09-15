@@ -1,0 +1,8 @@
+CIF-checksum: 2488  47
+
+DS 1 50 2;
+L CWN;
+    B 8 8 760 352;
+DF;
+C 1;
+End

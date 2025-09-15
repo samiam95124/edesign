@@ -1,0 +1,210 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                             !
+!     Emulation for 74161/74163 IC                            !
+!     A four bit binary counter with preset.                  !
+!     Copied more or less from the RCA HC data book.          !
+!                                                             !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! Inverter
+
+macro inv input outputb
+
+p vcc input outputb
+n vss input outputb
+
+endmac
+
+! Weak inverter
+
+macro winv input outputb
+
+wp vcc input outputb
+wn vss input outputb
+
+endmac
+
+! Transmision gate with positive clock gating
+
+macro tg left right clockp clockn ! no particular direction here
+
+p left clockn right
+n left clockp right
+
+endmac
+
+! Nand gate
+
+macro nand input1 input2 outputb
+
+p vcc input1 outputb
+p vcc input2 outputb
+n vss input1 nand@n1
+n nand@n1 input2 outputb
+
+endmac
+
+! Nor gate
+
+macro nor input1 input2 outputb
+
+p vcc input1 nor@n1
+p nor@n1 input2 outputb
+n vss input1 outputb
+n vss input2 outputb
+
+endmac
+
+! Three input nand
+
+macro nand3 input1 input2 input3 outputb
+
+nand input1 input2 nand3@n1
+inv nand3@n1 nand3@n2
+nand nand3@n2 input3 outputb
+
+endmac
+
+! Flip - flop, basic unit detail
+
+macro ff dn qn cp spen tn mrn
+
+inv cp ff@n13 ! form inverted clock
+inv spen ff@n3 ! form positive spe
+tg ff@n1 ff@n4 spen ff@n3
+tg ff@n2 ff@n4 ff@n3 spen
+nand mrn dn ff@n2
+inv ff@n4 ff@n5
+tg ff@n5 ff@n6 ff@n13 cp
+nand mrn ff@n6 ff@n8
+inv ff@n8 ff@n7
+tg ff@n7 ff@n6 cp ff@n13
+
+! The following buffer we add to get around "kickback".
+! I suspect that RCA does it with a weak feedback transistor
+! in the next stage, which we will use when the simulator will
+! do that.
+
+!inv ff@n8 ff@n14
+!inv ff@n14 ff@n15
+
+!tg ff@n15 ff@n9 cp ff@n13
+tg ff@n8 ff@n9 cp ff@n13
+inv ff@n9 qn
+winv qn ff@n16 ! weak to eliminate "kick back"
+tg ff@n16 ff@9 ff@n13 cp
+nand ff@n16 tn ff@n11
+inv tn ff@n12
+nand ff@n12 qn ff@n10
+nand ff@n10 ff@n11 ff@n1
+
+endmac
+
+! Actual macro for counter. This can be configured as both a
+! 161 or a 163 by option. Usually it is placed in a 161 or 163
+! macro for use.
+
+macro p161p163 mrb cp pi0 pi1 pi2 pi3 pe speb te q3 q2 q1 q0 tc
+
+! first, connect all flip flop units up
+
+!  dn       qn       cp      spen     tn       mrn
+
+ff p161@n14 p161@n17 p161@n9 p161@n34 p161@n8  p161@n5 ! bit 0
+ff p161@n15 p161@n21 p161@n9 p161@n34 p161@n18 p161@n5 ! bit 1
+ff p161@n16 p161@n22 p161@n9 p161@n34 p161@n19 p161@n5 ! bit 2
+ff p161@n35 p161@n23 p161@n9 p161@n34 p161@n20 p161@n5 ! bit 3
+
+! Paralell input buffers, may be omitted
+
+inv pi0 p161@n10 ! bit 0
+inv p161@n10 p161@n14
+inv pi1 p161@n11 ! bit 1
+inv p161@n11 p161@n15
+inv pi2 p161@n12 ! bit 2
+inv p161@n12 p161@n16
+inv pi3 p161@n13 ! bit 3
+inv p161@n13 p161@n35
+
+! Output buffers, may also be omitted
+
+inv p161@n17 p161@n24 ! bit 0
+inv p161@n24 q0
+inv p161@n21 p161@n25 ! bit 1
+inv p161@n25 q1
+inv p161@n22 p161@n26 ! bit 2
+inv p161@n26 q2
+inv p161@n23 p161@n27 ! bit 3
+inv p161@n27 q3
+
+! Other circuitry
+
+inv pe p161@n1
+inv te p161@n2
+nor p161@n1 p161@n2 p161@n7
+inv speb p161@n3
+inv mrb p161@n4
+! the following configures for 161 operation
+nor vss p161@n4 p161@n34
+!nor p161@n3 p161@n4 p161@n34
+inv p161@n4 p161@n5
+inv cp p161@n6
+nand p161@n5 p161@n6 p161@n9
+inv p161@n7 p161@n8
+nand p161@n17 p161@n7 p161@n18
+nand3 p161@n21 p161@n17 p161@n7 p161@n19
+nand3 p161@n22 p161@n7 p161@n29 p161@n20
+nand p161@n17 p161@n21 p161@n31
+inv p161@n31 p161@n29
+nand p161@n22 p161@n23 p161@n32
+nor p161@n31 p161@n32 p161@n33
+inv p161@n2 p161@n30
+nand p161@n30 p161@n33 p161@n28
+inv p161@n28 tc
+
+endmac
+
+! run test on chip
+
+set vcc p
+set vss g
+
+format mrb cp p0 p1 p2 p3 pe ldb te q3 q2 q1 q0 tc ! pins in order
+!format p1611n1 p1611n2 p1611n3 p1611n4 p1611n5 p1611n6 p1611n7 p1611n8
+!format p1611n9 p1611n10 p1611n11 p1611n12 p1611n13 p1611n14 p1611n15 p1611n16
+!format p1611n17 p1611n18 p1611n19 p1611n20 p1611n21 p1611n22 p1611n23 p1611n24
+!format p1611n25 p1611n26 p1611n27 p1611n28 p1611n29 p1611n30 p1611n31 p1611n32
+!format p1611n33 p1611n34 p1611n35
+
+!format ff1n1 ff1n2 ff1n3 ff1n4 ff1n5 ff1n6 ff1n7 ff1n8 ff1n9 ff1n10
+!format ff1n11 ff1n12 ff1n13 ff1n14 ff1n15 ff1n16
+
+
+p161p163 mrb cp p0 p1 p2 p3 pe ldb te q3 q2 q1 q0 tc ! declare package
+
+! set up for ordinary count sequence
+
+set p0 0 ! clear paralell inputs
+set p1 0
+set p2 0
+set p3 0
+
+set ldb 1 ! no load
+set pe 1 ! enable
+set te 1
+
+! provide a reset pulse, then clock
+
+set mrb 0 0 1 10
+set cp 0 0:20 1 30:20 ! 20 cycle clock
+
+set p1 1 356 ! set up $a on paralell inputs
+set p3 1 356
+
+set ldb 0 356 ! bring /ld low
+
+set ldb 1 379 ! bring it back high
+
+step 500
+page
+margin

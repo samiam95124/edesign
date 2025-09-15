@@ -1,0 +1,40 @@
+                         AN OVERVIEW OF IC DESIGN TOOLS
+
+CAS - Assembles a ascii format circuit description to a net file.
+
+CPG - Generates simulation control files.
+
+FLT - Flattens a net.
+
+SIM - Performs switch level simuulation on flat net.
+
+TRC - Converts simulation traces for printout.
+
+Grapics input capabillity - This is a general purpose graphics entry system,
+which can construct cellular grapics.
+
+Schematic extractor - Extracts a net list from a grapics data base based on
+lines and cells.
+
+Layout extractor - Extracts a layout to rectanguar mask level.
+
+Layout editor - Using rectangles only, allows layout edit with rule check.
+Could be hardware accelerated to operate realtime.
+
+DRC - Performs rule check on rectangle database.
+
+Cell generator - General name for any program that automatically generates
+layout cells based on parameters or nets.
+
+ROM/RAM/PLA cell generator - Generates a layout by a fixed plan with
+parameters. Each type of circuit has its own program.
+
+I/O cell generator - As last, but specializes in drive/current adjustment,
+pad size, etc.
+
+TRACK cell generator - A true layout generator, accepts a small netlist, and
+using search methods, generates a custom cell. Accepts a standard height,
+and varies the width to fit. Standard rails are generated. Two types of
+cell I/O can be used. Channel fits connectors to the channel, and pass
+is used to make stacking cells.
+

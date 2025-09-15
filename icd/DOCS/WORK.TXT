@@ -1,0 +1,59 @@
+                            WORK LIST FOR ICD
+
+1. An error in "setend"s 45 deg calculator (I beleive the section that 
+calculates the hypotiouse) occurs in snap and 45. Was not able to repeat
+(random drawing).
+
+2. Beginning a circle at screen center, and progressing towards the lower
+right corner gives an error in "movcur".
+
+3. Start an arc and move left first, will crash.
+
+4. Finishing an arc, the entarc does not know about the arcfwd flag.
+
+5. Errors in input format should be detected, and lit up in red, etc.
+
+6. Alphabetize "files".
+
+8. Implement recycling for all deleted, etc. objects.
+
+9. Rips can be done more efficently. We perform the redraw step all
+at once, using a list of figures as affected by the delete without
+redunancies. Would have to perform a first "affected" pass and list
+construct.
+
+11. I beleive that cutting up arcs and circles in block save and
+block cut modes is possible.
+
+12. Cursor flash can be further reduced by only redrawing indicator
+figures that have actually moved. For instance, the line and box
+indicators only move when they snap to the next grid location
+(in snap mode).
+
+14. Character strings in cells do not transform during placement.
+This requires changing the text mode from characters to strings,
+and converting vchar for rotations.
+
+15. circles/arcs in cells do not rotate properly.
+
+16. The graphics tablet does not allways wake up properly, usually following
+use of mouse emulator. Suspect incomplete reset.
+
+17. Fiddling the shift key shuts down com1: !!! I suspect that direct access
+of the serial port is going to be required (another oddity is the fact that
+the bios routine transmits nulls when the line is inactive).
+
+18. When editting a field, should be able to move the cursor by hitting
+a puck button where the new cursor should be (did before, was roached by
+the edit cancel fixes).
+
+19. Changing modes while text entry is in progress actually cancels the
+string, but leaves it in on display.
+
+20. Should saved/cut blocks be rotatable ?
+
+21. In "test", try creating a new cell and placing "test" several times,
+then do "full". The bounding box is not o.k.
+
+22. "loadlib" needs to do two passes and perform tree analisis and merge
+on incoming cells. Good luck.

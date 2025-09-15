@@ -1,0 +1,18 @@
+rem 
+rem Compile cif2cel program
+rem
+
+alias pascomp if now('!!1.pas') >> now('cif2cel.exe'); expr 'compiling !!1.pas...'; pas !!1/jipln2; set comp 'true'; endif
+set comp 'false'; rem set no file recompiled/assembled
+pascomp cif2cel; if errorlevel # 0; expr '*** Error in cif2cel.pas'; goto term; endif
+rem If any compiles have been performed, a link is required
+if comp == 'true'
+
+   expr 'Linking cif2cel.exe...'
+
+   prolink cif2cel c:\propas\pasdosb/s c:\propas\paslibb/s
+   dir cif2cel.exe/f
+
+endif
+if comp == 'false'; expr '*** Dates current: no action taken'; endif
+label term

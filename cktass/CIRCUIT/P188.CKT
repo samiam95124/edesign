@@ -1,0 +1,310 @@
+{**************************************************************
+
+74188 functional equivalent for simulation
+
+Provides the same function as the 74188, with the ability to
+set internal bits. This net should NOT be used for layout.
+
+**************************************************************}
+
+{**************************************************************
+
+Invert
+
+Inverts a single line.
+
+**************************************************************}
+
+cell inv: vss, vdd, input, output_;
+
+begin
+
+   peif: vdd, input, output_;
+   neif: vss, input, output_
+
+end;
+
+{**************************************************************
+
+Nand 5
+
+Five input nand.
+
+**************************************************************}
+
+cell nand5: vss, vdd, input[0:4], output_;
+
+begin
+
+   peif: vdd, input[0], output_;
+   peif: vdd, input[1], output_;
+   peif: vdd, input[2], output_;
+   peif: vdd, input[3], output_;
+   peif: vdd, input[4], output_;
+   neif: vss, input[0], n1;
+   neif: n1,  input[1], n2;
+   neif: n2,  input[2], n3;
+   neif: n3,  input[3], n4;
+   neif: n4,  input[4], output_
+
+end;
+
+{**************************************************************
+
+And/nand 5
+
+Five input and/nand.
+
+**************************************************************}
+
+cell andn5: vss, vdd, input[0:4], output, output_;
+
+begin
+
+   nand5: vss, vdd, input[0:4], output_; { do the nand }
+   inv: vss, vdd, output_, output { do the and }
+
+end;
+
+{**************************************************************
+
+Tri-state inverter/driver
+
+Inverts and drives a single line, with tri-state enable.
+Both negative and positive enables required.
+
+**************************************************************}
+
+cell trin: vss, vdd, input, output_, enable, enable_;
+
+begin
+
+   peif: vdd,     input,   n1;
+   peif: n1,      enable_, output_;
+   neif: output_, enable, n2;
+   neif: n2,      input,   vss
+
+end;
+
+{**************************************************************
+
+Single bit
+
+Actually a simulation of a "missing transistor" array, includes
+a pull up and pull down with floating gate. The bit is programmed
+by external set.
+
+**************************************************************}
+
+cell bit: vss, vdd, data, enable, enable_;
+
+begin
+
+   peif: enable, bit, data; { pull up }
+   neif: enable_, bit, data  { pull down }
+
+end;
+
+{**************************************************************
+
+Byte memory
+
+A byte vector of memory bits.
+
+**************************************************************}
+
+cell byte: vss, vdd, o[0:7], enable, enable_;
+
+begin
+
+   bit: vss, vdd, o[0], enable, enable_; { define each bit of row }
+   bit: vss, vdd, o[1], enable, enable_;
+   bit: vss, vdd, o[2], enable, enable_;
+   bit: vss, vdd, o[3], enable, enable_;
+   bit: vss, vdd, o[4], enable, enable_;
+   bit: vss, vdd, o[5], enable, enable_;
+   bit: vss, vdd, o[6], enable, enable_;
+   bit: vss, vdd, o[7], enable, enable_
+
+end;
+
+{**************************************************************
+
+Output drive
+
+Accepts a byte vector inverted, and buffers that to a
+non-inverted output, with negative tristate control.
+
+**************************************************************}
+
+cell outdrive: vss, vdd, inputn[0:7], output[0:7], enable_;
+
+begin
+
+   inv: vss, vdd, enable_, enable; { form positive enable }
+
+   trin: vss, vdd, inputn[0], output[0], enable, enable_; { 0 }
+   trin: vss, vdd, inputn[1], output[1], enable, enable_; { 1 }
+   trin: vss, vdd, inputn[2], output[2], enable, enable_; { 2 }
+   trin: vss, vdd, inputn[3], output[3], enable, enable_; { 3 }
+   trin: vss, vdd, inputn[4], output[4], enable, enable_; { 4 }
+   trin: vss, vdd, inputn[5], output[5], enable, enable_; { 5 }
+   trin: vss, vdd, inputn[6], output[6], enable, enable_; { 6 }
+   trin: vss, vdd, inputn[7], output[7], enable, enable_  { 7 }
+
+end;
+
+{**************************************************************
+
+Invert address lines
+
+Performs a five - wide inversion.
+
+**************************************************************}
+
+cell inv5: vss, vdd, input[0:4], output_[0:4];
+
+begin
+
+   inv: vss, vdd, input[0], output_[0]; { find inversions of addresses }
+   inv: vss, vdd, input[1], output_[1];
+   inv: vss, vdd, input[2], output_[2];
+   inv: vss, vdd, input[3], output_[3];
+   inv: vss, vdd, input[4], output_[4]
+
+end;
+
+{**************************************************************
+
+Select one of 32
+
+Accepts 5 address lines, and outputs a low true select on one of
+32 output lines.
+
+**************************************************************}
+
+cell sel32: vss, vdd, a[0:4], sel[0:31], sel_[0:31];
+
+begin
+
+   inv5: vss, vdd, a[0:4], a_[0:4]; { find inversions of addresses }
+   { find each select }
+   andn5: vss, vdd, a_[0], a_[1], a_[2], a_[3], a_[4], sel[0],  sel_[0];
+   andn5: vss, vdd, a[0],  a_[1], a_[2], a_[3], a_[4], sel[1],  sel_[1];
+   andn5: vss, vdd, a_[0], a[1],  a_[2], a_[3], a_[4], sel[2],  sel_[2];
+   andn5: vss, vdd, a[0],  a[1],  a_[2], a_[3], a_[4], sel[3],  sel_[3];
+   andn5: vss, vdd, a_[0], a_[1], a[2],  a_[3], a_[4], sel[4],  sel_[4];
+   andn5: vss, vdd, a[0],  a_[1], a[2],  a_[3], a_[4], sel[5],  sel_[5];
+   andn5: vss, vdd, a_[0], a[1],  a[2],  a_[3], a_[4], sel[6],  sel_[6];
+   andn5: vss, vdd, a[0],  a[1],  a[2],  a_[3], a_[4], sel[7],  sel_[7];
+   andn5: vss, vdd, a_[0], a_[1], a_[2], a[3],  a_[4], sel[8],  sel_[8];
+   andn5: vss, vdd, a[0],  a_[1], a_[2], a[3],  a_[4], sel[9],  sel_[9];
+   andn5: vss, vdd, a_[0], a[1],  a_[2], a[3],  a_[4], sel[10], sel_[10];
+   andn5: vss, vdd, a[0],  a[1],  a_[2], a[3],  a_[4], sel[11], sel_[11];
+   andn5: vss, vdd, a_[0], a_[1], a[2],  a[3],  a_[4], sel[12], sel_[12];
+   andn5: vss, vdd, a[0],  a_[1], a[2],  a[3],  a_[4], sel[13], sel_[13];
+   andn5: vss, vdd, a_[0], a[1],  a[2],  a[3],  a_[4], sel[14], sel_[14];
+   andn5: vss, vdd, a[0],  a[1],  a[2],  a[3],  a_[4], sel[15], sel_[15];
+   andn5: vss, vdd, a_[0], a_[1], a_[2], a_[3], a[4],  sel[16], sel_[16];
+   andn5: vss, vdd, a[0],  a_[1], a_[2], a_[3], a[4],  sel[17], sel_[17];
+   andn5: vss, vdd, a_[0], a[1],  a_[2], a_[3], a[4],  sel[18], sel_[18];
+   andn5: vss, vdd, a[0],  a[1],  a_[2], a_[3], a[4],  sel[19], sel_[19];
+   andn5: vss, vdd, a_[0], a_[1], a[2],  a_[3], a[4],  sel[20], sel_[20];
+   andn5: vss, vdd, a[0],  a_[1], a[2],  a_[3], a[4],  sel[21], sel_[21];
+   andn5: vss, vdd, a_[0], a[1],  a[2],  a_[3], a[4],  sel[22], sel_[22];
+   andn5: vss, vdd, a[0],  a[1],  a[2],  a_[3], a[4],  sel[23], sel_[23];
+   andn5: vss, vdd, a_[0], a_[1], a_[2], a[3],  a[4],  sel[24], sel_[24];
+   andn5: vss, vdd, a[0],  a_[1], a_[2], a[3],  a[4],  sel[25], sel_[25];
+   andn5: vss, vdd, a_[0], a[1],  a_[2], a[3],  a[4],  sel[26], sel_[26];
+   andn5: vss, vdd, a[0],  a[1],  a_[2], a[3],  a[4],  sel[27], sel_[27];
+   andn5: vss, vdd, a_[0], a_[1], a[2],  a[3],  a[4],  sel[28], sel_[28];
+   andn5: vss, vdd, a[0],  a_[1], a[2],  a[3],  a[4],  sel[29], sel_[29];
+   andn5: vss, vdd, a_[0], a[1],  a[2],  a[3],  a[4],  sel[30], sel_[30];
+   andn5: vss, vdd, a[0],  a[1],  a[2],  a[3],  a[4],  sel[31], sel_[31]
+
+end;
+
+{**************************************************************
+
+Unbuffered memory
+
+The actual memory array is held here, without select decode
+and output buffering.
+
+**************************************************************}
+
+cell mem: vss, vdd,              { rails }
+          sel[0:31], sel_[0:31], { select lines }
+          output_[0:7];           { result lines }
+
+begin
+
+   byte: vss, vdd, output_[0:7], sel[0],  sel_[0];  { a 0 }
+   byte: vss, vdd, output_[0:7], sel[1],  sel_[1];  { a 1 }
+   byte: vss, vdd, output_[0:7], sel[2],  sel_[2];  { a 2 }
+   byte: vss, vdd, output_[0:7], sel[3],  sel_[3];  { a 3 }
+   byte: vss, vdd, output_[0:7], sel[4],  sel_[4];  { a 4 }
+   byte: vss, vdd, output_[0:7], sel[5],  sel_[5];  { a 5 }
+   byte: vss, vdd, output_[0:7], sel[6],  sel_[6];  { a 6 }
+   byte: vss, vdd, output_[0:7], sel[7],  sel_[7];  { a 7 }
+   byte: vss, vdd, output_[0:7], sel[8],  sel_[8];  { a 8 }
+   byte: vss, vdd, output_[0:7], sel[9],  sel_[9];  { a 9 }
+   byte: vss, vdd, output_[0:7], sel[10], sel_[10]; { a 10 }
+   byte: vss, vdd, output_[0:7], sel[11], sel_[11]; { a 11 }
+   byte: vss, vdd, output_[0:7], sel[12], sel_[12]; { a 12 }
+   byte: vss, vdd, output_[0:7], sel[13], sel_[13]; { a 13 }
+   byte: vss, vdd, output_[0:7], sel[14], sel_[14]; { a 14 }
+   byte: vss, vdd, output_[0:7], sel[15], sel_[15]; { a 15 }
+   byte: vss, vdd, output_[0:7], sel[16], sel_[16]; { a 16 }
+   byte: vss, vdd, output_[0:7], sel[17], sel_[17]; { a 17 }
+   byte: vss, vdd, output_[0:7], sel[18], sel_[18]; { a 18 }
+   byte: vss, vdd, output_[0:7], sel[19], sel_[19]; { a 19 }
+   byte: vss, vdd, output_[0:7], sel[20], sel_[20]; { a 20 }
+   byte: vss, vdd, output_[0:7], sel[21], sel_[21]; { a 21 }
+   byte: vss, vdd, output_[0:7], sel[22], sel_[22]; { a 22 }
+   byte: vss, vdd, output_[0:7], sel[23], sel_[23]; { a 23 }
+   byte: vss, vdd, output_[0:7], sel[24], sel_[24]; { a 24 }
+   byte: vss, vdd, output_[0:7], sel[25], sel_[25]; { a 25 }
+   byte: vss, vdd, output_[0:7], sel[26], sel_[26]; { a 26 }
+   byte: vss, vdd, output_[0:7], sel[27], sel_[27]; { a 27 }
+   byte: vss, vdd, output_[0:7], sel[28], sel_[28]; { a 28 }
+   byte: vss, vdd, output_[0:7], sel[29], sel_[29]; { a 29 }
+   byte: vss, vdd, output_[0:7], sel[30], sel_[30]; { a 30 }
+   byte: vss, vdd, output_[0:7], sel[31], sel_[31]  { a 31 }
+
+end;
+
+{**************************************************************
+
+Define prom
+
+This is a 32 by 8 prom specifically for simulation. The bit
+gates are left floating, and it is therefore possible to
+program it using "set" commands. It is functionally equivalent
+to the 74188 PROM.
+
+**************************************************************}
+
+cell p188: vss, vdd, { rails }
+           address[0:4],   { address }
+           output[0:7],   { output data }
+           enable_;  { output data enable }
+
+begin
+
+   { The select decoder splits the address into 32 enables,
+     positive and negative }
+
+   sel32: vss, vdd, address[0:4], select[0:31], select_[0:31];
+
+   { The memory array is a grid of bits and select lines }
+
+   mem: vss, vdd, select[0:31], select_[0:31], idata_[0:7];
+
+   { The output drivers give tri-state control, drive, and
+     "right" the stored internal data }
+
+   outdrive: vss, vdd, idata_[0:7], output[0:7], enable_
+
+end
+

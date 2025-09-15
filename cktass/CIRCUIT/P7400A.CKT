@@ -1,0 +1,444 @@
+{**************************************************************
+*                                                             *
+*               7400 SERIES PACKAGE CIRCUITS                  *
+*                                                             *
+* This is a library of 7400 series packages. Each package     *
+* is named as "P7400", where the number corresponds to the    *
+* 7400 series package number. Each pin is listed in the cell  *
+* parameter list in order, from pin 1 as the first parameter, *
+* etc.                                                        *
+* This library may be used to perform simulation of a PCB     *
+* level design, or may be used to translate a such a design   *
+* to various IC technologies.                                 *
+* As such, it is something of a compromise. As much as        *
+* possible, standard cells have been used, and input/output   *
+* buffering is not included. Where close simulation of the    *
+* actual package is needed, a library that does include these *
+* should be used.                                             *
+* Certain rules are obeyed. No more than one high impedance   *
+* input is connected to a given pin, and all outputs are free *
+* from kickback effects.                                      *
+* One major difference is that master/slave flip-flops are    *
+* used instead of true edge detecting "D" types. Such FF's    *
+* are principally needed in asyncronous systems, and this     *
+* should not even be noticed.                                 *
+* Note also that the issue of level shifting is not addressed *
+* here.                                                       *
+*                                                             *
+**************************************************************}
+
+{**************************************************************
+*                                                             *
+*     7400 - Quad 2 input nand gate                           *
+*                                                             *
+**************************************************************}
+
+cell p7400: a1, b1, o1, a2, b2, o2, vss, o3, a3, b3, o4, a4, b4, vdd;
+
+begin
+
+   nand: vss, vdd, a1, b1, o1; { 1st }
+   nand: vss, vdd, a2, b2, o2; { 2nd }
+   nand: vss, vdd, a3, b3, o3; { 3rd }
+   nand: vss, vdd, a4, b4, o4  { 4th }
+
+end;
+
+{**************************************************************
+*                                                             *
+*     7402 - Quad 2 input nor gate                            *
+*                                                             *
+**************************************************************}
+
+cell p7402: a1, b1, o1, a2, b2, o2, vss, o3, a3, b3, o4, a4, b4, vdd;
+
+begin
+
+   nor: vss, vdd, a1, b1, o1; { 1st }
+   nor: vss, vdd, a2, b2, o2; { 2nd }
+   nor: vss, vdd, a3, b3, o3; { 3rd }
+   nor: vss, vdd, a4, b4, o4  { 4th }
+
+end;
+
+{**************************************************************
+*                                                             *
+*     7403 - Quad 2 input nand gate with open drain           *
+*                                                             *
+**************************************************************}
+
+cell p7403: a1, b1, o1, a2, b2, o2, vss, o3, a3, b3, o4, a4, b4, vdd;
+
+begin
+
+   neif: o1, a1, n1; { 1st }
+   neif: n1, b1, vss;
+   neif: o2, a2, n2; { 2nd }
+   neif: n2, b2, vss;
+   neif: o3, a3, n3; { 3rd }
+   neif: n3, b3, vss;
+   neif: o4, a4, n4; { 4th }
+   neif: n4, b4, vss
+
+end;
+
+{**************************************************************
+*                                                             *
+*     7404 - Hex inverter                                     *
+*                                                             *
+**************************************************************}
+
+cell p7404: i1, o1, i2, o2, i3, o3, vss, o4, i4, o5, i5, o6, i6, vdd;
+
+begin
+
+   inv: vss, vdd, i1, o1; { 1st }
+   inv: vss, vdd, i2, o2; { 2nd }
+   inv: vss, vdd, i3, o3; { 3rd }
+   inv: vss, vdd, i4, o4; { 4th }
+   inv: vss, vdd, i5, o5; { 5th }
+   inv: vss, vdd, i6, o6  { 6th }
+
+end;    
+
+{**************************************************************
+*                                                             *
+*     7408 - Quad 2 input and gate                            *
+*                                                             *
+**************************************************************}
+
+cell p7408: a1, b1, o1, a2, b2, o2, vss, o3, a3, b3, o4, a4, b4, vdd;
+
+begin
+
+   and: vss, vdd, a1, b1, o1; { 1st }
+   and: vss, vdd, a2, b2, o2; { 2nd }
+   and: vss, vdd, a3, b3, o3; { 3rd }
+   and: vss, vdd, a4, b4, o4  { 4th }
+
+end;
+
+{**************************************************************
+*                                                             *
+*     7410 - triple 3 input nand gate                         *
+*                                                             *
+**************************************************************}
+
+cell p7410: a1, b1, a2, b2, c2, o2, vss, o3, a3, b3, c3, o1, c1, vdd;
+
+begin
+
+   nand3: vss, vdd, a1, b1, c1, o1; { 1st }
+   nand3: vss, vdd, a2, b2, c2, o2; { 2nd }
+   nand3: vss, vdd, a3, b3, c3, o3  { 3rd }
+
+end;
+
+{**************************************************************
+*                                                             *
+*     7411 - triple 3 input and gate                          *
+*                                                             *
+**************************************************************}
+
+cell p7411: a1, b1, a2, b2, c2, o2, vss, o3, a3, b3, c3, o1, c1, vdd;
+
+begin
+
+   and3: vss, vdd, a1, b1, c1, o1; { 1st }
+   and3: vss, vdd, a2, b2, c2, o2; { 2nd }
+   and3: vss, vdd, a3, b3, c3, o3  { 3rd }
+
+end;
+
+{**************************************************************
+*                                                             *
+*     7414 - Hex inverting schmitt trigger                    *
+*                                                             *
+**************************************************************}
+
+cell p7414: i1, o1, i2, o2, i3, o3, vss, o4, i4, o5, i5, o6, i6, vdd;
+
+begin
+
+   sct: vss, vdd, i1, o1; { 1st }
+   sct: vss, vdd, i2, o2; { 2nd }
+   sct: vss, vdd, i3, o3; { 3rd }
+   sct: vss, vdd, i4, o4; { 4th }
+   sct: vss, vdd, i5, o5; { 5th }
+   sct: vss, vdd, i6, o6  { 6th }
+
+end;
+
+{**************************************************************
+*                                                             *
+*     7420 - Dual four input nand gate                        *
+*                                                             *
+**************************************************************}
+
+macro p7420 a1 b1 nc3 c1 d1 o1 gnd o2 a2 b2 nc11 c2 d2 pwr
+
+begin
+
+   and4: vss, vdd, a1, b1, c1, d1, o1; { 1st }
+   and4: vss, vdd, a2, b2, c2, d2, o2  { 2nd }
+
+end;
+
+{**************************************************************
+*                                                             *
+*     7421 - Dual input and gate                              *
+*                                                             *
+**************************************************************}
+
+cell p7420: a1, b1, nc3, c1, d1, o1, vss, o2, a2, b2, nc11, c2, d2, vdd;
+
+begin
+
+   and4: vss, vdd, a1, b1, c1, d1, o1; { 1st }
+   and4: vss, vdd, a2, b2, c2, d2, o2  { 2nd }
+
+end;
+
+{**************************************************************
+*                                                             *
+*     7427 - triple 3 input nor gate                          *
+*                                                             *
+**************************************************************}
+
+cell p7427: a1, b1, a2, b2, c2, o2, vss, o3, a3, b3, c3, o1, c1, vdd;
+
+begin
+
+   nor3: vss, vdd, a1, b1, c1, o1; { 1st }
+   nor3: vss, vdd, a2, b2, c2, o2; { 2nd }
+   nor3: vss, vdd, a3, b3, c3, o3  { 3rd }
+
+end;
+
+{**************************************************************
+*                                                             *
+*     7430 8 input nand gate                                  *
+*                                                             *
+**************************************************************}
+
+cell p7430: a, b, c, d, e, f, vss, o, nc9, nc10, g, h, nc13, vdd;
+
+begin
+
+  nand8: vss, vdd, a, b, c, d, e, f, g, h, o
+
+end;
+
+{**************************************************************
+*                                                             *
+*     7432 - Quad 2 input or gate                             *
+*                                                             *
+**************************************************************}
+
+cell p7400: a1, b1, o1, a2, b2, o2, gnd, o3, a3, b3, o4, a4, b4, pwr;
+
+begin
+
+   or: vss, vdd, a1, b1, o1; { 1st }
+   or: vss, vdd, a2, b2, o2; { 2nd }
+   or: vss, vdd, a3, b3, o3; { 3rd }
+   or: vss, vdd, a4, b4, o4  { 4th }
+
+end;
+
+{**************************************************************
+*                                                             *
+*     7442 BCD to decimal decoder (1 of 10)                   *
+*                                                             *
+**************************************************************}
+
+cell p7442: o0, o1, o2, o3, o4, o5, o6, vss, o7, o8, o9, a3, a2,
+            a1, a0, vdd;
+
+begin
+
+   inv: vss, vdd, a0, n1; * find address invertions
+   inv: vss, vdd, a1, n2;
+   inv: vss, vdd, a2, n3;
+   inv: vss, vdd, a3, n4;
+
+   nor: vss, vdd, a0, a1, n9; * 1st level
+   nor: vss, vdd, n1, a1, n10;
+   nor: vss, vdd, a0, n2, n11;
+   nor: vss, vdd, n1, n2, n12;
+   nor: vss, vdd, a2, a3, n13;
+   nor: vss, vdd, n3, a3, n14;
+   nor: vss, vdd, a2, n4, n15;
+
+   nand: vss, vdd, n9,  n13, o0; * 2nd level
+   nand: vss, vdd, n10, n13, o1;
+   nand: vss, vdd, n11, n13, o2;
+   nand: vss, vdd, n12, n13, o3;
+   nand: vss, vdd, n10, n14, o4;
+   nand: vss, vdd, n10, n14, o5;
+   nand: vss, vdd, n11, n14, o6;
+   nand: vss, vdd, n12, n14, o7;
+   nand: vss, vdd, n9,  n15, o8;
+   nand: vss, vdd, n10, n15, o9
+
+end;
+
+***************************************************************
+*                                                             *
+*     Dual JK flip-flop with reset and negative edge          *
+*     trigger.                                                *
+*                                                             *
+***************************************************************
+
+cell p7473: cp1_, r1_, k1, vdd, cp2_, r2_, j2, q2_, q2,
+            k2, vss, q1, q1_, j1;
+
+begin
+
+   inv:  vss, vdd, cp1_, cp1; { form negative clocks }
+   inv:  vss, vdd, cp2_, cp2;
+   inv:  vss, vdd, r1_, r1;   { form negative resets }
+   inv:  vss, vdd, r2_, r2;
+   jkbr: vss, vdd, j1, k1, q1, q1_, cp1, r1; { unit 1 }
+   jkbr: vss, vdd, j2, k2, q2, q2_, cp2, r2  { unit 2 }
+
+end;
+
+***************************************************************
+*                                                             *
+*     Dual D flip-flop with set and reset.                    *
+*                                                             *
+***************************************************************
+
+cell p7474: r1_, d1, cp1, s1_, q1, q1_, vss, q2_, q2, s2_,
+            cp2, d2, r2_, vdd;
+
+begin
+
+   inv:    vss, vdd, r1_, r1; { form positive resets }
+   inv:    vss, vdd, r2_, r2;
+   inv:    vss, vdd, s1_, s1; { form positive sets }
+   inv:    vss, vdd, s2_, s2;
+   cltbrs: vss, vdd, d1, q1, q1_, cp1, s1, r1; { unit 1 }
+   cltbrs: vss, vdd, d2, q2, q2_, cp2, s2, r2  { unit 1 }
+
+end;
+
+{**************************************************************
+*                                                             *
+*     Dual 2 bit transparent latch                            *
+*                                                             *
+**************************************************************}
+
+cell p7475: qa0_, da0, da1, eb_, vdd, db0, db1, qb1_, qb1,
+            qb0, qb0_, vss, ea_, qa1_, qa1, qa0;
+
+begin
+
+   inv: ea_, ea; { form positive enables }
+   inv: eb_, eb;
+   ftlb: vss, vdd, da0, qa0, qa0_, ea; { 0 of A }
+   ftlb: vss, vdd, da1, qa1, qa1_, ea; { 1 of A }
+   ftlb: vss, vdd, db0, qb0, qb0_, eb; { 0 of B }
+   fltb: vss, vdd, db1, qb1, qb1_, eb  { 1 of B }
+
+end;
+
+{**************************************************************
+*                                                             *
+*     Four bit magnitude comparitor                           *
+*                                                             *
+**************************************************************}
+
+cell p7485: b3, altbi, aeqbi, agtbi, agtbo, aeqbo, altbo,
+            vss, b0, a0, b1, a1, a2, b2, a3;
+
+begin
+
+   bufnp: vss, vdd, a0, a0b, a0b_; { buffer inputs }
+   bufnp: vss, vdd, a1, a1b, a1b_;
+   bufnp: vss, vdd, a2, a2b, a2b_;
+   bufnp: vss, vdd, a3, a3b, a3b_;
+   bufnp: vss, vdd, b0, b0b, b0b_;
+   bufnp: vss, vdd, b1, b1b, b1b_;
+   bufnp: vss, vdd, b2, b2b, b2b_;
+   bufnp: vss, vdd, b3, b3b, b3b_;
+   inv:   vss, vdd, altbi, altbi_;
+   inv:   vss, vdd, aeqbi, aeqbi_;
+   inv:   vss, vdd, agtbi, agtbi_;
+   xor:   vss, vdd, a0, b0, aeqb0; { find differences }
+   xor:   vss, vdd, a1, b1, aeqb1;
+   xor:   vss, vdd, a2, b2, aeqb2;
+   xor:   vss, vdd, a3, b3, aeqb3;
+   nand:  vss, vdd, a2, b2_, n1; { do combinatorial }
+   nand:  vss, vdd, a3, b3_, n2;
+   nand:  vss, vdd, a1, b1_, n3;
+   or:    vss, vdd, aeqb3, n1, n4;
+   or3:   vss, vdd, aeqb3, aeqb2, n3, n5;
+   nand3: vss, vdd, n4, n2, n5, n6;
+   nor3:  vss, vdd, aeqb3, aeqb2, aeqb1, n7;
+   or:    vss, vdd, aeqbi_, aeqb0, n8;
+   or:    vss, vdd, agtbi_, aeqb0, n9;
+   nand:  vss, vdd, b0_, a0, n10;
+   nand3: vss, vdd, n8, n9, n10, n17;
+   and:   vss, vdd, n7, n17, n21;
+   nor:   vss, vdd, n6, n21, altbo;
+   inv:   vss, vdd, n7, n22;
+   nor3:  vss, vdd, aeqbi_, n22, aeqb0, aeqbo;
+   nand:  vss, vdd, b0, a0_, n11;
+   or:    vss, vdd, altbi_, aeqb0, n12;
+   or:    vss, vdd, aeqbi_, aeqb0, n13;
+   nand3: vss, vdd, n11, n12, n13, n18;
+   and:   vss, vdd, n7, n18, n19;
+   nand:  vss, vdd, a1_, b1, n23;
+   nand:  vss, vdd, a3_, b3, n15;
+   nand:  vss, vdd, a2_, b2, n24;
+   or3:   vss, vdd, n23, aeqb2, aeqb3, n14;
+   or3:   vss, vdd, n24, aeqb2, aeqb3, n16;
+   nand3: vss, vdd, n14, n15, n16, n20;
+   nor:   vss, vdd, n19, n20, agtbo
+
+end;
+
+***************************************************************
+*                                                             *
+*     Quad exclusive or gate                                  *
+*                                                             *
+***************************************************************
+
+cell p7486: a1, b1, y1, a2, b2, y2, vss, y3, a3, b3, y4, a4,
+            b4, vdd;
+
+begin
+
+   xor1: vss, vdd, a1, b1, y1; { use orthodox gate }
+   xor1: vss, vdd, a2, b2, y2;
+   xor1: vss, vdd, a3, b3, y3;
+   xor1: vss, vdd, a4, b4, y4
+
+end;
+
+***************************************************************
+*                                                             *
+*     Four bit binary ripple counter                          *
+*                                                             *
+***************************************************************
+
+cell p7493: cp1_, mr1, mr2, nc4, vdd, nc6, nc7, q2, a1, vss,
+            q3, q0, nc13, cp0_;
+
+begin
+
+   bufnp: vss, vdd, cp0_, cp0_, cp0; { buffer inputs }
+   and:  vss, vdd, mr1, mr2, reset; { find reset }
+   togr: vss, vdd, q0i, q0i_, cp0_, cp0, reset; { 0 }
+   togr: vss, vdd, q1i, q1i_, cp1_, cp1, reset; { 1 }
+   togr: vss, vdd, q2i, q2i_, q1i_, q1i, reset; { 2 }
+   togr: vss, vdd, q3i, q3i_, q2i_, q2i, reset; { 3 }
+   inv: q0i_, q0; { buffer outputs }
+   inv: q1i_, q1;
+   inv: a2i_, q2;
+   inv: a3i_, q3
+
+end;
+

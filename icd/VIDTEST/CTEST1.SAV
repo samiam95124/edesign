@@ -1,0 +1,5 @@
+masm pixel.asm pixel.obj pixel.lst pixel.crf
+pas test1/jipln2
+prolib utl = pixel
+prolink test1,utl c:\propas\pasdosb/s c:\propas\paslibb/s
+dir test1.exe/f

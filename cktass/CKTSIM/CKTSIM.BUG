@@ -1,0 +1,17 @@
+             PROBLEMS WITH CKTSIM COMPILATION
+
+1. The evaluation tables were to big to fit through the linker, so
+they have been coded in assembly. The pascal version and the assm
+version should be updated in peralell allways.
+
+2. The array calulation for table lookup, presently only done in
+"clock", seems to think the array size is 34 when the correct figure
+is 32. Only an assembly patch will fix. This consists of knocking out
+a +1 power from the multiplication. Clock contains two of them.
+On the present version:
+
+   $41cc  is 19 s/b 00
+   $4215  is 09 s/b 00
+
+This of course would change with code changes before "clock".
+

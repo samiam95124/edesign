@@ -1,0 +1,1 @@
+icdesgno oti1280x1024x16 summasii fjdl3400

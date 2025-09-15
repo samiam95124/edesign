@@ -1,0 +1,49 @@
+cell inv: vss, vdd, input, output_;
+
+begin
+
+   peif: vdd, input, output_, 1, 1;
+   neif: vss, input, output_, 1, 1
+
+end;
+
+cell junk: vss, vdd, a[0:3];
+
+begin
+
+   inv: vss, vdd, a[0:1];
+   inv: vss, vdd, a[2:3]
+
+end
+
+{
+
+cell domains:
+
+junk
+
+junk.inv.1
+junk.inv.2
+
+Nodes:
+
+junk.vss
+junk.vdd
+junk.a[0]
+junk.a[1]
+junk.a[2]
+junk.a[3]
+junk.inv.1.vss
+junk.inv.1.vdd
+junk.inv.1.input
+junk.inv.1.output_
+junk.inv.2.vss
+junk.inv.2.vdd
+junk.inv.2.input
+junk.inv.2.output_
+
+
+
+junk#3.inv#2.output_
+
+}

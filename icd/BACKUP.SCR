@@ -1,0 +1,36 @@
+del a:*.pas
+del a:*.scr
+del a:*.txt
+del a:*.wri
+del a:*.bmp
+del a:*.asm
+copy *.pas a:
+copy *.scr a:
+copy *.txt a:
+copy *.wri a:
+copy *.bmp a:
+copy *.asm a:
+copy paradise\*.pas a:
+copy paradise\*.scr a:
+copy paradise\*.txt a:
+copy paradise\*.wri a:
+copy paradise\*.bmp a:
+copy paradise\*.asm a:
+copy summasii\*.pas a:
+copy summasii\*.scr a:
+copy summasii\*.txt a:
+copy summasii\*.wri a:
+copy summasii\*.bmp a:
+copy summasii\*.asm a:
+copy fjdl3400\*.pas a:
+copy fjdl3400\*.scr a:
+copy fjdl3400\*.txt a:
+copy fjdl3400\*.wri a:
+copy fjdl3400\*.bmp a:
+copy fjdl3400\*.asm a:
+copy docs\*.pas a:
+copy docs\*.scr a:
+copy docs\*.txt a:
+copy docs\*.wri a:
+copy docs\*.bmp a:
+copy docs\*.asm a:

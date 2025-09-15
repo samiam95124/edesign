@@ -1,0 +1,376 @@
+                          FORMAT OF NET/SIM/TRC FILES
+
+Discussion: the format is in two parts. The first part is commands in a ".sim"
+or ".set" file, which are admissable to both software and hardware simulators.
+The second part are the extentions that give the flat net structure to form
+a ".net" file. These are considered "pseudo" commands, and must be removed
+before simulation.
+When simulating under software, the two files .sim and .set are automatically
+read, and the simulation run to generate the .trc file. The hardware driver
+first resets the simulator, then reads the .sim and .set files, stripping the
+reset/end markers, then includes a run command automatically. This is followed
+by a trace read command to fill the .trc file.
+Note that although node addresses and clock times are passed as 32 bits, the
+actual limit is determined by the individual processor, and an error may
+result if the address/time is too large (for example, larger than 64k).
+Also, it is customary to leave the 32nd bit clear, as this allows 
+compatibility with signed numbers.
+
+Reset simulator:
+
+     7 6 5 4 3 2 1 0
+     ---------------
+0:   0 0 0 0 0 0 0 0
+
+Under software simulation, this command signifies the end of the .sim or .set
+file. Under hardware, it performs a general reset.
+
+Enter transistor:
+
+     7 6 5 4 3 2 1 0
+     ---------------
+0:   0 0 0 1 0 0 T S
+                 | |
+                 | ----> Strength: 0 = strong, 1 = weak
+                 ------> Type:     0 = P channel, 1 = N channel
+
+1:   S S S S S S S S --> High byte of 32 bit source node address
+2:   S S S S S S S S --> High middle byte "" ""
+3:   S S S S S S S S --> Low middle byte "" ""
+4:   S S S S S S S S --> Low middle byte of "" ""
+
+5:   G G G G G G G G --> High byte of 32 bit gate node address
+6:   G G G G G G G G --> High middle byte "" ""
+7:   G G G G G G G G --> Low middle byte "" ""
+8:   G G G G G G G G --> Low byte of "" ""
+
+9:   D D D D D D D D --> High byte of 32 bit drain node address
+10:  D D D D D D D D --> High middle byte "" ""
+11:  D D D D D D D D --> Low middle byte "" ""
+12:  D D D D D D D D --> Low byte of "" ""
+
+13:  S E E E E E E E --> High byte of 32 bit IEEE float for channel width
+                         in meters.
+14:  E M M M M M M M --> High middle "" ""
+15:  M M M M M M M M --> Low middle  "" ""
+16:  M M M M M M M M --> Low byte    "" ""
+
+17:  S E E E E E E E --> High byte of 32 bit IEEE float for channel length
+                         in meters.
+18:  E M M M M M M M --> High middle "" ""
+19:  M M M M M M M M --> Low middle  "" ""
+20:  M M M M M M M M --> Low byte of "" ""
+
+Enters a transistor. The address of each device is in order received, starting
+with 0. Note that the state simulator discards the width and length
+parameters.
+
+Enter resistor:
+
+     7 6 5 4 3 2 1 0
+     ---------------
+0:   0 0 1 0 0 0 0 0
+
+1:   A A A A A A A A --> High byte of 32 bit A terminal node address
+2:   A A A A A A A A --> High middle byte of "" ""
+3:   A A A A A A A A --> Low middle byte of "" ""
+4:   A A A A A A A A --> Low byte of    "" ""
+
+5:   B B B B B B B B --> High byte of 32 bit B terminal node address
+6:   B B B B B B B B --> High middle byte "" ""
+7:   B B B B B B B B --> Low middle byte "" ""
+8:   B B B B B B B B --> Low byte    "" ""
+
+9:   S E E E E E E E --> High byte of 32 bit IEEE float for resistance
+                         in ohms.
+10:  E M M M M M M M --> High middle byte of resistance
+11:  M M M M M M M M --> Low middle byte of resistance
+12:  M M M M M M M M --> Low byte of resistance
+
+Enters a resistor. The same comments apply as in a transistor. For the state
+simulator, the resistance is discarded, and in fact, the device is translated
+internally into a weak transistor (P or N irrelivant) with the gate wired
+ON. This simulates a resistor.
+
+Set node trace:
+
+     7 6 5 4 3 2 1 0
+     ---------------
+0:   0 0 1 1 0 0 0 0
+
+1:   N N N N N N N N --> High byte of 32 bit node address
+2:   N N N N N N N N --> High middle byte "" ""
+3:   N N N N N N N N --> Low middle byte "" ""
+4:   N N N N N N N N --> Low byte    "" ""
+
+Sets a given node for tracing.
+
+Enter step count:
+
+     7 6 5 4 3 2 1 0
+     ---------------
+0:   0 1 0 0 0 0 0 0
+
+1:   S S S S S S S S --> High byte of 32 bit step count
+2:   S S S S S S S S --> High middle byte "" ""
+3:   S S S S S S S S --> Low middle byte "" ""
+4:   S S S S S S S S --> Low byte    "" ""
+
+Sets the number of steps that will be performed.
+
+Set node value:
+
+     7 6 5 4 3 2 1 0
+     ---------------
+0:   0 1 0 1 V V V V
+             -------
+                |
+                -------> Node value to set. A 16 value variable
+                         representing node states.
+
+1:   T T T T T T T T --> High byte of 32 bit set time.
+2:   T T T T T T T T --> High middle byte "" ""
+3:   T T T T T T T T --> Low middle byte "" ""
+4:   T T T T T T T T --> Low byte    "" ""
+
+5:   N N N N N N N N --> High byte of 32 bit node address.
+6:   N N N N N N N N --> High middle byte "" ""
+7:   N N N N N N N N --> Low middle byte "" ""
+8:   N N N N N N N N --> Low byte    "" ""
+
+Enters a node set. The analog simulator will give an error on this command.
+
+Run simulation:
+
+     7 6 5 4 3 2 1 0
+     ---------------
+0:   0 1 1 0 0 0 0 0
+
+Begins simulation. This command may be ignored or cause EOF on the software
+simulator. If present, it should appear only at the end of the .set file.
+
+Read trace memory:
+
+     7 6 5 4 3 2 1 0
+     ---------------
+0:   0 1 1 1 0 0 0 0
+
+Causes the trace memory to be read (see return codes, below). This command
+has no meaning to the software simulator, and will be treated as a no-op.
+For the state simulator, the traces are returned as state values. For the
+analog simulator, the traces are returned as voltages. See the return format.
+
+Set node capacitience:
+
+     7 6 5 4 3 2 1 0
+     ---------------
+0:   1 0 0 0 0 0 0 0
+
+1:   N N N N N N N N --> High byte of 32 bit node address
+2:   N N N N N N N N --> High middle byte "" ""
+3:   N N N N N N N N --> Low middle byte "" ""
+4:   N N N N N N N N --> Low byte    "" ""
+
+5:   S E E E E E E E --> High byte of 32 bit IEEE float for capacitience
+                         in farads.
+6:   E M M M M M M M --> High middle byte "" ""
+7:   M M M M M M M M --> Low middle byte  "" ""
+8:   M M M M M M M M --> Low byte         "" ""
+
+Enters node parameters. the capacitience is discarded in the state
+simulator. IT IS NOT A DEVICE, and is not counted. It is simply parameters
+of a node. Multiple sets for the same node will leave the node capacitience
+at the last encountered value. Note that node capacitience defaults to 0
+if not set.
+
+Set analog node value:
+
+     7 6 5 4 3 2 1 0
+     ---------------
+0:   1 0 0 1 0 0 X A
+                 | |
+                 | -----> Add value. 0 = voltage replaces node calculated
+                 |        value, 1 = voltage is added to node calculated
+                 |        value.
+                 -------> Remove drive. 0 = voltage given drives node.
+                          1 = node is not driven.
+
+1:   T T T T T T T T --> High byte of 32 bit time.
+2:   T T T T T T T T --> High middle byte of time.
+3:   T T T T T T T T --> Low middle byte of time.
+4:   T T T T T T T T --> Low byte of time.
+
+5:   N N N N N N N N --> High byte of 32 bit node address
+6:   N N N N N N N N --> High middle byte "" ""
+7:   N N N N N N N N --> Low middle byte "" ""
+8:   N N N N N N N N --> Low byte    "" ""
+
+9:   S E E E E E E E --> High byte of IEEE 32 float value for voltage.
+10:  E M M M M M M M --> High middle byte of voltage.
+11:  E M M M M M M M --> Low middle byte of voltage.
+12:  E M M M M M M M --> Low byte of voltage.
+
+Sets an analog voltage. Note that the state simulator will generate an error
+on encountering this command. The add bit determines if the voltage given
+is added to the calculated node voltage, or replaces it. If the node is
+indicated for drive removal, then voltage setting is removed, and the node
+goes back to the calculated voltage. In this case, the voltage parameter is
+ignored.
+
+Set span:
+
+     7 6 5 4 3 2 1 0
+     ---------------
+0:   1 0 1 0 0 0 0 0
+
+1:   S E E E E E E E --> High byte of IEEE 32 float value for span,
+                         in seconds.
+2:   E M M M M M M M --> High middle byte of span.
+3:   M M M M M M M M --> Low middle byte of span.
+4:   M M M M M M M M --> Low byte of span.
+
+Sets the time span, in seconds, that occur on each step. This command is
+ignored by the state simulator.
+
+Set trace limit:
+
+     7 6 5 4 3 2 1 0
+     ---------------
+0:   1 0 1 1 0 0 0 0
+
+1:   S E E E E E E E --> High byte of IEEE 32 float value for limit,
+                         in volts.
+2:   E M M M M M M M --> High middle byte of limit.
+3:   M M M M M M M M --> Low middle byte of limit.
+4:   M M M M M M M M --> Low byte of limit.
+
+Sets the trace limit, or the maximum voltage change required before a trace
+is output. The state simulator ignores this command.
+
+Set process parameters:
+
+     7 6 5 4 3 2 1 0
+     ---------------
+0:   1 1 0 0 0 0 0 0
+
+1:   S E E E E E E E --> High byte of IEEE 32 float value for P channel
+                         threshold, in volts.
+2:   E M M M M M M M --> High middle byte of P threshold.
+3:   E M M M M M M M --> Low middle byte of P threshold.
+4:   E M M M M M M M --> Low byte of P threshold.
+
+5:   S E E E E E E E --> High byte of IEEE 32 float value for N channel
+                         threshold, in volts.
+6:   E M M M M M M M --> High middle byte of N threshold.
+7:   E M M M M M M M --> Low middle byte of N threshold.
+8:   E M M M M M M M --> Low byte of N threshold.
+
+9:   S E E E E E E E --> High byte of IEEE 32 float value for P channel
+                         process constant K.
+10:  E M M M M M M M --> High middle byte of P constant.
+11:  E M M M M M M M --> Low middle byte of P constant.
+12:  E M M M M M M M --> Low byte of P constant.
+
+13:  S E E E E E E E --> High byte of IEEE 32 float value for N channel
+                         process constant K.
+14:  E M M M M M M M --> High middle byte of N constant.
+15:  E M M M M M M M --> Low middle byte of N constant.
+16:  E M M M M M M M --> Low byte of N constant.
+
+Sets the P channel threshold voltage, P channel process constant, N channel
+threshold voltage, and N channel process constant. This command is ignored
+by the state simulator.
+
+NET ONLY COMMANDS
+
+Cell start:
+
+     7 6 5 4 3 2 1 0
+     ---------------
+0:   0 1 0 0 0 0 0 1
+
+Marks the beginning of a cell. Must be removed in flat.
+
+Cell end:
+
+     7 6 5 4 3 2 1 0
+     ---------------
+0:   0 1 0 0 0 0 1 0
+
+Marks the end of a cell. Must be removed in flat.
+
+Cell reference:
+
+     7 6 5 4 3 2 1 0
+     ---------------
+0:   0 1 0 0 0 0 1 1
+
+1:   C C C C C C C C --> High byte of 16 bit cell number.
+2:   C C C C C C C C --> Low byte of 16 bit cell number.
+
+3:   P P P P P P P P --> 8 bit count of parameters for cell.
+
+4:   N N N N N N N N --> High byte of node address for parameter.
+5:   N N N N N N N N --> Middle byte of node address.
+6:   N N N N N N N N --> Middle byte of node address.
+7:   N N N N N N N N --> Low byte of node address.
+
+Introduces a cell reference. The number of the included cell is given,
+with the number of parameters to the cell, and a list of the nodes to replace
+the included cell's parameters. Note that the node address bytes are repeated
+for the number of parameters given in the parameter count.
+
+RETURN FORMATS
+
+Error/status
+
+     7 6 5 4 3 2 1 0
+     ---------------
+0:   0 0 0 0 E E E E
+             -------
+                |
+                -------> Error code
+
+Returned on the hardware simulators when an error or status report is
+required.
+
+State trace entry:
+
+     7 6 5 4 3 2 1 0
+     ---------------
+0:   0 0 0 1 S S S S
+             -------
+                |
+                -------> Node state
+
+1:   T T T T T T T T --> High byte of 32 bit time
+2:   T T T T T T T T --> High middle byte "" ""
+3:   T T T T T T T T --> Low middle byte "" ""
+4:   T T T T T T T T --> Low byte    "" ""
+
+5:   N N N N N N N N --> High byte of 32 bit node address
+6:   N N N N N N N N --> High middle byte "" ""
+7:   N N N N N N N N --> Low middle byte "" ""
+8:   N N N N N N N N --> Low byte    "" ""
+
+Returns a state value node trace. This format is allways returned by the
+state simulator.
+
+Analog trace entry:
+
+     7 6 5 4 3 2 1 0
+     ---------------
+0:   0 0 1 0 0 0 0 0
+
+1:   T T T T T T T T --> High byte of 32 bit time
+2:   T T T T T T T T --> Middle byte "" ""
+3:   T T T T T T T T --> Middle byte "" ""
+4:   T T T T T T T T --> Low byte    "" ""
+
+5:   S E E E E E E E --> High byte of IEEE float for node voltage
+6:   E M M M M M M M --> High middle byte "" ""
+7:   M M M M M M M M --> Low middle byte  "" ""
+8:   M M M M M M M M --> low byte         "" ""
+
+Returns an analog trace This format is allways returned by the analog
+simulator.

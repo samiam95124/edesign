@@ -1,0 +1,265 @@
+.he CIRCUIT CONSTRUCTION SYSTEM
+
+PURPOSE AND COMPONENTS
+
+.in +5
+The circuit contruction system consists of a series of utilities, which will
+accomplish the following:
+
+.lm +5
+.rm -5
+1. Convert a circuit description from ascii format to hierarchical netlist.
+
+2. Convert from a grapical database onto netlist.
+
+3. Convert to or from an alternate format netlist to or from the system
+netlist.
+
+4. Convert a pattern generation and simulation control file to the system
+control file format.
+
+5. Perform high-speed simulation and faulting.
+
+6. Convert simulation results to graphic printout.
+
+.lm -5
+.rm + 5
+.in +5
+These actions are accomplished by the following utilities:
+
+.lm +5
+.rm -5
+cas - Circuit assembler. Converts an ascii source file to a netlist.
+
+cpg - Circuit pattern generator. Converts an ascii pattern generation
+specification to a set file.
+
+sim - Circuit simulator. Simulates a given circuit.
+
+trc - Trace convertion utility. Converts output trace files to ascii
+graphic output files.
+
+.lm -5
+.rm +5
+.in +5
+The following file types are used:
+
+.lm +5
+.rm -5
+file.ckt - Contains an ascii circuit source.
+
+file.ctl - Contains ascii pattern generator statements.
+
+file.fmt - Contains ascii trace format statements.
+
+file.net - The binary netlist.
+
+file.dic - The name dictionary for the netlist.
+
+file.set - The binary pattern generation file.
+
+file.trc - The binary trace output file.
+
+file.lst - The list output of the trace utility.
+
+.lm -5
+.rm +5
+
+FORMAT OF ASCII CIRCUIT SOURCE
+
+.in +5
+The circuit source is free format. This means that the end of a line is
+equivalent to a space, and circuit statements may cross lines without
+"continuation" marks. The assembly consists of a series of "cells", which
+have "headers" and "bodys". The header specifies all connections to and
+from the circuitry contained within a cell, and the body specifies all
+circuitry that constructs the cell. Cells are not nested, and appear
+consequtively. Cells may include other cells by reference, but only if
+they have already appeared. The source, then, typically consists of the
+primitive cells listed first, up until the last cell, which is the most
+complex cell, and is in fact considered to be the final circuit for
+practical purposes. A special cell header without a body serves to indicate
+that the actual cell body lies in a cell library (and "external" cell).
+The following is a typical source file:
+
+.lm +5
+.rm -5
+{
+
+Non-inverting buffer
+
+}
+
+cell inv: input, output, vdd, vss;
+
+   peif: vdd, input, output, vdd, 84u, 3u;
+   neif: vss, input, output, vss, 49u, 3u
+
+endcell;
+
+cell buff: input, output, vdd, vss;
+
+   inv: input, n1, vdd, vss;
+   inv: n1, output, vdd, vss
+
+endcell
+
+
+.lm -5
+.rm +5
+.in +5
+This example consists of only two cells, and constructs a non-inverting
+buffer. The buffer is actually made up of two back to back inverters, of
+which each is it's own cell. The first cell defines the inverter using
+individual transistors, and the second uses those to construct a buffer.
+Each transistor is a "device", and such devices are predeclared. The format
+of a device call is the same as a cell call however, and the user may
+think of a device as being a predefined cell. In fact, cases may arise when
+a special purpose device is constructed out of primitive devices.
+
+CELL HEADER
+
+.in +5
+This is of the form:
+
+.lm +5
+.rm -5
+cell name: parameter1, parameter2, ... parameter n;
+
+.lm -5
+.rm +5
+.in +5
+Each parameter represents a value or node to be passed into the cell.
+Whether or not the parameter is a node or a numeric value is determined
+by how the node is used in the cell. If it appears as a node parameter
+to a device, it is a node. If it appears, say, as a width or length parameter,
+it is numeric.
+.in +5
+It is possible for a cell to have NO parameters. In this case, the list
+of parameters, and the ":" after the cell name are omitted.
+.in +5
+Note that unless told not to, the assembler will flag warnings about
+parameters that are not used within the body of a cell.
+
+CELL BODY
+
+.in +5
+The cell body consists of a sequence of statements separated by ";", and
+terminated by the "endcell" statement. These can be any of device statements
+or cell references. Attempts to reference the current cell (a recursive
+reference) will fail, and generate a "cell not found" error message. This
+is because a cell is not considered to be defined until it's end.
+Note that unless told not to, the assembler will flag warnings about nodes
+appearing in the body of a block that have no apparent low impedence path.
+This would mean nodes that only have a transistor gate, or one end of a
+capacitor attached. Nodes that appear as parameters are an exception to the
+rule, as their path is not complete until the cell is actually used.
+This may cause confusion, as an error will appear even when a node appears
+as a parameter to a another cell. The meaning is that no low impedence paths
+exist in that cell.
+Note that only the nodes defined as parameters may provide external access
+for the circuit. In particular, this strict rule means that the header
+of each cell must provide for power connections.
+
+NODE FORMAT
+
+A node is formed of a series of ascii characters, up to approximately 200
+characters in length (the user should not count on more than 40 characters
+of significance to be retained). The basic node name consists of one of
+the characters 'a'..'z' or '_' followed by any of 'a'..'z', '_', or '0'..'9'
+(that is, a node label MAY NOT begin with a digit). Allowed at the end is
+an "index specification", of the form name[num]. The "num" is an integer
+indicating which node of a vector of nodes is indicated. Other than checking
+for proper format, the simple form of index is only checked. It will otherwise
+appear as if the "[" and "]" symbols were just ordinary characters in the
+node name. The exception is the "range" specification, of the form name[x:y].
+Whenever this appears, it will automatically be expanded into a series of
+indexed nodes. This is done by creating a node for each value between x and
+y inclusive. Examples:
+
+.lm +5
+.rm -5
+a[0:3] -> a[0], a[1], a[2], a[3]
+
+d[3:2] -> d[3], d[2]
+
+.lm -5
+.rm +5
+.in +5
+Note that the nodes will appear in the same order as the values x and y
+appear. It is quite another matter as to what results from this specification.
+Whatever device or cell it appears in must have node parameter "slots" to
+handle the generated nodes. The total number of parameters must still match.
+Note that no errors or warnings are generated about name mismatches. The
+specification:
+
+.in +5
+inv: a[0:3]
+
+.in +5
+Would have satisfied the inverter cell specified above. Calling a cell
+with parameters declared as a[0:3] as a[3:0] would connect the bits backwards
+without complaint.
+
+NUMERIC FORMAT
+
+The format of all numbers is in floating point with optional exponent, as
+"ddd.dddexx". You may also use the following to stand in for
+exponents:
+
+.lm +5
+.rm -5
+f   (femto) 10e-15
+p   (pico)  10e-12
+n   (nano)  10e-9
+u   (micro) 10e-6
+m   (mili)  10e-3
+k   (kili)  10e+3
+meg (mega)  10e+6
+g   (giga)  10e+9
+t   (tera)  10e+12
+mil         25.4*10e-6
+
+.lm -5
+.rm +5
+You may also use the mathematical operators +, -, *, /, and parenthities
+to group expressions.
+
+BASIC DEVICES
+
+The basic devices are built in to the assembler, and have a predefined calling
+format. The assembler will handle many devices common in electronics, but
+just because the assembler will generate them doesn't nessaryly mean that
+the resulting net can be simulated. Devices that are not represented here can
+be constructed two ways. First, a special device can be specified as the
+combination of several "ideal" devices. In this way, interlead capacitences,
+etc., can be modeled by adding devices as done in standard electronic
+analisis. Second, a device can be represented by an external cell, and that
+cell left unresolved. A special purpose simulator can then implement it's
+own device model.
+
+neif: source, gate, drain, substrate, width, length - N channel, enhancement
+mode, insulated gate, field effect transistor. Insulated gate also covers
+MOSFET and silicon gate transistors.
+
+peif: source, gate, drain, substrate, width, length - P channel, enhancement
+mode, insulated gate FET.
+
+wneif: source gate, drain, substrate, width, length - This is the same as
+"neif", except that it indicates a special weak drive strength mode to the
+simulator.
+
+wpeif: source, gate, drain, substrate, width, length - Same as peif with
+weak drive strength.
+
+bjnpn: collector, base, emitter - A bipolar NPN transistor.
+
+bjpnp: collector, base, emitter - A bipolar PNP transistor.
+
+res: terminal a, terminal b, ohms - An ideal resistor.
+
+cap: terminal a (also positive terminal), terminal b (also negative terminal),
+farads - An ideal capacitor.
+
+ind: terminal a, terminal b, henrys - An ideal inductor.
+

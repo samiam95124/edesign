@@ -1,0 +1,17 @@
+# 
+# SVS C3 Example:                                     Date: 07-Oct-91
+#              Make file for Pascal interface to MASM 6.0
+#
+LIBS = -llibp28
+
+default:          test1.exe
+
+test1.exe:        test1.obj pixel.obj
+                  $(CC) $(LIBS) +d test1.obj pixel.obj
+
+test1.obj:        test1.pas
+                  $(CC) -c +d test1.pas
+
+pixel.obj:        pixel.asm
+                  ml -c -Cx pixel.asm
+

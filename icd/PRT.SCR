@@ -1,0 +1,2 @@
+pr -Ffo10w80l60 !1 > junk
+print junk

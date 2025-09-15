@@ -1,0 +1,76 @@
+                      DRIVERS IMPLEMENTED
+
+LABEL                   COMMENTS
+------------------------------------------------------------------------------
+
+*** Video cards
+
+vga640x480x16           Standard vga driver. Should work on any card.
+                        Use for demo purposes only.
+vesa800x600x16          VESA mode driver.
+vesab800x600x16         VESA alternate mode driver. Uses the 6Ah code and the
+                        standard 00h set video call. May work where the
+                        normal VESA driver does not.
+wd800x600x16            Western digital WD90C00 controller based boards.
+wd1024x768x16           ""      ""      ""      ""         ""    ""
+tseng800x600x16         Tseng labs ET4000 controller based boards.
+tseng1024x768x16        ""    ""   ""     ""         ""    ""
+ati800x600x16           ATI Wonder cards.
+ati1024x768x16          ""  ""     ""     (note this mode is somewhat slow
+                                           due to the nonstandard method
+                                           ATI uses to represent pixels
+                                           in this mode.)
+oti800x600x16           OAK technology OTI-37, OTI-67, OTI-77 based cards.
+oti1024x768x16          ""  ""         ""      ""      ""     ""    ""
+trident800x600x16       Trident 8800BR, 8800CS, and 8900 based cards.
+trident1024x600x16      ""      ""      ""      ""  ""   ""    ""
+                        (in development).
+everexvp800x600x16      Uses Trident chip.
+everexvp1024x600x16     ""   ""      ""
+                        (in development).
+gen800x600x16=??        Generalized mode select. Used to select cards we have
+                        not implemented where the mode number is known.
+                        Since bank switching is not required in this mode,
+                        this is likely to work.
+                        To operate, substitute mode number like:
+
+                                gen800x600x16=6a
+                        
+                        Which activates the VESA general code. 
+                        Must be a two digit code (add a leading zero as
+                        required).
+
+GENERAL NOTES ON VIDEO CONTROLLERS:
+
+1. The driver for an off-brand card can frequently be found by examining the
+VGA controller chip on the board for the manufacturers number and name.
+
+2. I have encountered "clone" cards that have the correct chip markings, but
+still do not function with ICD (they would not operate with other software
+designed for the chip either). The problem is in the video BIOS on the board,
+which may not implement some or all of the chip's capabillities. 
+There are two possible ways to fix this, in order or preference:
+
+        1. Obtain the chip makers "official" BIOS proms.
+
+        2. Sometimes the VESA extention TSR for the board
+           will implement the desired functions. Then, 
+           a VESA mode can be used. See the VESA entries 
+           above.
+
+*** Positioning devices
+
+summasii                Summagraphics Summasketch II tablet and compatibles.
+                        Many tablets claim to be Summasketch compatibles.
+                        Be sure that any switches, mode switch programs or
+                        TSR's required are operated for such compatibility
+                        as listed in the user's manual for the tablet.
+msmouse=?               Microsoft mouse and compatibles. Accepts a sensitivity
+                        argument, a number from 1 to 100. This sets the number
+                        of mouse clicks or "mickeys" per pixel. This may be
+                        omitted, in which case the "=" sign will not appear.
+                        You may also have this option in the mouse driver itself.
+
+*** Printers
+
+fjdl3400                Fujitsu DL3400 wide carriage color/b&w printer.

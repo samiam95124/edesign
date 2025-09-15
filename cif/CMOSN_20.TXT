@@ -1,0 +1,266 @@
+Date:  15-Oct-91 19:03 PDT
+From:  The MOSIS System   >INTERNET:XMOSIS@CHEETA.ISI.EDU
+Subj:  Topic: cmosn_20a
+
+Sender: mosisout@vlsif.isi.edu
+Received: from vlsif.isi.edu by ihc.compuserve.com (5.65/5.910516)
+	id AA00477; Tue, 15 Oct 91 21:51:20 -0400
+Posted-Date: 13 October 1991 2:13:37
+Message-Id: <9110160135.AA01022@vlsif.isi.edu>
+Received: by vlsif.isi.edu (5.61/5.61)
+	id AA01022; Tue, 15 Oct 91 18:35:58 -0700
+Date: 13 October 1991 2:13:37
+From: The MOSIS System <XMOSIS@CHEETA.ISI.EDU> (send requests to MOSIS@MOSIS.EDU)
+Subject: Topic: cmosn_20a
+To: Scott A Moore <70461.3575@CompuServe.COM>
+
+Your-message-sent: 13 Oct 91 05:00:08 EDT
+Your-Message-ID: <911013090008_70461.3575_EHE21-1@CompuServe.COM>
+MOSIS-Message-ID: imlr-00074198-91101302090300
+MOSIS-Reply-Posted-for-Delivery: 13 October 1991 2:13:37
+
+
+Standard cell library				Doc.Version: 900711
+---------------------
+			CMOSN_20A LIBRARY				
+		 Scalable CMOS Standard Cell Library
+
+Reference: IEEE 1986 Custom Integrated Circuits Conference
+Proceedings, 'A High Performance, Multisourceable, Scalable CMOS Cell
+Family' by Robert C.  Newton and Mark D. Lantz
+
+	This is a scalable, double metal CMOS standard cell library
+featuring 50 SSI and 28 MSI-level macrocells with typical gate delays
+of less than 1 ns, and up to 32K bits of RAM/ROM.  Characterization
+over the entire military range indicates that the library can realize
+75 MHz designs at 1.2 microns with three levels of logic between
+clocked elements and three fanouts per cell output.  A double-height
+cell structure was chosen to optimize the layout for the MSI-level
+macrocells, which are available in bit increments of 4, 8, and 16 with
+shift registers in sizes up to 32 bits.  All I/O terminals are 4
+lambda wide on a 10 lambda grid in second-layer metal.
+
+	Chip designs generated using this library at 2.0 micron
+scaling can be fabricated with the MOSIS NSCE, NSCN and NSCP 0.8 lambda
+wafer runs, and designs at 1.2 micron scaling can be fabricated with
+MOSIS NSCE and NSCN 0.6 lambda wafer runs.
+
+	NOTE: These technologies (NSC*) are not compatible with normal
+MOSIS scalable technologies (SC*).  You cannot mix layout made with
+incompatible design rules on the same chip!!!
+
+This library is available only on tape with a signed license agreement
+and a tape processing fee.  Included are programs for VAX/VMS and
+Berkeley Unix compatible systems to generate the RAM and ROM blocks.
+
+Cell descriptions
+-----------------
+
+The cells can be divided into six groups: COMBINATORIAL, STORAGE, MSI,
+RAM/ROM, PAD, and FIDUCIARY/TEST.  Cell heights of the COMBINATORIAL,
+STORAGE, and MSI groups are a constant 250 lambda.  I/O terminals are
+in METAL2 on both the top and bottom edges of these cells; power
+terminals are in METAL1 on the left and right edges.  Only one side of
+each I/O and power terminal needs to be connected.
+
+The MSI cells have subcells that you can combine or iterate for
+different bit sizes, such as to make a 12-bit shift-register.  The
+final block will obey the I/O conventions of the combinatorial cells.
+
+The RAM/ROM subcells have to be carefully chosen and positioned, for
+which a program is supplied to both build the RAM/ ROM blocks and
+generate their timing characteristics and footprint (boundary
+description).  I/O terminals for these blocks are placed on the bottom
+edge, while power terminals are on the left and right edges.  (Again,
+only one side of each connector need be connected to a power source.)
+For the ROM block, however, there are additional input connectors on
+the left and right edges of the block, BOTH of which need to be
+connected.  The program allows some user control of aspect ratio.
+
+The PAD cells are either 413 or 550 lambdas tall, respectively, for 2
+micron and 1.2 micron designs.  (Pads are not generally scalable
+because of the design rule requirement of a minimum metal bonding pad
+size in microns).  Their terminals are in METAL2 on the bottom edge.
+To fit pads into a frame small enough for the 2um Tinychip size (see
+the appendix on standard frames and Tinychips), there must be fewer
+than the maximum of 40 pads, but as long as they are spaced evenly
+around the periphery of the chip (to insure bondability) and the chip
+size is correct, the chip will qualify as a Tinychip.
+
+The FIDUCIARY/TEST cells include level identifiers, via cells, and
+test structures which are not required for MOSIS fabrication.  MOSIS
+maintains its own parametric test structures for purposes of wafer
+acceptance and tracking, and publishes typical SPICE level 2 and/or
+BSIM transistor models for each run.
+
+Since the cell library is optimized for MSI cells, the basic
+combinatorial cells are very tall and narrow, but there are
+significant area savings for designs that can utilize the larger MSI
+cells.  This is because the larger MSI cells incorporate the
+interconnect area that would otherwise be required to wire up smaller
+cells into the larger cells.  Note the relative flatness of the
+gate-equivalent density per unit area as the gate area increases in
+the following table:
+
+		Number of Equivalent Gates per Square Lambda
+
+           +-------------------+-------------------+-------------------+-- 
+ 550 E-06 + *                                                             +
+          |                                                               |
+          | *        *                                                    |
+          |   *  *                                                        |
+          |       *                                                       |
+          |* 4    *                        *                             *|
+          |  *      **      *                                             |
+          | *   *                 *                     *                 |
+          | ** *  *    *                                                  |
+          | 2 *                                                           |
+ 275 E-06 +343     *       *                *                             +
+          |34**                                                           |
+          | 3                                                             |
+          |82                                                             |
+          |22                                                             |
+          |62                                                             |
+          |*                                                              |
+          |                                                               |
+          |4                                                              |
+          |                                                               |
+ 000 E+00 +    *8* * 9*                                                   +
+           +-------------------+-------------------+-------------------+-- 
+     0.500E+04           0.376E+06           0.747E+06           0.112E+07 
+
+				Area in Lambda^2
+
+
+	Table of standard cells (PAD, COMBINATORIAL, MSI, and STORAGE groups)
+
+Type of gate: p(PAD) c(COMBINATORIAL) m(MSI) s(STORAGE)
+| equivalent gates (approx)
+| |	equivalent gates per sq. lambda * 1E6 (approx)
+| |	|		size in lambda
+| |	|		|
+v v	v		v
+T eq.gt	per L^2	Name	Size	Function
+- -----	-------	-----	-------	-------------------------------------------
+m 16.5	508	ADDCA	130#250	LOOK AHEAD ADDER CARRY UNIT	
+m 56.0	431	ADDCO	520#250	4 BIT ADDER WITH CARRY LOOK AHEAD	
+m 25.0	455	ADDGP	220#250	LOOK AHEAD ADDER CARRY UNIT W/PROP AND GEN
+m 54.5	419	ADDLA	520#250	4 BIT ADDER WITH PRO5 AND GEN5	
+c 1.5	200	ANOTB	30#250	A NOT AND B
+c 1.5	200	AORBN	30#250	A OR B NOT CELL
+c 2.0	267	BUFF	30#250	NON-INVERTING
+s 3.5	200	CLAT	70#250	CLOCKED LATCH with reset
+m 33.5	353	COM4	380#250	9,3 4-BIT MAGNITUDE COMPARATOR	
+m 77.0	395	COM8	780#250	17,3 8-BIT MAGNITUDE COMPARATOR	
+c 2.0	200	DEC1	40#250	3,1 AB+C DECODER
+c 2.5	167	DEC2	60#250	(A OR B) AND C DECODER	
+c 9.5	292	DEC3	130#250	2 TO 4 DECODER W/ENABLE	
+c 23.5	336	DEC4	280#250	3 TO 8 DECODER W/ENABLE	
+c 46.0	335	DEC5	550#250	4 TO 16 DECODER W/ENABLE	
+c 2.0	267	DEL1	30#250	1-GATE DELAY
+c 4.0	267	DEL2	60#250	2-GATE DELAY
+s 4.5	257	DFF	70#250	D FLIP FLOP	
+s 5.5	275	DFFR	80#250	D FLIP FLOP W/RESET	
+s 6.5	289	DFFSR	90#250	D FLIP FLOP W/SET,RESET	
+s 7.5	273	DFSC	110#250	4,2 LEVEL SENSITIVE SCAN PATH MASTER SLAVE D-FF
+s 8.5	262	DFSCR	130#250	4,2 LEVEL SENSITIVE SCAN PATH MASTER SLAVE D-FF
+s 9.5	271	DFSCSR	140#250	4,2 LEVEL SENSITIVE SCAN PATH MASTER SLAVE D-FF
+c 3.5	280	DSEL	50#250	3,2 DATA
+m 11.0	550	FADD	80#250	3,2 FULL ADDER	
+p 0.0	0	GND12	339#550	1.5u ground pad
+p 0.0	0	GND2	254#413	2.0u ground pad
+c 0.5	67	GPULD	30#250	GATED PULL-DOWN
+c 0.5	67	GPULU	30#250	GATED PULL-UP
+c 0.5	100	INV1	20#250	INVERTER
+c 1.0	200	INV2	20#250	INVERTER WITH GREATER DRIVE
+c 3.5	233	MUX1	60#250	2,2 AND/OR,NOR MUX
+c 6.5	260	MUX2	100#250	4,2 AND/OR,NOR MUX
+c 7.0	233	MUX3	120#250	4:1 MUX WITH ENABLE
+c 13.5	235	MUX4	230#250	12,1 8:1 MUX WITH ENABLE
+c 5.0	250	MUX5	80#250	3,2 AND/OR-NOR MUX
+c 4.5	225	MUX6	80#250	2,3 AND/OR-NOR MUX
+c 4.5	257	MUX7	70#250	MAJORITY GATE
+c 8.5	243	MUX8	140#250	4,3 AND/OR-NOR MUX
+p 0.0	0	NBUF12	339#550	1.2U HI-Z OUTPUT PAD
+p 0.0	0	NBUF2	254#413	2.0U HI-Z OUTPUT PAD
+c 1.0	133	ND2X1	30#250	2 INPUT NAND 1X DRIVE
+c 1.5	200	ND2X2	30#250	2 INPUT NAND 2X DRIVE
+c 1.5	150	ND3	40#250	3 INPUT NAND GATE
+c 2.0	160	ND4	50#250	4-INPUT NAND
+c 1.5	150	NDI2X1	40#250	2 INPUT NAND/AND 1X DRIVE
+c 2.0	200	NDI2X2	40#250	2 INPUT NAND/AND 2X DRIVE
+c 2.0	133	NDI3	60#250	3 INPUT NAND/AND GATE
+c 2.5	167	NDI4	60#250	4-INPUT NAND/AND
+s 2.0	200	NDLAT	40#250	NANDLATCH
+c 1.0	133	NR2	30#250	2,1 NOR
+c 1.5	150	NR3	40#250	3,1 NOR
+c 1.5	150	NRI2	40#250	2,2 NOR/OR
+c 2.0	160	NRI3	50#250	3,2 NOR/OR
+c 2.5	143	NRI4	70#250	4,2 NOR/OR
+s 2.0	200	NRLAT	40#250	NORLATCH
+p 0.0	0	OPAD12	339#550	1.2U OUTPUT PAD
+p 0.0	0	OPAD2	254#413	2.0U OUTPUT PAD
+m 10.0	364	PAR4	110#250	4 BIT PARITY CELL
+m 20.0	400	PAR8	200#250	8 BIT PARITY CELL
+m 96.0	492	POP12	780#250	12,4 12-BIT POPULATION COUNTER
+m 56.0	467	POP8	480#250	8,4 8-BIT POPULATION COUNTER
+m 0.0	0	PRI8	350#250	8-BIT PRIORITY ENCODER
+c 0.5	67	PULD	30#250	PULL-DOWN
+c 0.5	67	PULU	30#250	PULL-UP
+p 0.0	0	PWR12	339#550	1.5u power pad
+p 0.0	0	PWR2	254#413	2.0u power pad
+s 172.0	282	RIP16	2440#250 16 BIT RIPPLE COUNTER
+s 46.0	288	RIP4	640#250	4 BIT RIPPLE COUNTER
+s 88.0	284	RIP8	1240#250 8 BIT RIPPLE COUNTER
+s 4.0	400	RIPBF	40#250	subcell -- ripple cntr buffer stage
+s 10.5	280	RIPBN	150#250	subcell -- ripple cntr 1-bit end stage
+s 10.5	280	RIPBT	150#250	subcell -- ripple cntr 1-bit cntr stage
+s 237.5	399	SR16	2380#250 16 BIT SHIFT REGISTER
+s 461.5	400	SR32	4620#250 32 BIT SHIFT REGISTER
+s 69.5	397	SR4	700#250	4 BIT SHIFT REGISTER
+s 125.5	398	SR8	1260#250 8 BIT SHIFT REGISTER
+s 14.0	400	SRB0	140#250 subcell -- shift reg control logic stage
+s 14.0	400	SRBN	140#250 subcell -- shift reg control logic stage
+s 14.0	400	SRBT	140#250 subcell -- shift reg control logic stage
+s 13.5	386	SRCT	140#250	subcell -- shift reg control logic stage
+p 3.0	240	TRIB1	50#250	TRI-STATE BUFFER-1X
+p 3.5	200	TRIB2	70#250	TRI-STATE BUFFER-2X
+s 290.0	347	U_D16	3340#250 16 BIT UP/DOWN COUNTER
+s 80.0	340	U_D4	940#250	4 BIT UP/DOWN COUNTER
+s 150.0	345	U_D8	1740#250 8 BIT UP/DOWN COUNTER
+s 16.5	300	U_DBN	220#250 subcell -- u/d 1-bit cntr end stage
+s 17.0	340	U_DBT	200#250 subcell -- u/d 1-bit cntr stage
+s 10.0	333	U_DCT	120#250 subcell -- u/d cntr control stage
+p 0.0	0	X12IPD	339#550 1.2U INPUT PAD
+p 0.0	0	X12LVL	339#550 1.2U LEVEL SHIFTER INPUT PAD
+p 0.0	0	X12SCH	339#550 1.2U SCHMITT TRIGGER INPUT PAD
+p 0.0	0	X12TLP	339#550 LEVEL SHIFT IN,TRI-STATED OUT,W/ENABLED PULLUP
+p 0.0	0	X12TRI	386#550 1.2U TRISTATE I/O PAD
+p 0.0	0	X12VSS	339#550 1.2U INPUT PAD
+p 0.0	0	X2IPD	254#413 1.2u HI-Z I/O PAD 
+p 0.0	0	X2LVL	254#413	2.0U LEVEL SHIFTER INPUT PAD
+p 0.0	0	X2SCH	254#413	2.0U SCHMITT TRIGGER INPUT PAD
+p 0.0	0	X2TLP	280#413	LEVEL SHIFT IN,TRI-STATED OUT,W/ENABLED PULLUP
+p 0.0	0	X2TRI	373#413	2.0U TRISTATE I/O PAD
+p 0.0	0	X2VSS	254#413	2.0U INPUT PAD
+c 2.5	250	XNOR	40#250	2,1 EXCLUSIVE NOR
+c 2.5	250	XOR	40#250	EXCLUSIVE OR
+
+Totals per cell group:
+
+cell group	total cells	cell names
+----------	-----------	----------
+COMBINATORIAL	45		see table above
+STORAGE		29		see table above
+MSI		11		see table above
+PAD		20		see table above
+RAM/ROM		45		
+	BTPDNC BTPDNA BSADLM BSADLF BRDRVC BRDRVA BPRBUS BMUX4 BMUX3 BMUX2
+	MPRCH BMDRVR BMC1C BMC1A BMC0C BMC0A BMBUS BFPDNC BFPDNA BEBUFF BCNTRL
+	BUSC BBUSA BADDR ATPDWN ASADIO ARDRV AMUX4 AMUX3 AMUX2 AMUX1 AMPRCH
+	MC2X2 AFPDWN AEBUFF ACNTRL ACDRV4 ACDRV3 ACDRV2 ACDRV1 ACDEC4 ACDEC3
+	CDEC2 ACDEC1 AADDR
+FIDUCIARY/TEST	22
+	VIA RTEST PWELL PTEST POLY PDIFF PASS NWELL NTEST NDIFF MET2 MET1
+	LVIA LCONT CTEST BUSXR BUSVIA BUSV2 BUSV12 BUSTP2 BUSTP1 AA
+

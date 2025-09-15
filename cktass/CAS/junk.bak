@@ -1,0 +1,17 @@
+cell inv: vss, vdd, input, output_;
+
+begin
+
+   peif: vdd, input, output_, 1, 1;
+   neif: vss, input, output_, 1, 1
+
+end;
+
+cell junk: vss, vdd, a[0:3];
+
+begin
+
+   inv: vss, vdd, a[0:1];
+   inv: vss, vdd, a[2:3]
+
+end

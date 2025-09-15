@@ -1,0 +1,79 @@
+DRC rules under ICD:
+
+ICD has a generalized methodogy for DRC productions. There are
+three types of DRC's:
+
+   1. Logical. These are rules that are dementionless, 
+   and apply to any process. 
+
+   2. General. These are general purpose rules that
+   may be a superset of the actual rules.
+
+   3. Specific. Rules that apply to one process or
+   situation only.
+
+These will be expanded.
+
+Logical rules:
+
+1. P-DIFF and N-DIFF rectangles must lie either entirely
+within or entirely without a well.
+
+2. P-N wells may not overlap.
+
+3. P-DIFF and N-DIFF rectangles may not overlap.
+
+3. Contacts must lie entirely within a P-DIFF, N-DIFF, or
+poly, and entirely within a metal 1.
+
+4. Vias must lie entirely within both a metal 1 and a metal 2.
+
+5. Overglass must lie entirely within a metal 2.
+
+6. The intersection of poly with diffs (the gate) must be solid,
+ie, all of one diff type. It may be nessary to combine 
+resultants to meet this rule.
+
+7. Gates as found by (6) must lie on a well or substrate of
+opposite polarity.
+
+General rules:
+
+1. Size minimum. Rectangles on a given layer must have a 
+minimum size N in either X or Y.
+
+2. Space to layer. A minimum spacing N must be obeyed between
+layer X and each other layer. There exists a different value
+between each layer. Any value may be 0, in which case any 
+spacing down to abutment is allowed. Spacing to the same
+layer can also be specified. The space rule only applies if
+the layers do not abut or overlap.
+The space rule is calculated by the "edge" of each rectangle.
+Each edge of the rectangle is considered, and compared to 
+the edge of the other rectangle in the same X or Y. This means
+a total of 8 comparisions:
+
+   1. Rec A left to rec B left.
+
+   2. Rec A left to rec B right.
+
+   3. Rec A right to rec B left.
+
+   4. Rec A right to rec B right.
+
+   5. Rec A top to rec B top.
+  
+   6. Rec A top to rec B bottom.
+
+   7. Rec A bottom to rec B top.
+
+   8. Rec A bottom to rec B bottom.
+
+Thus, this rule covers overlap, space to edge and other rules.
+
+3. Alignment. An alignment grid may be specified such that
+each X and Y point must be evenly divisible by it.
+
+4. Size exact. Where required, an exact feature size may be 
+specified. Only squares of that size are allowed. The parameter
+is otherwise set 0.

@@ -1,0 +1,3 @@
+expr 'Assembling !1.asm...'
+ml /c /Cx /Fl!1.lst !1.asm
+dir ibmrot.obj /f

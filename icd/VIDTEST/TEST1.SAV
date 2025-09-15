@@ -1,0 +1,72 @@
+{**************************************************************
+
+VIDEO MODE TEST
+
+Tests if the pixel read/write routines work in all resolutions
+(not all cards implement them for all modes). Must be customized
+per the card.
+
+**************************************************************}
+
+program test1;
+
+{$i ..\define}
+
+var irs: intregspec; { dos call record }
+
+procedure iniscn; external; { initialize display hardware }
+procedure resscn; external; { restore display hardware }
+procedure setpix(x, y: word; c: color); external; { set pixel value }
+
+procedure box(xs, ys, xe, ye: word; c: color);
+
+var x, y: word;
+
+begin
+
+   for x := xs to xe do setpix(x,  ys, c);
+   for x := xs to xe do setpix(x,  ye, c);
+   for y := ys to ye do setpix(xs, y,  c);
+   for y := ys to ye do setpix(xe, y,  c)
+
+end;
+
+procedure testmod(xm, ym: word);
+
+var i: word;
+    c: color;
+    xs, ys, xe, ye: word;
+    sp: word;
+    ch: char;
+
+begin
+
+   sp := (ym div 2) div 16;
+   c := white;
+   xs := 0;
+   ys := 0;
+   xe := xm-1;
+   ye := ym-1;
+   for i := 1 to 15 do begin
+
+      box(xs, ys, xe, ye, c);
+      xs := xs + sp;
+      ys := ys + sp;
+      xe := xe - sp;
+      ye := ye - sp;
+      c := pred(c)
+
+   end;
+   while not cstat do;
+   ch := consilent
+
+end;
+
+begin
+
+  iniscn;
+  testmod(640, 480);
+  resscn;
+
+end.
+

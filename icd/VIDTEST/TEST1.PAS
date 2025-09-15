@@ -1,0 +1,75 @@
+{**************************************************************
+
+VIDEO MODE TEST
+
+Tests if the pixel read/write routines work in all resolutions
+(not all cards implement them for all modes). Must be customized
+per the card.
+
+**************************************************************}
+
+program test1;
+
+const maxint = 2147483647;
+
+type integer = longint;
+     color   = (black, blue, green, cyan, red, magenta, brown,
+                dwhite, gray, lblue, lgreen, lcyan, lred, lmagenta,
+                yellow, white);
+
+procedure _iniscn; cexternal; { initialize display hardware }
+procedure _resscn; cexternal; { restore display hardware }
+procedure _setpix(x, y: integer; c: color); cexternal; { set pixel value }
+procedure _clear; external; { clear screen to white }
+
+procedure box(xs, ys, xe, ye: integer; c: color);
+
+var x, y: integer;
+
+begin
+
+   for x := xs to xe do _setpix(x,  ys, c);
+   for x := xs to xe do _setpix(x,  ye, c);
+   for y := ys to ye do _setpix(xs, y,  c);
+   for y := ys to ye do _setpix(xe, y,  c)
+
+end;
+
+procedure testmod(xm, ym: integer);
+
+var i: integer;
+    c: color;
+    xs, ys, xe, ye: integer;
+    sp: integer;
+    ch: char;
+
+begin
+
+   sp := (ym div 2) div 16;
+   c := white;
+   xs := 0;
+   ys := 0;
+   xe := xm-1;
+   ye := ym-1;
+   for i := 1 to 15 do begin
+
+      box(xs, ys, xe, ye, c);
+      xs := xs + sp;
+      ys := ys + sp;
+      xe := xe - sp;
+      ye := ye - sp;
+      c := pred(c)
+
+   end
+
+end;
+
+begin
+
+  _iniscn;
+  _clear;
+  testmod(1024, 768);
+  _resscn;
+
+end.
+

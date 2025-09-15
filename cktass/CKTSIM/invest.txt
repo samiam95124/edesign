@@ -1,0 +1,366 @@
+                      AN INVESTOR'S STATEMENT OF PRODUCT
+
+PURPOSE
+
+.ti +5
+This document will give a general overview of the purpose of the proposed
+product, plan of introduction, and costs. Be warned: it was written by an
+engineer, not a writer.
+
+THE PROPOSED PRODUCT
+
+.ti +5
+Often some of the best business opportunities in the computer equipment
+makers' market are the "hidden" support items. For instance, the current
+upswing in sales of so called "work stations" is due in part to the increasing
+assimulation of CAD (computer aided design) into general use. A work station
+must consist of two components: the general purpose hardware and the CAD
+software. The term "software" here covers the many functions the workstation
+actually performs. Therefore, although there is one, very visible, workstation
+manufacturer, there are many small companies supplying the different software
+functions. As far as digital design CAD, there are a few "standard" type
+components used:
+
+.lm +5
+.rm -5
+1. The schematic entry graphics software.
+
+2. The "simulator", that will let the engineer correct many design defects
+before physical construction (and cost).
+
+3. "Layout" software, that either helps or performs the "drawing" of the
+actual circuits for manufacture.
+
+.lm -5
+.rm +5
+The middle step is our target. The reasons that simulation is on an upward
+spiral of importance are the key to what we propose to do, and must be
+understood carefully.
+
+SIMULATION AND "THE SIMULATOR":
+
+Using mathematical or imperical laws, a computer can simulate any known
+system. A popular example would be the computerized whether reports.
+Simulation in general is a hot subject: anyone can understand that checking
+aircraft designs by "flying" them in a computer will cost less and be more
+productive than building on a trial-and-error basis.
+Oddly, however, simulation in computer design at the OEM (original equipment
+manufacturer, basically one who assembles integrated circuits into computers,
+toasters, etc.) has only just started. The reasons are that:
+
+.lm +5
+.rm -5
+1. OEM's still see the cost to build
+a "prototype" unit as less than to arrange for simulation.
+
+2. The avialibility of advanced CAD hardware/software makes building a
+prototype simpler and cheaper at the same time as it provides simulation
+capabilities.
+
+3. OEM's usually build out of predesigned integrated circuits, which since
+the manufacturer only knows the circuit contained, only he can create
+simulation software.
+
+.lm -5
+.rm +5
+This situation is totally reversed INSIDE the IC (integrated circuit) design
+bisness. To match the above points:
+
+.lm +5
+.rm -5
+1. There is no such thing as a protype IC. If the first build IC is not
+"right" (which translates to mean saleable, at least as far as initial
+customer sampling), at least serveral thousand has been lost just in the
+materials cost alone.
+
+2. Since most of the cost of a popular IC is in manufacture, CAD has been
+manditory for some time. Also, better CAD has less effect on manufacturing
+costs.
+
+3. IC manufacturers' use only their own circuits.
+
+.lm -5
+.rm +5
+The IC design methodology has, in fact, settled into a pattern. The
+increasingly complex IC is also more complex to design and debug. It is not
+untypical for %50 of the total IC design time to be spent running simulations.
+This is explained if you consider the time it takes to fix design problems,
+and fine tune the circuit prior to customer issue. What was past done in
+the laboritory on real hardware is now done via CAD.
+
+SIMULATION AND THE SIMULATION TIME PROBLEM
+
+A computer can indeed simulate any known system, but the computer may not be
+able to do this as fast as it occurs in real life. In fact, for an actual
+medium complexity IC chip design, using a better than average simulator,
+The simulation was clocked to be 120 MILLLON TIMES SLOWER than the actual
+circuit as shipped would be. The reason that this is not unacceptable is that
+most simple tasks that digital circuits perform are over in less than
+1 millonth of a second. This means that 2 minutes are enough to watch a the
+circuit perform a simple action. The following, taken from real life,
+will clarify:
+
+Time       Acheives             Used for in design
+--------------------------------------------------------------------------
+2 min.     A single action      Initial debugging
+
+15 min -
+1 hr.      A full test          Advanced debugging, and preparation
+                                for manufacturing tests.
+
+10 hours -
+days       A battery of tests for manufacture.
+
+At worst, this means that the process of debugging a circuit consists of the
+following steps:
+
+.lm +5
+.rm -5
+1. Run a simulation of the circuit (15 min.).
+
+2. Check for problems, identify the source of problems (15 - 60 min.).
+
+3. Design a solution to the problem, and arrange a corrected circuit (30 - 90
+   min.).
+
+4. Return to step 1 until the circuit functions correctly.
+
+.lm -5
+.rm +5
+Of course, most designers hope to do better than this, using insight, and
+solving multiple problems at once.
+When arranging tests for manufacture, it is not uncommon to set a computer
+to simulation for days or weeks at a time in order to complete the full
+test battery. Fourtunately, this is fairly automatic and problem free, since
+it is performed on a "working" circuit.
+
+WHERE THE SIMULATION PROCESS IS GOING
+
+There are to directions for the simulator market that I beleive are well
+established:
+
+.lm +5
+.rm -5
+1. The use of simulators will grow to include more OEM's. The best reason
+for this is quite simple: OEM's are becoming increasingly involved in IC
+level designs. So much circuitry can be contained on a single silicon chip
+that traditional IC design houses have run out of "general purpose" IC
+design opportunites unless semicustom IC's are made. This is the basis
+of the "ASIC revolution" described in the literature.
+Secondly, IC's that may be customized per user are increasingly used (a long
+standing trend). The suppliers of these IC's encourage the customer to use
+simulation instead of simply "burning up" IC's on a trial-and-error basis.
+Thirdly, IC manufacturers' are providing simulation "plug in" software,
+whose end result will be the customers' ability to accept such software via
+sample disk or modem dial up and evaluate a possible design without leaving
+the keyboard.
+
+2. Simulators that run on general purpose computers will take longer to
+deliver the same result. The first reason for this is that circuits on a
+single IC are becoming increasingly complex. The second is that when serveral
+IC's are simulated together (as in a OEM) the time may be multiplied times
+the number of IC's present.
+
+.lm -5
+.rm +5
+HARDWARE SIMULATORS AND FAULT SIMULATION
+
+Although the simulation task is inherently slow, better solutions exist
+than implementation on a general purpose computer. Constructing a hardware
+by known methods gives a simulation speed hundreds of times faster than
+software solutions. This means that an hour of simulation time now only
+requires under a minute. Although this now makes debugging more efficient,
+the main result is that more thourough testing is done, and a better chance
+given that the IC will function correctly.
+Perhaps of ultimate importance, the increased speed enables an otherwise
+practically impossible technique known as "fault simulation" to be used.
+Fault simulation goes one step beyond just simulating what happens when a
+circuit functions correctly, but also what happens when it malfunctions
+because of manufacturing defects. In IC design work, the product lives
+or dies by whether or not such faults are detectable. This is because it
+is not possible to manufacture all IC's with a sufficiently correct output
+to ship to the customer (%90 good is considered the best that can be currently
+done, and less than %50 good is common). Bad IC's must be separated out.
+Automatic fault simulation at it's best can yeild a test that will pass
+virtually no bad IC's.
+The problem with fault simulation is that it takes orders of magnitude
+more time than "good" simulation. Altthough a fault simulator uses the
+same basic pricipals as a normal simulator, a software fault simulator on
+any ordinary computer would take years to complete it's work, and only
+supercomputers and hardware simulators can finish this task. Even then,
+it may take months.
+
+THE CURRENT HARDWARE SIMULATOR MARKET
+
+Hardware simulators avalible commericially is an 80's phenominon, and the
+market is only now taking off. In fact, the current leader in these systems,
+ZYCAD, has only had their unit shipping for a few years. Because of the
+complexity of harware simulators, it has been stated as a "trueisim" in the
+field that 50,000 dollars is the floor for such machines. The ZYCAD machine
+is typical. It is a 19" wide by 47" high, 190 lbs. unit. It sells for 65k
+for a basic simulator, and 115k for a basic simulator with fault capabillity.
+Because of the cost, the makers have made the unit virtually a stand - alone
+machine, in view of the fact that it will usually be used to service
+multiple mainframes running CAD. Even a large IC design house will buy one
+and share it amongst the whole company, making use of it's speed to run
+through a large "pile" of simulation work.
+
+THE PRODUCT, PRODUCT ADVANTAGE
+
+Hardware simulation "engines" were conceived in the university laboratory
+as very complex special purpose machines. Although the basic working
+principals are known, the field is still EXTREMELY immature. It is therefore
+certainly not out of the realm of possibility that an algorithim that
+dramatically simplifies the task may be found. This has been done, and the
+end result is an algorithim that acheives the following rare points:
+
+.lm +5
+.rm -5
+1. A DRAMATIC COST REDUCTION. I belieive that the parts cost for an
+engine can be brought down to 100$ - 300$, and the total out the door cost
+brought to 500$ - $700. Using a doubled cost as approximate selling price,
+a 2000$ tag would bring in a price at %3 of the most popular machine.
+
+2. The algorithim is unique and patentable.
+
+.lm -5
+.rm +5
+How I came up with a cut down to the 2000$ range must be analized. The
+following points are relivant:
+
+1. The "Moore" engine works on a much simpler level than the current machines.
+My philosophy here was that a simpler algorithim, and therefore simpler
+hardware, would allow the savings to be applied to higher speed hardware.
+This has a very desireable side effect: it is generally acknowledged that
+working a simulation at a lower level yields a more accurate solution, and
+simplifies machine interface.
+(more later).
+
+2. If the cost for a simulator is low enough, it becomes pointless to add
+a general purpose computer into the machine, since it will be mated to
+the customers' computer. Therefore, this cost is entirely subtracted out.
+
+.lm -5
+.rm +5
+PRODUCT WINDOW
+
+It would be foolish of me to assume that I am the only one working along the
+current lines. The proper window for this product is "with all possible speed",
+which means as fast as it can be properly constructed and put into production.
+My estimate is that within 6 months from now working prototypes can be shown
+to customers (and given to "beta site" customers with a support agreement).
+Within 1 year the unit should be in full production.
+Note that this leaves 6 months between the time that the news of the product
+will be allowed in public hands to full head-on competion with the existing
+engine manufacturers. Allowing the existing companies more than 6 months to
+react is in my option very dangerous, patent or no.
+
+PRODUCT SALES
+
+There are two ways to look at the market opportunites provided here.
+
+REASONS FOR POOR SALES
+
+.lm +5
+.rm -5
+1. Because we will be dealing with large and conservative IC houses, they will
+certainly continue to buy high priced engines based on the fact that they
+provide a known working solution.
+
+2. Simply providing the raw unit is insuffient to allow customer hookup.
+Each machine currently used for CAD would have to be addressed individually,
+a process that takes time, and gives the existing company with a track record
+a distinct advantage.
+
+3. The largest sales boost will occur when the workstation makers
+accept and push our hardware as a component, something that they will be less
+happy to do based on a lowered price tag.
+
+.lm -5
+.rm +5
+REASONS FOR GOOD SALES
+
+.lm +5
+.rm -5
+1. A large or giant semiconductor company will be a large consumer of engines.
+A contract made with such a company, where on-site workstation adaption and
+service is involved, would put a company on firm footing even with a very
+early version of the engine.
+
+2. There is every reason to beleive that a typical design house would take
+the same 50k that would have gone towards one of the present engines, and
+buy, say, 10 - 20 Moore engines plus the adaption and installation. This is
+because what is REALLY wanted is to provide one deticated engine for every
+existing workstation. Therefore we need not take less total dollar because
+of lower asking price.
+
+3. Finally, and I belive in the long run most importantly, the lower price
+will itself open up sales to OEM's and others who would not have even
+considered replacing their current software with an engine given the cost.
+
+.lm -5
+.rm +5
+THE FIRST TEAM PLAYERS, LARGE EXPENSES
+
+Upon delivery of the prototype, the life of the company will hinge on
+the beta site (which is preferably a recognized IC house, who is willing to
+be referenced), and the service intensive siting that will follow. Such
+"ins" are not found by ad campains, but rather the extensive footwork
+of a VERY SPECIAL salesman. During the second 6 months of the projected
+startup, the company will revolve around his or their success here in the
+silicon valley.
+During the startup period, some number of consultants must be engaged to
+create interfaces for customer equipment.
+Finally, manufacturing costs mush be paid.
+
+THE MINI-BISNESS PLAN
+
+I will divide this into "relative quarters" of the startup year.
+
+QUARTER ONE
+
+The prime task is to get a working prototype. This will be done exclusively
+by the designer, the total projected cost to carry forth this task estimated
+at 5000$ for this quarter. The goal of this quarter is to show a prototype,
+and some limited functionality (not nessaryily the final form the machine
+will take).
+The second task is to begin legal procedures. This will consist of legal costs
+for arrangements between fininaceers and executors, and the start of the
+patent search process. Depending on the complexity required (whether or not
+the company is to be incorporated, etc.)., I would estimate these costs to
+begin at 5000$.
+The third task, performed on a tentative basis, is the search for sales and
+technical help. If a search firm is used to lessen the time demands of the
+engineer (recomendable), I would estimate from 1000$ to 3000$ total expense.
+
+QUARTER TWO
+
+At the start, or during the first part of this quarter, a prototype will be
+avalible which be demonstratable under special circumstances. The remaining
+technical work of this quarter will be to perform any polishing required,
+and farm out the printed circuit board designs. The cost would be 5000$ for
+The principal engineer, and an estimated 5000$ - $10000 total cost for
+printed circuits to be designed, and prototypes built.
+It will be imperitive that by the end of this quarter, at least one sales
+concern or person be on line, with associated costs. Also, consultants may
+be put to work on adaption card designs, which will run 3000$ for each
+"start" undertaken.
+Finally, the documentation will have to be started.
+
+QUARTER THREE
+
+There will be two possible paths during this quarter. If the fully designed
+printed circuit units are avalible, these will be avalible for beta siting,
+otherwise "wire wrapped" prototypes will be used (not an uncommon practice).
+It will be essential that prototypes are installed and working at customer
+sites early in this quarter. Any development work must rapidly cease, in
+order that full attention be paid to customer service and manufacturing.
+I would guess that at least five people or concerns would be involved at this
+time, with a total cost during this quarter reaching 50k.
+
+QUARTER FOUR
+
+Will be the tranistion to full manufacture. The basic unit should be in final
+form at this time, with new prototype attention going to adapters. This is
+when full regular advertising will comence. Conservatively, 50k - 100k
+would be required for this quarter, limited by capital returns from sales.

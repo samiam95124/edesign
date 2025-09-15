@@ -1,0 +1,146 @@
+                        CKTSIM INTERMEDIATE FILE FORMATS
+
+NET FILE:
+
+The netfile indicates the basic physical layout of the circuit.
+
+The net format is:
+
+     <entry 1>
+     <entry 2>
+     .
+     .
+     .
+     <entry n>
+     0 (byte)
+
+Where each entry is:
+
+     <device> (byte)
+     <node 1>
+     <node 2>
+     .
+     .
+     .
+     <node n>
+
+The device is a byte code indicating the device type. Zero is not valid,
+and indicates the net end. Otherwise, the defined devices are:
+
+     <1> <source> <gate> <drain> - P channel transistor.
+     <2> <source> <gate> <drain> - N channel transistor.
+     <3> <source> <gate> <drain> - Weak P channel transistor.
+     <4> <source> <gate> <drain> - Weak N channel transistor.
+
+The nodes are 16 bit numbers, encoded as two bytes, with the high value
+first and the low value second. It refers to the node number that that
+terminal of the device connects to. All references to the same number are
+the same node. The numbers for valid nodes are from 1 to 65535. No gaps
+in the node numbering sequence are allowed.
+
+DICTIONARY FILE:
+
+The purpose of the dictionary is to give ascii equivalents to the node
+numbers, but in fact may be unused by any given program. The format
+of the dictionary is:
+
+     <entry 1>
+     <entry 2>
+     .
+     .
+     .
+     <entry n>
+     0 (byte)
+
+And the format of each entry is:
+
+    <length> (byte) <string>
+
+Where the length is the number of characters in a string. The format of a
+label must be an alphabetical character or "_" followed by any of an
+alphabetical, numeric or "_" character. The number of characters may
+be from 1 to 255.
+
+SET FILE:
+
+The set file gives one means to insert predetermined values into a simulation.
+The format is:
+
+     <entry 1>
+     <entry 2>
+     <entry 3>
+     .
+     .
+     .
+     <entry n>
+     0 (16 bits)
+
+Where the entry format is:
+
+     <node>
+     <value>
+     <time>
+     <period>
+
+The node is a 16 bit node number, from 1 to 65535. It MUST match the node
+number given in the dictionary.
+The value is a 16 value node set as used by the simulator.
+The time is the unscaled simulator tick time, from 0 to 65535, that the set
+is to take place.
+The period is an increment that is added to the time to determine the next
+time set period. It is set to 0 if the set is a single shot.
+Set files are sorted by the time field in acending order. This allows the
+set file to be read peicemeal by the simulator.
+
+TRACE FILE:
+
+The "trace" file is normally the output of a simulation, but can in fact
+be used anytime a full sequence of values on given nodes is needed. The
+format is:
+
+     ---------------
+     | Directory   |
+     ---------------
+     | Trace       |
+     ---------------
+
+The directory contains the list of nodes that are being traced. The format
+is:
+
+     <node 1>
+     <node 2>
+     .
+     .
+     .
+     <node n>
+     0 (16 bit)
+
+Each node in the directory list is in the same position as a "collumn" in
+the trace data.
+The format of the trace data is:
+
+     <line 1>
+     <line 2>
+     .
+     .
+     .
+     <line n>
+     $ffff (16 bits)
+
+Where the format of a line is:
+
+     <time>
+     <value 1>
+     <value 2>
+     .
+     .
+     .
+     <value n>
+
+The time is the unscaled simulator tick time that the line data pertains to.
+This can allow the time to skip forward under special circumstances. The
+time value 65535 is reserved to indicate eof for traces.
+The values are 16 bit node values, but they are packed so that the first
+node appears in the upper half of a byte, and the second in the lower half,
+etc. If the number of traced nodes is odd, the last byte will contain only
+an upper half value.

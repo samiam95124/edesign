@@ -1,0 +1,29 @@
+        title   'Printer output routine'
+        name    pixel
+        page    55,132
+
+        .386
+        .model  small, c
+
+        .code
+
+;**************************************************************
+;
+; OUTPUT PRINTER BYTE
+;
+; Outputs a single byte to the paralell printer port via the
+; BIOS call.
+;
+; procedure putprt(b: byte)
+;
+;**************************************************************
+
+putprt  proc    syscall b: byte
+        mov     ah,0
+        mov     al,b
+        mov     dx,0
+        int     17h
+        ret
+putprt  endp
+
+        end

@@ -1,0 +1,134 @@
+              PLAN FOR TREE STRUCTURED NETLISTS
+
+PLAN:
+
+The netlist format is to contain a tree structure capability.
+
+PURPOSE:
+
+A cell structure must be included to lessen the load on the assembler and
+eliminate the need for macros.
+
+DETAIL:
+
+Why can't the simulator handle tree structured nets ? The problem is that for
+each inclusion of a cell, a different set of parameter nodes are required,
+and there is no way to structure such nodes to allow for all inclusions. A set
+of translator vectors for each inclusion would have to be made. For the most
+common cells, such and nand's, etc., the number of parameter nodes outweighs
+the number of internal nodes, and therefore the translator vector space cost
+would outweigh the duplicate transistor cost (although that situation changes
+with larger cells). If the simulator duplicates internally from the input
+data, the cost is usually as much as for external load. The current analisis
+is that structuring is a "push" for the simulator.
+Nevertheless, to be run "flat", the net cells MUST be duplicated somewhere
+along the line. The simulator is the logical place to perform this, since
+it is also the only module that makes that requirement. We list the advantages
+of structured format:
+
+     1. More compact net lists.
+
+     2. Ability to perform direct structured simulation as possible.
+
+     3. Retention of the cell structure on the software side.
+
+     4. "flatter" assembly.
+
+IMPLEMENTATION:
+
+THE NET FILE:
+
+The cell nesting is indicated by the cell start (6) and cell end (7) markers.
+There are no special markings for cell parameters. They are simply indicated
+by being the first node numbers in the cell. Each cell has it's own numbering
+system, from 1 to n, where n is the top node. Each cell has a number, from 1
+to n, where n is the top cell in the database.
+A cell is called from another cell by an "inclusion header" entry:
+
+     <8> <cell number> <params> [<param>]
+
+The cell number is the number of the cell to be included. The next byte
+indicates the number of parameters used. This is followed by a list of node
+numbers, which are the actual nodes that correspond to the logical node
+numbers.
+The device number is the input sequence number of the transistor that
+begins the referenced cell. The next byte is the number of parameters
+present, then each parameter is represented by a real node to be attached
+to a logical cell node.
+Note that references may only be made to cells allready completely defined.
+Note that no information validating the exact number of parameters is passed.
+The actual node numbers, such as are used to annote the output trace, are
+determined by taking the top cell (the last cell entered), and numerating
+each device/node in sequence, including subcells.
+
+
+DIRECTORY FORMAT:
+
+The node name directory must also be block structured. The new structure is
+as follows:
+
+     <1> <len> <string> - denotes a cell begining.
+     <2>                - Ends the nested cell.
+     <3> <len> <string> - Denotes a node name.
+     <4> <number>       - Denotes a cell reference.
+     <0>                - End of file.
+
+The format is the same as the appearance of cells/nodes in the net file.
+Each cell appears in turn, named, and it's nodes are named. When a cell
+reference is made, only the cell number appears.
+
+SIMULATION ON NETS:
+
+For a simulator that simply flattens the input tree, the following procedure
+would be followed.
+Each cell, with its own logical numbering system is entered as a partial load
+net. A cell directory must be kept to locate the start of the device and
+node lists for the cell. When one cell references another, and the cell is
+previously unreferenced, the cell data is simply "attached" to it's caller,
+meaning that it may obtain the actual definition if there are no other
+callers. When a duplicate cell definition DOES occur, the cell is replicated
+for the "holding" call, and the new call becomes the attached caller.
+When the entire net is loaded, the nodes must be renumbered so that the
+proceed in reference fashion from the last cell entered downwards.
+
+ASSEMBLY:
+
+The assembly statements are added:
+
+     cell <name> [<param>]...
+
+     <subcell declarations>
+
+     begin
+
+     <statements>
+
+     end
+
+The cell begin statement declares the parameter nodes, and begins the cell
+scope block. At the cell end, all nodes and subcells are purged. The cell
+parameters are also the first node numbers.
+Cell declarations may be nested, but the declarations must end before the
+start of the declared devices.
+The result of nested cells is simply to disallow outside references to
+inside a particular cell.
+Note that the assembled file is considered to lie within cell n, where n
+is the last cell.
+Format of assembled language:
+
+     <program>   ::= {<cell>}
+     <cell>      ::= cell <name> : <parameter list> ; {<cell>} <body>
+     <parameter> ::= <> | <node> { , <node> }
+     <body>      ::= begin <statement> end
+     <statement> ::= <> | <command> { ; <command> }
+
+cell this : input, output;
+
+cell ....
+
+begin
+
+p: a, b, c;
+n: q, r, s
+
+end;

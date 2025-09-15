@@ -1,0 +1,1074 @@
+{**************************************************************
+*                                                             *
+*                   STANDARD LIBRARY                          *
+*                                                             *
+* This file contains the definitions for most common circuits *
+* of interest, with variations for functions and number of    *
+* transistors. Each definition may include a subdefinition    *
+* that appears earlier in the file.                           *
+* Note that it is impractical to use the entire file. To      *
+* create a new circuit, a specially editted version would     *
+* usually be made.                                            *
+*                                                             *
+* External node definitions:                                  *
+*                                                             *
+*     vdd - +5 or power.                                      *
+*     vss - 0 or ground.                                      *
+*                                                             *
+**************************************************************}
+
+{**************************************************************
+
+Inverter
+
+Provides a true output on false input, and vice-versa.
+
+Transistors: 2
+
+**************************************************************}
+
+cell inv: vss, vdd, input, output_;
+
+begin
+
+   peif: vdd, input, output_;
+   neif: vss, input, output_
+
+end;
+
+{**************************************************************
+
+Transmision gate
+
+Connects the terminals together when the enable is
+true, else provides high impedence between them.
+Has no drive capabillity of it's own.
+
+Transistors: 2
+
+**************************************************************}
+
+cell tg: left, right, enable, enable_; { no particular direction here }
+
+begin
+
+   peif: left, enable_, right;
+   neif: left, enable, right
+
+end;
+
+{**************************************************************
+
+Buffered positive transmision gate
+
+As a normal transmission gate, but only requires
+a single positive enable.
+Due to the inverter delay, the circuit has a built-in
+effect that causes it to turn on partially during
+a short period after switching.
+
+Transistors: 4
+
+**************************************************************}
+
+cell tgb: vss, vdd, left, right, enable;
+
+begin
+
+   inv: vss, vdd, enable, enable_; { form inverted clock }
+   tg:  left, right, enable, enable_ { use positive transmision gate }
+
+end;
+
+{**************************************************************
+
+Buffered negative transmision gate
+
+As a buffered positive transmition gate, but uses
+a negative enable.
+
+Transistors: 4
+
+**************************************************************}
+
+cell tgbn: vss, vdd, left, right, enable_;
+
+begin
+
+   inv: vss, vdd, enable_, enable; { form inverted clock }
+   { use negative transmission gate }
+   tg: left, right, enable_, enable
+
+end;
+
+{**************************************************************
+
+Nand gate
+
+Provides the "nand" function for two inputs.
+
+Transistors: 4
+
+**************************************************************}
+
+cell nand: vss, vdd, input1, input2, output_;
+
+begin
+
+  peif: vdd, input1, output_;
+  peif: vdd, input2, output_;
+  neif: vss, input1, n1;
+  neif: n1,  input2, output_
+
+end;
+
+{**************************************************************
+
+Three input nand gate
+
+Provides the "nand" function for Three inputs.
+
+Transistors: 6
+
+**************************************************************}
+
+cell nand3: vss, vdd, input1, input2, input3, output_;
+
+begin
+
+   peif: vdd, input1, output_;
+   peif: vdd, input2, output_;
+   peif: vdd, input3, output_;
+   neif: vss, input1, n1;
+   neif: n1,  input2, n2;
+   neif: n2,  input3, output_
+
+end;
+
+{**************************************************************
+
+Four input nand gate
+
+Provides the "nand" function for Four inputs.
+
+Transistors: 8
+
+**************************************************************}
+
+cell nand4: vss, vdd, input1, input2, input3, input4, output_;
+
+begin
+
+   peif: vdd, input1, output_;
+   peif: vdd, input2, output_;
+   peif: vdd, input3, output_;
+   peif: vdd, input4, output_;
+   neif: vss, input1, n1;
+   neif: n1,  input2, n2;
+   neif: n2,  input3, n3;
+   neif: n3,  input4, output_
+
+end;
+
+{**************************************************************
+
+Five input nand gate
+
+Provides the "nand" function for Five inputs.
+
+Transistors: 10
+
+**************************************************************}
+
+cell nand5: vss, vdd, input1, input2, input3, input4, input5, output_;
+
+begin
+
+   peif: vdd, input1, output_;
+   peif: vdd, input2, output_;
+   peif: vdd, input3, output_;
+   peif: vdd, input4, output_;
+   peif: vdd, input5, output_;
+   neif: vss, input1, n1;
+   neif: n1, input2, n2;
+   neif: n2, input3, n3;
+   neif: n3, input4, n4;
+   neif: n4, input5, output_
+
+end;
+
+{**************************************************************
+
+Six input nand gate
+
+Provides the "nand" function for Six inputs.
+
+Transistors: 12
+
+**************************************************************}
+
+cell nand6: vss, vdd, input1, input2, input3, input4, input5,
+            input6, output_;
+
+begin
+
+   peif: vdd, input1, output_;
+   peif: vdd, input2, output_;
+   peif: vdd, input3, output_;
+   peif: vdd, input4, output_;
+   peif: vdd, input5, output_;
+   peif: vdd, input6, output_;
+   neif: vss, input1, n1;
+   neif: n1, input2, n2;
+   neif: n2, input3, n3;
+   neif: n3, input4, n4;
+   neif: n4, input5, n5;
+   neif: n5, input6, output_
+
+end;
+
+{**************************************************************
+
+Seven input nand gate
+
+Provides the "nand" function for Seven inputs.
+
+Transistors: 14
+
+**************************************************************}
+
+cell nand7: vss, vdd, input1, input2, input3, input4, input5, input6,
+            input7, output_;
+
+begin
+
+   peif: vdd, input1, output_;
+   peif: vdd, input2, output_;
+   peif: vdd, input3, output_;
+   peif: vdd, input4, output_;
+   peif: vdd, input5, output_;
+   peif: vdd, input6, output_;
+   peif: vdd, input7, output_;
+   neif: vss, input1, n1;
+   neif: n1,  input2, n2;
+   neif: n2,  input3, n3;
+   neif: n3,  input4, n4;
+   neif: n4,  input5, n5;
+   neif: n5,  input6, n6;
+   neif: n6,  input7, output_
+
+end;
+
+{**************************************************************
+
+Eight input nand gate
+
+Provides the "nand" function for eight inputs.
+Eight inputs is about the maximum inputs possible for
+a reliable gate.
+
+Transistors: 16
+
+**************************************************************}
+
+cell nand8: vss, vdd, input1, input2, input3, input4, input5, input6,
+            input7, input8, output_;
+
+begin
+
+   peif: vdd, input1, output_;
+   peif: vdd, input2, output_;
+   peif: vdd, input3, output_;
+   peif: vdd, input4, output_;
+   peif: vdd, input5, output_;
+   peif: vdd, input6, output_;
+   peif: vdd, input7, output_;
+   peif: vdd, input8, output_;
+   neif: vss, input1, n1;
+   neif: n1, input2, n2;
+   neif: n2, input3, n3;
+   neif: n3, input4, n4;
+   neif: n4, input5, n5;
+   neif: n5, input6, n6;
+   neif: n6, input7, n7;
+   neif: n7, input8, output_
+
+end;
+
+{**************************************************************
+
+Nor gate
+
+Provides the "nor" function for two inputs.
+Note that the nor is theoretically slower than
+a nand because of the p stack, and therefore
+the nand is preferred.
+
+Transistors: 4
+
+**************************************************************}
+
+cell nor: vss, vdd, input1, input2, output_;
+
+begin
+
+   peif: vdd, input1, n1;
+   peif: n1,  input2, output_;
+   neif: vss, input1, output_;
+   neif: vss, input2, output_
+
+end;
+
+{**************************************************************
+
+Three input nor gate
+
+Provides the "nor" function for three inputs.
+
+Transistors: 6
+
+**************************************************************}
+
+cell nor3: vss, vdd, input1, input2, input3, output_;
+
+begin
+
+   peif: vdd, input1, n1;
+   peif: n1, input2, n2;
+   peif: n2, input3, output_;
+   neif: vss, input1, output_;
+   neif: vss, input2, output_;
+   neif: vss, input3, output_
+
+end;
+
+{**************************************************************
+
+Four input nor gate
+
+Provides the "nor" function for four inputs.
+
+Transistors: 8
+
+**************************************************************}
+
+cell nor4: vss, vdd, input1, input2, input3, input4, output_;
+
+begin
+
+   peif: vdd, input1, n1;
+   peif: n1,  input2, n2;
+   peif: n2,  input3, n3;
+   peif: n3,  input4, output_;
+   neif: vss, input1, output_;
+   neif: vss, input2, output_;
+   neif: vss, input3, output_;
+   neif: vss, input4, output_
+
+end;
+
+{**************************************************************
+
+Five input nor gate
+
+Provides the "nor" function for five inputs.
+
+Transistors: 10
+
+**************************************************************}
+
+cell nor5: vss, vdd, input1, input2, input3, input4, input5, output_;
+
+begin
+
+   peif: vdd, input1, n1;
+   peif: n1, input2, n2;
+   peif: n2, input3, n3;
+   peif: n3, input4, n4;
+   peif: n4, input5, output_;
+   neif: vss, input1, output_;
+   neif: vss, input2, output_;
+   neif: vss, input3, output_;
+   neif: vss, input4, output_;
+   neif: vss, input5, output_
+
+end;
+
+{**************************************************************
+
+Six input nor gate
+
+Provides the "nor" function for six inputs.
+
+Transistors: 12
+
+**************************************************************}
+
+cell nor6: vss, vdd, input1, input2, input3, input4, input5,
+           input6, output_;
+
+begin
+
+   peif: vdd, input1, n1;
+   peif: n1,  input2, n2;
+   peif: n2,  input3, n3;
+   peif: n3,  input4, n4;
+   peif: n4,  input5, n5;
+   peif: n5,  input6, output_;
+   neif: vss, input1, output_;
+   neif: vss, input2, output_;
+   neif: vss, input3, output_;
+   neif: vss, input4, output_;
+   neif: vss, input5, output_;
+   neif: vss, input6, output_
+
+end;
+
+{**************************************************************
+
+Seven input nor gate
+
+Provides the "nor" function for seven inputs.
+
+Transistors: 14
+
+**************************************************************}
+
+cell nor7: vss, vdd, input1, input2, input3, input4, input5, input6,
+           input7, output_;
+
+begin
+
+   peif: vdd, input1, n1;
+   peif: n1,  input2, n2;
+   peif: n2,  input3, n3;
+   peif: n3,  input4, n4;
+   peif: n4,  input5, n5;
+   peif: n5,  input6, n6;
+   neif: n6,  input7, output_;
+   neif: vss, input1, output_;
+   neif: vss, input2, output_;
+   neif: vss, input3, output_;
+   neif: vss, input4, output_;
+   neif: vss, input5, output_;
+   neif: vss, input6, output_;
+   neif: vss, input7, output_
+
+end;
+
+{**************************************************************
+
+Eight input nor gate
+
+Provides the "nor" function for eight inputs.
+
+Transistors: 16
+
+**************************************************************}
+
+cell nor8: vss, vdd, input1, input2, input3, input4, input5, input6,
+           input7, input8, output_;
+
+begin
+
+   peif: vdd, input1, n1;
+   peif: n1, input2, n2;
+   peif: n2, input3, n3;
+   peif: n3, input4, n4;
+   peif: n4, input5, n5;
+   peif: n5, input6, n6;
+   peif: n6, input7, n7;
+   peif: n7, input8, output_;
+   neif: vss, input1, output_;
+   neif: vss, input2, output_;
+   neif: vss, input3, output_;
+   neif: vss, input4, output_;
+   neif: vss, input5, output_;
+   neif: vss, input6, output_;
+   neif: vss, input7, output_;
+   neif: vss, input8, output_
+
+end;
+
+{**************************************************************
+
+And gate
+
+Provides the "and" function for two inputs.
+
+Transistors: 4
+
+**************************************************************}
+
+cell and: vss, vdd, input1, input2, output;
+
+begin
+
+   nand: vss, vdd, input1, input2, n1;
+   inv:  vss, vdd, n1, output
+
+end;
+
+{**************************************************************
+
+Three input and gate
+
+Provides the "and" function for three inputs.
+
+Transistors:
+
+**************************************************************}
+
+cell and3: vss, vdd, input1, input2, input3, output;
+
+begin
+
+   nand3: vss, vdd, input1, input2, input3, n1;
+   inv:   vss, vdd, n1, output
+
+end;
+
+{**************************************************************
+
+Four input and gate
+
+Provides the "and" function for four inputs.
+
+Transistors:
+
+**************************************************************}
+
+cell and4: vss, vdd, input1, input2, input3, input4, output;
+
+begin
+
+   nand4: vss, vdd, input1, input2, input3, input4, n1;
+   inv:   vss, vdd, n1, output
+
+end;
+
+{**************************************************************
+
+Five input and gate
+
+Provides the "and" function for five inputs.
+
+Transistors:
+
+**************************************************************}
+
+cell and5: vss, vdd, input1, input2, input3, input4, input5, output;
+
+begin
+
+   nand5: vss, vdd, input1, input2, input3, input4, input5, n1;
+   inv:   vss, vdd, n1, output
+
+end;
+
+{**************************************************************
+
+Six input and gate
+
+Provides the "and" function for six inputs.
+
+Transistors:
+
+**************************************************************}
+
+cell and6: vss, vdd, input1, input2, input3, input4, input5,
+           input6, output;
+
+begin
+
+   nand6: vss, vdd, input1, input2, input3, input4, input5, input6, n1;
+   inv:   vss, vdd, n1, output
+
+end;
+
+{**************************************************************
+
+Seven input and gate
+
+Provides the "and" function for seven inputs.
+
+Transistors:
+
+**************************************************************}
+
+cell and7: vss, vdd, input1, input2, input3, input4, input5, input6,
+           input7, output;
+
+begin
+
+   nand7: vss, vdd, input1, input2, input3, input4, input5, input6,
+          input7, n1;
+   inv:   vss, vdd, n1, output
+
+end;
+
+{**************************************************************
+
+Eight input and gate
+
+Provides the "and" function for eight inputs.
+
+Transistors:
+
+**************************************************************}
+
+cell and8: vss, vdd, input1, input2, input3, input4, input5, input6,
+           input7, input8, output;
+
+begin
+
+   nand8: vss, vdd, input1, input2, input3, input4, input5, input6,
+          input7, input8, n1;
+   inv:   vss, vdd, n1, output
+
+end;
+
+{**************************************************************
+
+Or gate
+
+Provides the "or" function for two inputs.
+
+Transistors: 4
+
+**************************************************************}
+
+cell or: vss, vdd, input1, input2, output;
+
+begin
+
+   nor: vss, vdd, input1, input2, n1;
+   inv: vss, vdd, n1, output
+
+end;
+
+{**************************************************************
+
+Three input or gate
+
+Provides the "or" function for three inputs.
+
+Transistors:
+
+**************************************************************}
+
+cell or3: vss, vdd, input1, input2, input3, output;
+
+begin
+
+   nor3: vss, vdd, input1, input2, input3, n1;
+   inv:  vss, vdd, n1, output
+
+end;
+
+{**************************************************************
+
+Four input or gate
+
+Provides the "or" function for four inputs.
+
+Transistors:
+
+**************************************************************}
+
+cell or4: vss, vdd,input1, input2, input3, input4, output;
+
+begin
+
+   nor4: vss, vdd, input1, input2, input3, input4, n1;
+   inv:  vss, vdd, n1, output
+
+end;
+
+{**************************************************************
+
+Five input or gate
+
+Provides the "or" function for five inputs.
+
+Transistors:
+
+**************************************************************}
+
+cell or5: vss, vdd, input1, input2, input3, input4, input5, output;
+
+begin
+
+   nor5: vss, vdd, input1, input2, input3, input4, input5, n1;
+   inv:  vss, vdd, n1, output
+
+end;
+
+{**************************************************************
+
+Six input or gate
+
+Provides the "or" function for six inputs.
+
+Transistors:
+
+**************************************************************}
+
+cell or6: vss, vdd, input1, input2, input3, input4, input5,
+          input6, output;
+
+begin
+
+   nor6: vss, vdd, input1, input2, input3, input4, input5, input6, n1;
+   inv:  vss, vdd, n1, output
+
+end;
+
+{**************************************************************
+
+Seven input or gate
+
+Provides the "or" function for seven inputs.
+
+Transistors:
+
+**************************************************************}
+
+cell or7: vss, vdd, input1, input2, input3, input4, input5, input6,
+          input7, output;
+
+begin
+
+   nor7: vss, vdd, input1, input2, input3, input4, input5, input6,
+         input7, n1;
+   inv:  vss, vdd, n1, output
+
+end;
+
+{**************************************************************
+
+Eight input or gate
+
+Provides the "or" function for eight inputs.
+
+Transistors:
+
+**************************************************************}
+
+cell or8: vss, vdd, input1, input2, input3, input4, input5, input6,
+          input7, input8, output;
+
+begin
+
+   nor8: vss, vdd, input1, input2, input3, input4, input5, input6,
+         input7, input8, n1;
+   inv:  vss, vdd, n1, output
+
+end;
+
+{**************************************************************
+
+And/nand gate
+
+Provides the "and" and "nand" function for two inputs.
+
+Transistors: 4
+
+**************************************************************}
+
+cell andn: vss, vdd, input1, input2, output, output_;
+
+begin
+
+   nand: vss, vdd, input1, input2, output_;
+   inv:  vss, vdd, output_, output
+
+end;
+
+{**************************************************************
+
+Three input and/nand gate
+
+Provides the "and" and "nand" function for three inputs.
+
+Transistors:
+
+**************************************************************}
+
+cell andn3: vss, vdd, input1, input2, input3, output, output_;
+
+begin
+
+   nand3: vss, vdd, input1, input2, input3, output_;
+   inv:   vss, vdd, output_, output
+
+end;
+
+{**************************************************************
+
+Four input and/nand gate
+
+Provides the "and" and "nand" function for four inputs.
+
+Transistors:
+
+**************************************************************}
+
+cell andn4: vss, vdd, input1, input2, input3, input4, output, output_;
+
+begin
+
+   nand4: vss, vdd, input1, input2, input3, input4, output_;
+   inv:   vss, vdd, output_, output
+
+end;
+
+{**************************************************************
+
+Five input and/nand gate
+
+Provides the "and" and "nand" function for five inputs.
+
+Transistors:
+
+**************************************************************}
+
+cell andn5: vss, vdd, input1, input2, input3, input4, input5,
+            output, output_;
+
+begin
+
+   nand5: vss, vdd, input1, input2, input3, input4, input5, output_;
+   inv:   vss, vdd, output_, output
+
+end;
+
+{**************************************************************
+
+Six input and/nand gate
+
+Provides the "and" and "nand" function for six inputs.
+
+Transistors:
+
+**************************************************************}
+
+cell andn6: vss, vdd, input1, input2, input3, input4, input5,
+            input6, output, output_;
+
+begin
+
+   nand6: vss, vdd, input1, input2, input3, input4, input5,
+          input6, output_;
+   inv:   vss, vdd, output_, output
+
+end;
+
+{**************************************************************
+
+Seven input and/nand gate
+
+Provides the "and" and "nand" function for seven inputs.
+
+Transistors:
+
+**************************************************************}
+
+cell andn7: vss, vdd, input1, input2, input3, input4, input5, input6,
+            input7, output, output_;
+
+begin
+
+   nand7: vss, vdd, input1, input2, input3, input4, input5, input6,
+          input7, output_;
+   inv:   vss, vdd, output_, output
+
+end;
+
+{**************************************************************
+
+Eight input and/nand gate
+
+Provides the "and" and "nand" function for eight inputs.
+
+Transistors:
+
+**************************************************************}
+
+cell andn8: vss, vdd, input1, input2, input3, input4, input5, input6,
+            input7, input8, output, output_;
+
+begin
+
+   nand8: vss, vdd, input1, input2, input3, input4, input5, input6,
+          input7, input8, output_;
+   inv:   vss, vdd, output_, output
+
+end;
+
+{**************************************************************
+
+Or/nor gate
+
+Provides the "or" and "nor" function for two inputs.
+
+Transistors: 4
+
+**************************************************************}
+
+cell orn: vss, vdd, input1, input2, output, output_;
+
+begin
+
+   or:  vss, vdd, input1, input2, output_;
+   inv: vss, vdd, output_, output
+
+end;
+
+{**************************************************************
+
+Three input or/nor gate
+
+Provides the "or" and "nor" function for three inputs.
+
+Transistors:
+
+**************************************************************}
+
+cell orn3: vss, vdd, input1, input2, input3, output, output_;
+
+begin
+
+   nor3: vss, vdd, input1, input2, input3, output_;
+   inv:  vss, vdd, output_, output
+
+end;
+
+{**************************************************************
+
+Four input or/nor gate
+
+Provides the "or" and "nor" function for four inputs.
+
+Transistors:
+
+**************************************************************}
+
+cell orn4: vss, vdd, input1, input2, input3, input4, output, output_;
+
+begin
+
+   nor4: vss, vdd, input1, input2, input3, input4, output_;
+   inv:  vss, vdd, output_, output
+
+end;
+
+{**************************************************************
+
+Five input or/nor gate
+
+Provides the "or" and "nor" function for five inputs.
+
+Transistors:
+
+**************************************************************}
+
+cell orn5: vss, vdd, input1, input2, input3, input4, input5,
+           output, output_;
+
+begin
+
+   nor5: vss, vdd, input1, input2, input3, input4, input5, output_;
+   inv:  vss, vdd, output_, output
+
+end;
+
+{**************************************************************
+
+Six input or/nor gate
+
+Provides the "or" and "nor" function for six inputs.
+
+Transistors:
+
+**************************************************************}
+
+cell orn6: vss, vdd, input1, input2, input3, input4, input5,
+           input6, output, output_;
+
+begin
+
+   nor6: vss, vdd, input1, input2, input3, input4, input5,
+         input6, output_;
+   inv:  vss, vdd, output_, output
+
+end;
+
+{**************************************************************
+
+Seven input or/nor gate
+
+Provides the "or" and "nor" function for seven inputs.
+
+Transistors:
+
+**************************************************************}
+
+cell orn7: vss, vdd, input1, input2, input3, input4, input5, input6,
+           input7, output, output_;
+
+begin
+
+   nor7: vss, vdd, input1, input2, input3, input4, input5, input6,
+         input7, output_;
+   inv:  vss, vdd, output_, output
+
+end;
+
+{**************************************************************
+
+Eight input or/nor gate
+
+Provides the "or" and "nor" function for eight inputs.
+
+Transistors:
+
+**************************************************************}
+
+cell orn8: vss, vdd, input1, input2, input3, input4, input5, input6,
+           input7, input8, output, output_;
+
+begin
+
+   nor8: vss, vdd, input1, input2, input3, input4, input5, input6,
+         input7, input8, output_;
+   inv:  vss, vdd, output_, output
+
+end;
+
+{ Xor gate, using transmision gates }
+
+cell xor: vss, vdd, input1, input2, output;
+
+begin
+
+   inv: vss, vdd, input1, n1; { invert both inputs }
+   inv: vss, vdd, input2, n2;
+   tg:  input2, output, n1, input1; { perform xor }
+   tg:  n2,     output, input1, n1
+
+end;
+
+{ Xor gate, using standard gates }
+
+cell xor1: vss, vdd, input1, input2, output;
+
+begin
+
+   inv:  vss, vdd, input1,  n1;
+   inv:  vss, vdd, input2,  n2;
+   nand: vss, vdd, input2,  n1, n3;
+   nand: vss, vdd, input1,  n2, n4;
+   nand: vss, vdd, n3,      n4, output
+
+end;

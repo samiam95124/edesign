@@ -1,0 +1,473 @@
+                CKTSIM DEMONSTRATOR VERSION DOCUMENTATION
+
+Purpose:
+
+This document will give sufficient information to operate the
+demonstrator version of cktsim.
+
+Overwiew:
+
+Cktsim is a general logic simulator, aimed at use in CMOS type circuitry,
+but able to model TTL or NMOS circuitry as well. The simulation is done
+at the "switch" level, meaning that the basic unit of simulation is the
+transistor. It is also possible to model resistors for pull up/pull down
+use, and capacitors using gate capacitience.
+
+Input:
+
+The input is in the form of a "net list", which is in two basic parts:
+
+     1. Nodes. These are simply "connections", and are N-way. The real
+        world equvalient is a wire, which may connect up to N-many
+        devices/outputs. Each node has a unique name.
+
+     2. Transistors. Both P and N transistors are represented.
+        P transistors behave as switches that are ON when a
+        negative voltage appears on the gate. N transistors are
+        ON when a positive voltage appears on the gate.
+        Transistors are unnamed.
+
+The net list, then, appears as an arbitrary "net" of devices and the
+connections between.
+Interspersed with the net definitions, several mode commands may appear.
+The net file, then, can be a complete description of the circuit,
+simulated inputs, output format controls, test data, etc. In short,
+the complete simulation control.
+
+Simulation:
+
+Once the net is entered and all commands have been executed, the simulation
+is run. This consists of a series of simulated "clock ticks", in which some
+unit of time is simulated. This is an arbitrary definition, and will match
+reality best when the worst case delay for a transistor to switch when it's
+gate value changes state.
+Each clock tick represents a cycle where the simulator has gone through all
+the transistors in the circuit sequentailly, evaluating what the next state
+of every device will be from the last state. In this way, the paralell working
+of true hardware is simulated.
+
+Output:
+
+Two basic modes of output may be specified: list and timing chart. In list
+mode, each signal to be listed is given a collumn, and as many signals as
+will fit onto a line will be printed. Each line represents a clock tick.
+In timing chart mode, Each signal occupies a line, and each collumn represents
+a clock tick. In addition, the signal states are filtered in this mode
+to look like logic analizer traces. Which type of presentation is chosen
+is simply a matter of taste.
+The output can be left "plain", usually for presentation on a CRT, or can
+be pagenated, with headers, page numbers and margins suitable for printout.
+
+General use mode:
+
+Used simply as a transistor level simulator, cktsim is an IC level design
+tool. Small nets of transistors may be modeled into the typical gates used.
+All the tools of CMOS IC design are present, including weak transistors
+for pullup and other uses.
+Beyond this, a macro system is avalible. The usual first level which
+such macros form are gates such as nand, nor, invert, the CMOS transmission
+gate, etc. Once the simple gates are built up, the design building can
+proceed using nothing but such gates if desired. Thus, in fact, the designer
+can forget entirely that the basic unit of simulation is the transistor.
+The levels would proceed through flip - flops, adders, etc.
+Here we reach a basic branch point depending on the design purpose. With
+IC design, the net can be built up with arbitrary cells, connecting gates,
+and individual transistors, limited only by silicon area.
+With board level design, the goal is typically to simulate standard SSI,
+MSI and LSI packages (although the designer may choose to simply design
+using the "obvious" functions such as gates, latches, etc., and worry
+about packaging after the design is simulated). Each package, representing
+a real world IC package, is defined into a macro for use. Typically, the
+macro can be made avalible in a "library" of such macros, say a "74XX"
+libary representing that family. In this way, the net representing the
+board level design has direct correspondence to the actual board schematic.
+
+Cktsim activation:
+
+     cs <netfile> {option}
+
+"cs" is the abbreviated form of cktsim. The "netfile" can be any file with
+any extention. If no extention is given, ".ckt" is presumed. The implemented
+options are as follows:
+
+     #c        - Sets the output mode to "timing chart".
+
+     #l=<file> - Sets where the output of the simulation will go.
+                 Any file or device name may be specified.
+
+Net file commands:
+
+     p <source> <gate> <drain> - Defines a p-channel transistor.
+     Each of the source, gate and drain connections is defined
+     by a node name label, which is a sequence of letters or
+     digits starting with a letter. The first time a node label
+     appears, that node is "declared", and any subsequent appearances
+     of the same name indicate connection to the same point.
+
+     n <source> <gate> <drain> - Defines an n-channel transistor.
+
+     wp <source> <gate> <drain> - Defines a weak p-channel transistor.
+     This operates the same as a normal p transistor, but will
+     "lose" in contention with a normal "strong" n or p transistor.
+     Several uses include pullups, contention resolution, etc.
+
+     wn <source> <gate> <drain> - Defines a weak n-channel transistor.
+
+     set <node> <state> [<clock>] {<state> [<clock>]} - Defines
+     a "set" sequence for a node. This is a progression of states
+     to be artificially set on a node. The "clock" is the clock
+     tick time in which the set is to take effect. If omitted,
+     the clock value defaults to 0, or the start of the simulation.
+     Any number of sets for the node may appear.
+     The clock specification may appear in any of the following
+     forms:
+
+          <integer> - The number of the clock time.
+          +<integer> - The current clock time plus the clock
+          number specified (not really usefull in the present
+          version of cktsim).
+          <integer>:<integer> - This is a periodic set. The first
+          number represents the clock time as above. Each time
+          the set occurs, however, the second value is added
+          to the current clock, meaning that it will be reset
+          to happen n-clocks into the future.
+
+     clockscale <num> - Sets the ratio of real time to simulator
+     clock ticks. If the parameter is set to the average gate
+     delay of the type of curcuitry being designed, the clock
+     numbers appearing in printouts will be representative of
+     real world time. This also affects all clock values
+     appearing after in the net list. Placing it at the start of
+     the net file means that all times in the net commands are
+     specified in real mode. Placing it at the end means that
+     all times are specified in unscaled mode. Either way,
+     the printout will appear scaled.
+
+     chart - Sets the print mode to "timing chart".
+
+     list - Sets the print mode to "list".
+
+     step <num>  - Sets the number of simulation clocks to perform.
+
+     line <num> - Sets the width of the print line. The default is 79,
+     appropriate for both screen and paper printouts.
+
+     page [<num>] - Sets pagenation on. This causes headers, page
+     numbers and form feeds to be generated, suitible for
+     printout. If the parameter is present, this will be taken
+     as the page length, which is set to a default 60, proper
+     for a 66 line page.
+
+     margin [<num>] - Set left margin on. This is usually used
+     in conjunction with the line command to center the printout,
+     for instance to insert the printout into a binder.
+     If the parameter is present, that many left margin spaces
+     will be provided, else the default is 10.
+
+     format <node> {<node>} - Set what nodes are to be displayed.
+     On a very busy net, it is usually nessary to pick out the
+     relivant signals to be displayed.
+
+     macro <name> <param> {<param>} - Define macro. All the following
+     lines until the "endmac" statement are stored as the macro
+     definition, to be expanded later. Any number of parameters
+     may be specified. The label used is irrelivant, and serves
+     as a marker for the "actual" parameter at expansion time.
+
+     endmac - Terminates a macro definition.
+
+     <macro> <param> {<param>} - Perform macro. Here the command
+     name is the same as was defined in a preceeding macro statement.
+     Macros are expanded by executing each line of the stored macro
+     in the original order. Before the line is executed, it is searched
+     for the parameter labels given in the original macro
+     specification. When found, these are replaced with the
+     "actual" parameters found in the same position in the
+     macro expansion statement.
+     The "@" character expands to the number of times the macro
+     has been expanded, which enables the writting of unique
+     node labels.
+     The macro expansion must have the same number of parameters
+     as the original definition.
+
+                      NODE STATES AND THEIR DEFINITIONS
+
+The following is a list and full explaination of the node states, their
+memnonic letters, their meanings, and the results of their combination.
+Where possible, a meaningfull letter has been chosen for the state. Where
+this was not possible, they are lettered in 'a'-'z' fashion.
+
+Undefined states: an undefined node may in fact have any voltage value
+between vss and vcc. There are, however, many different types of undefineds,
+classed roughly as "driven" and "stored".
+
+U-Undefined               The node has never been connected to any source of
+                          current, is in high - Z, and contains the
+                          indeterminate state leftover from power on.
+
+I-Indeterminate           The node is high - Z, and contains an indeterminate
+                          value. This is the state leftover after a contention
+                          or indeterminate driven state.
+
+A-Indeterminate high      There is an indeterminate amount of drive
+                          coming from a driven high node.
+
+B-Indeterminate low       There is an indeterminate amount of drive
+                          coming from a driven low node.
+
+D-Weak indet high         There is an indeterminate amount of weak drive
+                          coming from a driven low node.
+
+E-Weak indet low          There is an indeterminate amount of weak drive
+                          coming from a driven low node.
+
+C-Contention              There are conflicting drives on the node.
+
+F-Weak contention         There are conflicting weak drives on the node.
+
+Defined states: A defined state has a definate voltage value, either vss or
+vcc. Again, however, there are many different types, classed into driven
+and stored.
+
+1-Driven high             There is a high drive on the node.
+
+0-Driven low              There is a low drive on the node.
+
+H-Stored high             There is a high voltage stored on a high-z node.
+
+L-stored low              There is a low voltage stored on a high-z node.
+
+J-Weak high               There is a high weak drive on the node.
+
+K-Weak low                There is a low weak drive on the node.
+
+P-Vcc                     The node is connected DIRECTLY to the high voltage
+                          rail.
+
+G-Vss                     The node is connected DIRECTLY to the low voltage
+                          rail.
+
+Combinations: The results of two states meeting in a circuit can be told
+according to this state table. There are 256 possible combinations, although
+of course some of them are redundant.
+
+              U I A B D E C F 1 0 H L J K P G
+             ---------------------------------
+           U |U|I|A|B|D|E|C|F|1|0|I|I|J|K|P|G|
+           I |I|I|A|B|D|E|C|F|1|0|I|I|J|K|P|G|
+           A |A|A|A|C|A|A|C|A|1|C|A|A|A|A|P|G|
+           B |B|B|C|B|B|B|C|B|C|0|B|B|B|B|P|G|
+           D |D|D|A|B|D|C|C|C|1|0|D|D|J|F|P|G|
+           E |E|E|A|B|C|E|C|C|1|0|E|E|F|K|P|G|
+           C |C|C|C|C|C|C|C|C|C|C|C|C|C|C|P|G|
+           F |F|F|A|B|C|C|C|F|1|0|F|F|F|F|P|G|
+           1 |1|1|1|C|1|1|C|1|1|C|1|1|1|1|P|G|
+           0 |0|0|0|0|0|0|C|0|C|0|0|0|0|0|P|G|
+           H |I|I|A|B|D|E|C|F|1|0|H|I|J|K|P|G|
+           L |I|I|A|B|D|E|C|F|1|0|I|L|J|K|P|G|
+           J |J|J|A|B|J|F|C|F|1|0|J|J|J|F|P|G|
+           K |K|K|A|B|F|K|C|F|1|0|K|K|F|K|P|G|
+           P |P|P|P|P|P|P|P|P|P|P|P|P|P|P|P|*|
+           G |G|G|G|G|G|G|G|G|G|G|G|G|G|G|*|G|
+             ---------------------------------
+
+The rationale for each of these rules: The states form groups. The groups
+are:
+
+     1. Driven - A, B, D, E, C, F, 1, 0, J and K. These are states
+        that have one or more transistors supplying current to
+        support that state.
+
+     2. Stored - U, I, H, and L. These are states that exist on a
+        high-Z node stored in the capacitience of that node.
+
+     3. Strong - A, B, C, 1, 0, P and G. These are states that
+        are supplied by strong transistors.
+
+     4. Weak - D, E, F, J and K. These are driven states that are
+        supplied by weak transistors.
+
+     5. Driven high - A, D, 1, and 0
+
+The basic rules for the combination of states are:
+
+     1. Any state with itself results the same state.
+
+     1. A strong driven state wins over any weak driven or
+        stored state.
+
+     2. A weak driven state wins over any stored state.
+
+     3. Like strength driven states of opposite polarity result
+        in contention of the same strengh.
+
+     3. Contention wins over any state of like strength.
+
+     4. Valid driven states win over driven indeterminates
+        of like polarity.
+
+     5. Stored states of opposite polarity result in a stored
+        indeterminate.
+
+     6. Any stored state with an indeterminate stored state
+        result in a stored indeterminate.
+
+Unrealistic rules: There are a few rules that do not result in realistic
+circuit behavor. The rules are worst case in that a circuit that might
+work in the real world would be flagged bad, but not vice-versa.
+
+     1. Since any strong indeterminate wins over any weak state,
+        a weak high or low is not able to combine with a strong
+        indetermiate state of like polarity, even though in a real
+        circuit a correct high or low would result.
+        This rule is nessary as in the following problem:
+
+             An indeterminate strong high state meets a
+             weak high state. In simulation this would be
+             an indeterminate strong high, but in a real
+             circuit would in fact be a valid high.
+             The result cannot be considered a strong high
+             as the weak component could be overcome.
+             Similarly, it cannot be considered a weak high
+             as it cannot in fact be overriden by a strong
+             low.
+
+        Fortunately, weak drives are used sparingly, and conflicts
+        will rarely arise.
+
+              CMOS SIMULATION GENERAL ALGORITHM
+
+We simulate transistors as ideal switches, witth no propagation delay
+from source to drain, and "unit" delay from gate to switch. The "nodes"
+are N-way connections that are capacitive in that they will hold a given
+state until driven otherwise. The nodes are the only circuit elements that
+change state as the simulation progresses.
+The network as loaded consists of two parts: the transistor list and the
+node directory. The transistor list consists of a linear list of transistors,
+with arbitrary connections from the source, gate and drain to nodes in the
+node directory. The node directory is a listt of entries containing the
+name, current and next states, and which transistor is responsible for the
+node state (or the last such transistor).
+The states for each node include a high, low and indeterminate, which
+indicates that a true high or low has not been established. The high and
+low states are divided according to whether the node is currently driven
+or is a state stored on the node. Stored states are subject to "decay",
+which causes the node to assume an indeterminate state after a finite
+number of clocks. The decay is an adjustable parameter, and can be made
+dependent on the number of attached transistors. This can be adjusted to
+realistically model worst case node decay (all attached transistors to the
+driven opposite state). The simulation is by "confidence" in that each
+driven state is replaced by it's stored equivalent at the start of each
+"clock", and the driven state must be re-established.
+The indeterminate states break into undefined, indeterminate, indeterminate
+driven, and contention. The undefined state is simply a stored
+indeterminate, but all nodes are set to it on simulation start so that the
+definition of nodes can be watched. The indeterminate state is a stored
+value of unknown voltage, and occurs typically as the aftermath of a
+contention or other driving state that does not clarify the node state.
+A node driven to conflicting states takes the contention state, which will
+tend to propagate if unchecked (since it is itself a driven mode state).
+Finally, the driven indeterminate is a special state used when an
+indeterminate state is driven on a node.
+Indeterminate states indicate at least that the possiblity exists of a
+non-rail to rail voltage and of static current flow. They serve three
+purposes. They can exist briefly while a circuit changes state due to
+different delay paths, or may be a normal mode of "trick" circuits
+(as pseudo-CMOS), or may indicate real faults in the design. In general,
+an indeterminate indicates that more power will be drawn than the CMOS
+nature would normally indicate.
+The transistor "evaluation" follows three different modes based on the
+state of it's gate. For an "off" transistor, no action occurs, as the
+transistor represents an ideal open. For "on" and "indeterminate" states,
+a lookup is performed by the source and drain states to find the next
+source and drain states by the preceeding ones. The reason for indeterminate
+evaluation is that the state must be evaluated "critically", so that a
+transistor may be assumed to "corrupt" a node but not be able to set a
+true driven high or low. Driven indeterminates are created only in this
+mode, and the transistor that caused such a state is remembered so that
+a promotion to contention state can be correctly evaluated.
+Each "clock" cycle starts by setting all modes to stored state and running
+through the transistor list evaluating each transistor independently.
+Since this can cause propagated states to N nodes, the evaluation run
+is repeated until no states change, to "relax" the circuit. Since the
+gates stay static through the run, inability to settle should not be
+possible. truly astable circuits will manefest over several clock cycles.
+The gate unit delay is inherent in the cycle time to process gates.
+We allow a "step" factor to convert the gate delays into real time based
+on a real world worst case delay factor.
+
+Algorithim advances
+
+A better picture of the true state of a node would be obtained by dividing
+driven and stored highs and lows into partial and full states. This would
+truly represent the drop caused by a level passed by the wrong type of
+transistor, and therefore a departure from true complementary logic. This
+would be again for diagnosic reasons and pseudo-CMOS designs.
+"winner" modes such as used for pseudo-CMOS ram structures can be modeled
+using weak N and P channel transistors. These would behave as normal
+transistors save that they would lose to stronger transistors. Alternately,
+winners can be determined by transistor sizes included in the net
+specification.
+
+Fidelity and realisim of simulation
+
+To some extent, the purpose of a switch level simulation is not to represent
+true reality but to define a simplified system whose rules are a logical
+subset of reality. The goal is met if the two basic criteria are met:
+
+     1. There are no "valid" modes in the simulation that
+        turn to "invalid" modes in reality.
+
+     2. The simulation correctly models circuit constructs in use.
+
+Delay modeling
+
+We model delays by picking the clock relation to real time so that it
+represents a quantization based on the worst case system delay. This
+is realistic in that the last settling node after, say a clock edge,
+represents a worst case estimate of the total net settle time. What is
+not realistic is the "order" in which the circuit will settle, and
+therefore it is possible to built a circuit that is "valid" under
+simulation, but not in real life because it does not follow like settling
+order. The difficulties with time representation can be solved by
+basing the circuit on a global clock, and syncronizing inputs to this
+clock. Then, the designer must also insure that race conditions do not
+exist in the design. To this end, the simulation provides a "close"
+model of real world delays, as the gate to switch delay of a transistor
+indeed represents a much larger value than the delay to move charge
+about the circuit.
+
+Voltage modeling
+
+CMOS certainly tries to minimize the effect of voltage approximation
+problems. Only using pseudo-CMOS does this effect come back in force. To
+this extent, partial level modeling is required to make some such
+circuits function in simulation.
+The charge decay system provides a worst case check on charge prooblems,
+and can accurately imitate decay in the real world.
+
+A model
+
+A good model for discussion is the setting of a inverter ring via an
+N-MOS pass transistor:
+
+! Pass transistor
+
+n input control store
+
+! Driver inverter
+
+inv store storeb
+
+! Feedback weak inverter
+
+winv storeb store
+
+Here, the pass transistor can pass a perfect low state, but an imperfect
+high or partial high state, and the feedback weak inverter is in a winner
+mode with the driver beyond the pass transistor (which we assume is a
+strong driver). To set a low store state is done by setting a winner with
+the weak inverter. To set a high store state, the store state first
+proceeds to a partial high as a result of the win over the weak inverter,
+Which will in time propagate to a full high when the weak inverter
+changes state.

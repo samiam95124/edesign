@@ -1,0 +1,152 @@
+{
+
+Inverter
+
+Provides a true output on false input, and vice-versa.
+
+Transistors: 2
+
+}
+
+cell inv: vss, vdd, input, output_;
+
+begin
+
+   peif: vdd, input, output_, 1, 1;
+   neif: vss, input, output_, 1, 1
+
+end;
+
+{
+
+Nor gate
+
+Provides the "nor" function for two inputs.
+Note that the nor is theoretically slower than
+a nand because of the p stack, and therefore
+the nand is preferred.
+
+Transistors: 4
+
+}
+
+cell nor: vss, vdd, input1, input2, output_;
+
+begin
+
+   peif: vdd, input1, n1, 1, 1;
+   peif: n1, input2, output_, 1, 1;
+   neif: vss, input1, output_, 1, 1;
+   neif: vss, input2, output_, 1, 1
+
+end;
+
+{
+
+Tristate inverter
+
+}
+
+cell trin: vss, vdd, input, output_, enable, enable_;
+
+begin
+
+   peif: vdd, enable_, n1, 1, 1;
+   peif: n1, input, output_, 1, 1;
+   neif: output_, input, n2, 1, 1;
+   neif: n2, enable, vss, 1, 1
+
+end;
+
+{
+
+Multiplexer
+
+}
+
+cell mux: vss, vdd, a, b, output_, select, select_;
+
+begin
+
+   trin: vss, vdd, a, output_, select, select_; { select a on 0 }
+   trin: vss, vdd, b, output_, select_, select  { select b on 1 }
+
+end;
+
+{
+
+Flow through latch with reset. Enters on clock high.
+
+}
+
+cell ftlr: vss, vdd, input, output, output_, enable, enable_, reset;
+
+begin
+
+   { mux selects feed back or feed through }
+   mux: vss, vdd, input, output, output_, enable, enable_;
+   { nor buffers positive feedback, and provides positive clear }
+   nor:  vss, vdd, output_, reset, output
+
+end;
+
+{
+
+Clocked latch with reset
+
+As above, with reset.
+
+Transistors: 20
+
+}
+
+cell clt: vss, vdd, input, output, output_, clock, clock_, reset;
+
+begin
+
+   { master enters on clock low }
+   ftlr: vss, vdd, input, n1, n2, clock_, clock, reset;
+   { slave enters on clock high }
+   ftlr: vss, vdd, n1, output, output_, clock, clock_, reset
+
+end;
+
+{
+
+Toggle latch
+
+}
+
+cell tog: vss, vdd, clock, clock_, output, output_, reset;
+
+begin
+
+   { is a clocked latch with the inverted output connected back
+     to the input }
+   clt: vss, vdd, output_, output, output_, clock, clock_, reset
+
+end;
+
+{
+
+Divider chain
+
+}
+
+cell div: vss, vdd, clock, reset, q0, q1, q2, q3;
+
+begin
+
+   inv: vss, vdd, clock, clock_; { invert clock }
+
+   tog: vss, vdd, clock, clock_, q0, q0_, reset; { bit 0 }
+   tog: vss, vdd, q0_, q0, q1, q1_, reset; { bit 1 }
+   tog: vss, vdd, q1_, q1, q2, q2_, reset; { bit 2 }
+   tog: vss, vdd, q2_, q2, q3, q3_, reset; { bit 3 }
+   tog: vss, vdd, q2_, q2, q3, q3_, reset; { bit 4 }
+   tog: vss, vdd, q2_, q2, q3, q3_, reset; { bit 5 }
+   tog: vss, vdd, q2_, q2, q3, q3_, reset; { bit 6 }
+   tog: vss, vdd, q2_, q2, q3, q3_, reset  { bit 7 }
+
+end
+

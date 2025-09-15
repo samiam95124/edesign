@@ -1,0 +1,314 @@
+il32 Linker                  12/15/91  13:37:07                    Page    1
+
+
+DOS il32 Linker, V1.0s
+
+Input files:  C:\SVS\LIB\CSTDOS3F.OBJ, CLOCKTST.OBJ, ..\IBMROT.OBJ, 
+              C:\SVS\LIB\LIBP28.LIB, C:\SVS\LIB\C3SYS.LIB, 
+              C:\SVS\LIB\80387N.LIB, C:\SVS\LIB\CL387N.LIB
+Output file:  CLOCKTST.REX
+Controls specified:  PR SS(STACK(32768) ) SL NM OJ(CLOCKTST.REX) 
+
+
+Segment Map
+
+Relocation Offset   Size           Access   Align   Use        Combine Name
+
+00000000H           00003721H      er       dword   use32      TEXT
+00003724H           0000192AH      rw       dword   use32      DATA
+00005050H           00008000H      rw       dword   use32      STACK
+
+Total Image Size is 0000D050H
+
+
+Input modules included:
+
+cq_cstart (C:\SVS\LIB\CSTDOS3F.OBJ) CREATED: 08/14/91 13:47:54 BY:  386(TM) MACRO NOCASE ASSEMBLER, X404
+clocktst (CLOCKTST.OBJ) CREATED:                   BY: (Converted OMF)
+ibmrot (..\IBMROT.OBJ) CREATED:                   BY: (Converted OMF)
+tseq86init (C:\SVS\LIB\LIBP28.LIB) CREATED:                   BY: (Converted OMF)
+sysfib (C:\SVS\LIB\LIBP28.LIB) CREATED:                   BY: (Converted OMF)
+systxt (C:\SVS\LIB\LIBP28.LIB) CREATED:                   BY: (Converted OMF)
+systxto (C:\SVS\LIB\LIBP28.LIB) CREATED:                   BY: (Converted OMF)
+tcbglobals (C:\SVS\LIB\LIBP28.LIB) CREATED:                   BY: (Converted OMF)
+seq386os (C:\SVS\LIB\LIBP28.LIB) CREATED:                   BY: (Converted OMF)
+CQ__MAIN3 (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 15:14:21 BY: iC32 COMPILER 1.0c
+CQ__EXIT (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 14:32:35 BY: iC32 COMPILER 1.0c
+CQ__THREAD_ (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 13:52:45 BY: iC32 COMPILER 1.0c
+cq__fpreset (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 14:57:19 BY:  386(TM) MACRO NOCASE ASSEMBLER, X404
+CQ_EXIT (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 14:08:49 BY: iC32 COMPILER 1.0c
+CQ__EXIT_IN (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 13:52:01 BY: iC32 COMPILER 1.0c
+CQ__NOMOUSE (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 15:14:56 BY: iC32 COMPILER 1.0c
+CQ__CREATE (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 15:13:25 BY: iC32 COMPILER 1.0c
+CQ__G_ISTUB (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 14:34:30 BY: iC32 COMPILER 1.0c
+CQ__STDIO_I (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 13:52:27 BY: iC32 COMPILER 1.0c
+CQ_LSEEK (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 14:39:09 BY: iC32 COMPILER 1.0c
+CQ_READ (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 14:40:23 BY: iC32 COMPILER 1.0c
+CQ_WRITE (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 14:41:53 BY: iC32 COMPILER 1.0c
+CQ_CLOSE (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 14:36:40 BY: iC32 COMPILER 1.0c
+CQ_MALLOC (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 14:09:45 BY: iC32 COMPILER 1.0c
+CQ_REALLOC (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 14:11:06 BY: iC32 COMPILER 1.0c
+CQ___SETARG (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 15:13:16 BY: iC32 COMPILER 1.0c
+cq_auxstart (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 15:15:22 BY:  386(TM) MACRO NOCASE ASSEMBLER, X404
+cq__quit (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 15:12:30 BY:  386(TM) MACRO NOCASE ASSEMBLER, X404
+CQ_FCLOSEAL (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 14:04:56 BY: iC32 COMPILER 1.0c
+CQ_FLUSHALL (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 14:05:47 BY: iC32 COMPILER 1.0c
+CQ__INIT_CL (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 13:52:17 BY: iC32 COMPILER 1.0c
+CQ_IFHCOUNT (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 14:38:16 BY: iC32 COMPILER 1.0c
+CQ_NFILE (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 14:40:02 BY: iC32 COMPILER 1.0c
+CQ__MAIN0 (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 15:13:50 BY: iC32 COMPILER 1.0c
+CQ__MAIN2 (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 15:14:04 BY: iC32 COMPILER 1.0c
+il32 Linker                  12/15/91  13:37:07                    Page    2
+
+
+CQ__MAIN4 (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 15:14:42 BY: iC32 COMPILER 1.0c
+CQ__MAINLAS (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 14:42:21 BY: iC32 COMPILER 1.0c
+CQ__FMODE_I (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 14:34:42 BY: iC32 COMPILER 1.0c
+CQ__FINFO_I (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 14:52:07 BY: iC32 COMPILER 1.0c
+CQ_ISATTY (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 14:38:34 BY: iC32 COMPILER 1.0c
+CQ__STDOPEN (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 14:42:45 BY: iC32 COMPILER 1.0c
+cq_sysint21 (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 15:13:03 BY:  386(TM) MACRO NOCASE ASSEMBLER, X404
+CQ_RAISE (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 14:50:02 BY: iC32 COMPILER 1.0c
+CQ_FREE (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 14:09:04 BY: iC32 COMPILER 1.0c
+CQ__MALLOC (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 14:06:52 BY: iC32 COMPILER 1.0c
+cq_memmove (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 14:14:44 BY:  386(TM) MACRO NOCASE ASSEMBLER, X404
+cq__getvect (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 15:10:32 BY:  386(TM) MACRO NOCASE ASSEMBLER, X404
+cq_setvect (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 15:11:55 BY:  386(TM) MACRO NOCASE ASSEMBLER, X404
+CQ_FCLOSE (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 13:56:33 BY: iC32 COMPILER 1.0c
+CQ_FFLUSH (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 13:57:12 BY: iC32 COMPILER 1.0c
+cq__ctlcint (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 15:16:41 BY:  386(TM) MACRO NOCASE ASSEMBLER, X404
+CQ_SIGNAL (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 14:50:14 BY: iC32 COMPILER 1.0c
+CQ_SBRK (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 15:16:57 BY: iC32 COMPILER 1.0c
+CQ_REMOVE (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 14:02:17 BY: iC32 COMPILER 1.0c
+CQ__MAP_LEN (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 14:35:07 BY: iC32 COMPILER 1.0c
+CQ__VALIDAT (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 13:56:09 BY: iC32 COMPILER 1.0c
+CQ__RAISE (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 14:49:36 BY: iC32 COMPILER 1.0c
+cq__dosf48 (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 15:10:48 BY:  386(TM) MACRO NOCASE ASSEMBLER, X404
+CQ_UNLINK (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 14:41:38 BY: iC32 COMPILER 1.0c
+cq_bdos (C:\SVS\LIB\C3SYS.LIB) CREATED: 08/14/91 14:32:47 BY:  386(TM) MACRO NOCASE ASSEMBLER, X404
+
+
+
+Public symbols
+
+Symbol name                 Address
+
+_argc (CQ__MAIN3)           00003738H
+_get_args (CQ__MAIN3)       00001214H
+_exit (CQ__EXIT)            00001528H
+_argv (CQ__MAIN3)           00003734H
+_thread_init (CQ__THREAD_)  00001538H
+_fpreset (cq__fpreset)      00001568H
+exit (CQ_EXIT)              00001598H
+main (clocktst)             000000A8H
+_exit_init (CQ__EXIT_IN)    000015E4H
+_init_mouse (CQ__NOMOUSE)   00001618H
+environ (CQ__CREATE)        000038C8H
+_init_gr_system (CQ__G_ISTUB)00001818H
+_stdio_init (CQ__STDIO_I)   00001820H
+_amblksiz (cq_cstart)       0000372AH
+_387_present (cq_cstart)    0000372EH
+_kbdinp (ibmrot)            0000037BH
+_kbdrdy (ibmrot)            00000370H
+_gettim (ibmrot)            00000380H
+%_END (tseq86init)          000003F2H
+%_TERM (tseq86init)         000003F1H
+%_IOCHK (sysfib)            00000460H
+%W_CSF (systxt)             00000820H
+%W_I (systxto)              00000AF8H
+%W_ISFL (systxt)            000008BCH
+%W_SSF (systxt)             00000918H
+il32 Linker                  12/15/91  13:37:07                    Page    3
+
+
+%W_SSFL (systxt)            00000930H
+%W_LN (systxto)             000009D8H
+%P860421 (tseq86init)       000003B0H
+/%GLOBALS/ (clocktst)       000047CCH
+//GLOBALS// (clocktst)      00005028H
+CLOCKTEST (clocktst)        000000A8H
+%TqI_HYi (clocktst)         000000A8H
+%CNTARGS (tcbglobals)       00000DB4H
+%INITGLB (tcbglobals)       00000E60H
+%TkakRS0 (tseq86init)       000003B0H
+_%write (seq386os)          0000110CH
+lseek (CQ_LSEEK)            000019E8H
+_%read (seq386os)           000010F0H
+%_PRLOC (seq386os)          00001174H
+%_RTNADR (seq386os)         000010ACH
+%_PANIC (seq386os)          0000113CH
+%_HALTF (seq386os)          000011F8H
+%MKVALID (sysfib)           000003F8H
+%_LGET (sysfib)             000004F4H
+%_SETIOR (sysfib)           0000043CH
+%_WRTIT (sysfib)            00000610H
+%_PUTCH (sysfib)            000005DCH
+%_RDIT (sysfib)             000006D8H
+%_IORES (sysfib)            00000450H
+%_GETCH (sysfib)            0000065CH
+%_FLUSH (sysfib)            0000059CH
+%_FPOS (sysfib)             00000708H
+%SYSFIB (sysfib)            0000077CH
+%Ts9BQS0 (sysfib)           000003F8H
+%MKEMPTY (sysfib)           0000041CH
+%W_S (systxto)              00000A14H
+%W_C (systxto)              00000990H
+%W_2 (systxt)               00000780H
+%W_SS_ (systxt)             00000954H
+%W_SS_L (systxt)            0000096CH
+%W_ISF (systxt)             000008A4H
+%W_IS_ (systxt)             000008E0H
+%W_IS_L (systxt)            000008F8H
+%W_2SF (systxt)             00000798H
+%W_2SFL (systxt)            000007B8H
+%W_2S_ (systxt)             000007E0H
+%W_2S_L (systxt)            000007FCH
+%W_CSFL (systxt)            0000083CH
+%W_CS_L (systxt)            00000864H
+%W_CS_ (systxt)             00000888H
+%SYSTXT (systxt)            0000098CH
+%TI9NQS0 (systxt)           00000780H
+%_PAGE (systxto)            00000C9CH
+%W_X (systxto)              00000CCCH
+%W_P (systxto)              00000A9CH
+%W_B (systxto)              00000C38H
+%SYSTXTO (systxto)          00000D90H
+%TA9IQS0 (systxto)          00000990H
+%TOUCH (tcbglobals)         00000D94H
+%_GETARG0 (tcbglobals)      00000E54H
+%Te9tQS0 (tcbglobals)       00000D94H
+%INITFIB (tcbglobals)       00000FECH
+il32 Linker                  12/15/91  13:37:07                    Page    4
+
+
+%GETGADD (tcbglobals)       00001088H
+%GLOBALS (tcbglobals)       000010A8H
+%GETFD (tcbglobals)         00001098H
+%%IOFIB (tcbglobals)        00000E04H
+read (CQ_READ)              00001B60H
+write (CQ_WRITE)            00001D10H
+close (CQ_CLOSE)            00002150H
+_%close (seq386os)          00001128H
+%_HALT (seq386os)           0000115CH
+%_LSTSG (seq386os)          00001208H
+%_GOTO (seq386os)           0000120CH
+%SEQ386OS (seq386os)        00001210H
+%Tk9wQS0 (seq386os)         000010ACH
+malloc (CQ_MALLOC)          000021DCH
+realloc (CQ_REALLOC)        00002284H
+__setargv (CQ___SETARG)     000023F8H
+_argument_ptr (cq_auxstart) 00004707H
+_environ_ptr (cq_auxstart)  0000470DH
+_quit (cq__quit)            000025AAH
+_thread_create (CQ__CREATE) 00001628H
+_fpstatus (CQ__CREATE)      00004184H
+_fpcontrol (CQ__CREATE)     00004188H
+_exit_str (CQ__CREATE)      00003744H
+_thread_str (CQ__CREATE)    00003888H
+fcloseall (CQ_FCLOSEAL)     0000260CH
+flushall (CQ_FLUSHALL)      00002644H
+_exit_create (CQ__CREATE)   00001714H
+_chbuf (CQ__CREATE)         0000373CH
+_umask (CQ__CREATE)         00003740H
+_stdio_str (CQ__CREATE)     000037D4H
+_iocb (CQ__CREATE)          000038C4H
+_fileinfo (CQ__CREATE)      000038CCH
+_fmode (CQ__CREATE)         000038D0H
+tzname (CQ__CREATE)         000038D4H
+timezone (CQ__CREATE)       000038DCH
+daylight (CQ__CREATE)       000038E0H
+_heapmod (CQ__CREATE)       000038E4H
+_init_ctlc (CQ__CREATE)     000038E8H
+_curr_ctlc (CQ__CREATE)     000038ECH
+cvt_buffer (CQ__CREATE)     0000418CH
+_sbrk_number (CQ__CREATE)   000038F0H
+_sbrksiz (CQ__CREATE)       000038F4H
+_sbrk_list_ptr (CQ__CREATE) 000038F8H
+_stdio_create (CQ__CREATE)  00001720H
+_exit_ptr (CQ__CREATE)      000017F4H
+_stdio_ptr (CQ__CREATE)     00001800H
+_thread_ptr (CQ__CREATE)    0000180CH
+_init_clib_data (CQ__INIT_CL)000026A4H
+_init_handle_count (CQ_IFHCOUNT)0000276CH
+_nfile (CQ_NFILE)           00004724H
+_get_misc_parms (cq_auxstart)00002400H
+_main0 (CQ__MAIN0)          000027F4H
+_main2 (CQ__MAIN2)          00002844H
+_main4 (CQ__MAIN4)          000029CCH
+_mainlast (CQ__MAINLAS)     000029F4H
+_fmode_init (CQ__FMODE_I)   00002A40H
+_finfo_init (CQ__FINFO_I)   00002A50H
+il32 Linker                  12/15/91  13:37:07                    Page    5
+
+
+isatty (CQ_ISATTY)          00002A60H
+_stdio_stdopen (CQ__STDOPEN)00002AE8H
+_dataseg (cq_auxstart)      000046ECH
+sysint21 (cq_sysint21)      00002AF0H
+raise (CQ_RAISE)            00002B58H
+write_buffer (CQ_WRITE)     000042ECH
+free (CQ_FREE)              00002BA4H
+_malloc_take (CQ__MALLOC)   00002EE4H
+_malloc_find (CQ__MALLOC)   00002D90H
+memmove (cq_memmove)        00002FA0H
+_free (CQ__MALLOC)          00002F1CH
+_program_load (cq_auxstart) 000046FDH
+_program_len (cq_auxstart)  000046F9H
+_osmajor (cq_auxstart)      00004705H
+_osminor (cq_auxstart)      00004706H
+_gda (cq_auxstart)          000046F4H
+_psp (cq_auxstart)          00004701H
+_osversion (cq_auxstart)    00004705H
+_osmode (cq_auxstart)       000046F8H
+_pspseg (cq_auxstart)       00004713H
+_db32 (cq_auxstart)         000046F0H
+_dos_getvect (cq__getvect)  00002FD0H
+_dos_setvect (cq_setvect)   00002FF0H
+_exittbc (cq__quit)         0000471EH
+wtoh (cq__quit)             00002588H
+fclose (CQ_FCLOSE)          00003014H
+_fflush (CQ_FFLUSH)         00003104H
+_ctlcint (cq__ctlcint)      0000318CH
+_strt_time (CQ__MAINLAS)    00004728H
+_sig_eval (CQ_SIGNAL)       00004754H
+_sig_dfl (CQ_SIGNAL)        00004790H
+_merge_free_lists (CQ__MALLOC)00002BF4H
+_merge_free_blocks (CQ__MALLOC)00002D4CH
+sbrk (CQ_SBRK)              000032F4H
+fflush (CQ_FFLUSH)          000030A8H
+remove (CQ_REMOVE)          0000343CH
+_map_length (CQ__MAP_LEN)   0000344CH
+_validate_stream_ptr (CQ__VALIDAT)000034CCH
+_sig_save (CQ_SIGNAL)       000031BCH
+signal (CQ_SIGNAL)          000031F8H
+_sig_err_dummy (CQ_SIGNAL)  000032A0H
+_sig_dfl_dummy (CQ_SIGNAL)  000032A8H
+_sig_ign_dummy (CQ_SIGNAL)  000032B0H
+_sig_sge_dummy (CQ_SIGNAL)  000032B8H
+_sig_ack_dummy (CQ_SIGNAL)  000032C0H
+_sig_ill_dfl (CQ__RAISE)    00003624H
+_sig_int_dfl (CQ__RAISE)    00003644H
+_sig_alloc_dfl (CQ__RAISE)  000035CCH
+_sig_free_dfl (CQ__RAISE)   00003604H
+_sig_term_dfl (CQ__RAISE)   00003674H
+_sig_read_dfl (CQ__RAISE)   0000365CH
+_sig_write_dfl (CQ__RAISE)  00003684H
+_sig_fpe_dfl (CQ__RAISE)    000035E4H
+_sig_segv_dfl (CQ__RAISE)   00003664H
+_sig_abrt_dfl (CQ__RAISE)   000035ACH
+_sig_break_dfl (CQ__RAISE)  000035D4H
+_sig_null (CQ__RAISE)       00003654H
+il32 Linker                  12/15/91  13:37:07                    Page    6
+
+
+_heap_mem_used (CQ_SBRK)    000032C8H
+_free_sbrk (CQ_SBRK)        00003434H
+_dosf48 (cq__dosf48)        0000368CH
+unlink (CQ_UNLINK)          000036ACH
+bdos (cq_bdos)              00003708H
+
+
+Summary of memory usage
+ 2148 KB Memory used
+
+Processing completed.      0 Warnings,      0 Errors

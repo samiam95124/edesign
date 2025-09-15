@@ -1,0 +1,13 @@
+{**************************************************************
+*                                                             *
+*                 NSA CMOS3 STANDARD LIBRARY                  *
+*                                                             *
+* Contains cells from the NSA CMOS3 cell library. This        *
+* library is mainly interesting in that full layouts on the   *
+* cells are availible, as is complete process specifications. *
+* The cells are named after the cell numbers of the original, *
+* as "G0000". The "G" is for "government", and the four       *
+* digits following are the original cell number.              *
+*                                                             *
+**************************************************************}
+

@@ -1,0 +1,24 @@
+                      NEW SIMULATOR SYSTEM ORGANIZATION
+
+PLAN:
+
+The present monolitic simulator system will be broken down into modules.
+
+IMPLEMENTATION:
+
+The first new module will be cktass, ca, or the circuit assembler. It will
+accept the standard input format, and deliver the files:
+
+     .net - The netlist for the circuit.
+     .dic - The ascii node name dictionary for the circuit.
+     .set - The set file.
+
+Later, ca will be given the ability to generate a set file with a preexisting
+dictionary.
+The next module is cktrun, cr or the circuit run utility (actually cktsim by
+another name). This programs' sole job is to load the net list, spool the
+set file, run the simulation, and deliver the trace output. Since it contains
+only the bare essentails of simulation, it can be recoded into assembly or
+hardware.
+The last module is ckttrc, ct or the circuit trace convertion utility. This
+module will take trace files and convert them for output printing.

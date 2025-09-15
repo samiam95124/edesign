@@ -1,0 +1,153 @@
+                          AN OVERVIEW OF STATE CODES
+
+Logic states:
+
+There are three "basic" states that any node may contain:
+
+   "1", "high", or "on"
+
+   "0", "low", or "off"
+
+   "X", "indeterminate", or "undefined"
+
+The first two are well understood, but the indeterminate state is less so.
+It indicates that either a high, low, or even invalid state exists.
+Suprisingly, a great deal of processing can occur based on this state, and
+the undefined state plays a very important role in evaluation of the reset
+condition, since undefines must be handled in the real world, too.
+
+Transistor states:
+
+Even represented as ideal switches, transistors have their own unique state
+properties. These are determined by the state, as above, that appears on
+the gate of the transistor:
+
+   "on" or "driven"
+
+   "off" or "high impedance"
+
+   "partial on" or "indeterminate drive"
+
+To find the actual states that may appear in a circuit, the following
+example applies:
+
+
+                          G
+                          |
+                       -------
+                       |     |
+                       S     D
+
+Givien the three logical states, high, low, and indeterminate, appearing
+on the gate and source, what will the state be on the output, the drain, if
+source and drain were the same before the current gate state ?
+The answer is the product of all logical states appearing at the source,
+with the states appearing at the gate, or 9 different types. It is important,
+however, to realize that since a gate does not care what type of drive
+is present, all these states still resolve into the original logical states:
+
+                                      gate
+   Source         on            off                  indeterminate
+   ----------------------------------------------------------------
+   High           high          stored high          indeterminate high
+   low            low           stored low           indeterminate low
+   indeterminate  indeterminate stored indeterminate indeterminate
+
+Or, grouped by logical states:
+
+                               high
+                                |
+      -------------------------------------------------------
+      |                         |                           |
+      high             indeterminate high              stored high
+
+                               low
+                                |
+      -------------------------------------------------------
+      |                         |                           |
+      low              indeterminate low               stored low
+
+                           indeterminate
+                                |
+      -------------------------------------------------------
+      |                         |                           |
+      indeterminate        indeterminate               stored indeterminate
+
+How can an indeterminate or unknown be high or low ? Actually, an
+indeterminate high is still not a valid high, an could even be a low.
+It is important to separate it from a "normal" indeterminate because
+it has very special properties in an actual circuit. The reason is that
+the "low" component of an indeterminate high can only be stored. This means
+that it can be made into a valid high by another driven node.
+Note also that there are only two types of indeterminates, stored and
+driven. Although they do have different properties, we treat them the same.
+In fact, to understand what a driven indeterminate means, we must examine
+how one comes about. Since a stored state can never be used to produce drive,
+and we assume only valid rails are used, a driven indeterminate can only
+come about one way. This is by mixing driven high and low levels.
+Our name for a pure driven indeterminate, is, therefore, contention.
+We also recognize a special version of a stored indeterminate, known as
+undefined, which represents the value of all nodes on reset. This allows
+tracking of node sets, and is referred to as a "diagnostic" state.
+
+Weak states:
+
+To enable representation of all actual circuit states, we also include a
+set of "alternate" driven states known as weak states. The rules for the
+weak states are just as the strong states:
+
+                                      gate
+   Source         on            off                  indeterminate
+   ----------------------------------------------------------------
+   weak high      weak high     stored high          weak ind high
+   Weak low       weak low      stored low           weak ind low
+   weak ind       weak ind      stored indeterminate weak ind
+
+Or, grouped by logical states:
+
+                            weak high
+                                |
+      -------------------------------------------------------
+      |                         |                           |
+      weak high             weak ind high              stored high
+
+                               low
+                                |
+      -------------------------------------------------------
+      |                         |                           |
+      weak low              weak ind low               stored low
+
+                         weak indeterminate
+                                |
+      -------------------------------------------------------
+      |                         |                           |
+      weak ind           weak indeterminate            stored indeterminate
+
+Note that only the driven states need be represented specially for weak.
+A stored charge does not care how it came to be placed.
+
+The states:
+
+The resulting states as used in the simulator are:
+
+   1. high.
+   2. low.
+   3. Indeterminate (contention).
+   4. stored high.
+   5. stored low.
+   6. stored indeterminate.
+   7. indeterminate high.
+   8. indeterminate low.
+   9. weak high.
+   10. weak low.
+   11. weak indeterminate (weak contention).
+   12. weak indeterminate high.
+   13. weak indeterminate low.
+   14. Undefined.
+   15. power.
+   16. ground.
+
+These last states exist for control purposes. Sixteen states is an opportune
+number for processing. A transistor can be "evaluated" by the simulator
+by simply performing a 256 address lookup by the 8 bit byte formed by the
+conbination of the source and drain states.

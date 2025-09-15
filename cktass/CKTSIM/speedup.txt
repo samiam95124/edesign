@@ -1,0 +1,62 @@
+                            VARIOUS SPEEDUP ALGORITHIMS
+
+Purpose:
+
+We will discuss various ways to cut down on the processing time required
+to perform transistor level simulation.
+
+The "change only" algorithim:
+
+For each cycle we start with a list of devices that must be re-evaluated in
+the coming cycle. This list is contructed by two sources in the past:
+
+   1. When sets are processed, all devices whose gates connect
+      to a changed node will be placed on the list. It is possible to
+      "look ahead" and see if the device's new state will change it's
+      source or drain nodes, and skip list addition if it does not.
+
+   2. Changed state devices are collected during the cycle previous,
+      in the same manner as sets.
+
+Each device to be evaluated is removed from the change list, then the
+evaluation run, and the new source and drain nodes calculated.
+The entire list of devices attached to the node, aside from the one just
+processed, must be placed onto the change list(s), as follows:
+
+   1. Each drain or source connected device must be placed on the
+      "current" change list.
+
+   2. Each gate connected device must be placed on the "next" change list.
+
+This algorithim handles settling by being recursive. If a device will change
+the node state AGAIN it must place the entire node connected list BACK onto
+the change list.
+The following are the algorithim steps:
+
+   1. Each "set" entry is processed. The state indicated by the
+      set is placed on the given node, and if that state is different
+      from the last state, the "node output" list (the source/drain list)
+      list placed on the "current" list, and the "node input"
+      (the gate list) is placed on the "next" list.
+
+   2. Each "current" list entry is processed. The evaluation is performed,
+      and if either the source, drain or both states change, that node(s)
+      output list will be placed on the current list.
+
+   3. If the current list is nonempty, we return to state 1.
+
+   4. The current and next list are exchanged.
+
+Tracing problems:
+
+A related problem to speed is trace removal. Since a trace potentailly
+represents a multiplication of the set of nodes, keeping that in memory
+is generally impossible. A combination of two techniques is possible:
+
+   1. A node state extraction process, which would examine each state of
+      a "tagged" node that is written to node memory, and places this in
+      the trace queue. Unwritten nodes would simply get the last queue
+      state, as they are unmodified. This allows a hardware processor
+      to avoid having to run a trace cycle.
+
+   2. I/O buffering of the trace data.

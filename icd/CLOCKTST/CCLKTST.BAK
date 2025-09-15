@@ -1,0 +1,2 @@
+svs +r +d clocktst.pas ..\ibmrot.obj
+dir test.exe/f

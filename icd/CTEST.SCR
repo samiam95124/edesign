@@ -1,0 +1,3 @@
+asm ibmrot
+svs +r +d test.pas ibmrot.obj
+dir test.exe/f

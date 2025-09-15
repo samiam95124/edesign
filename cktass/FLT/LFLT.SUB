@@ -1,0 +1,8 @@
+c
+c Link flattener
+c
+echo Linking flt.com
+ln flt=fcplib flta fltb #p=$100;
+copy flt.com=flt.obj;
+sd flt.com;
+

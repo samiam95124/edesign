@@ -1,0 +1,42 @@
+!
+! DSLL implementation of a full adder
+!
+
+! rails
+
+set vdd p
+set vss g
+
+macro inv input output
+
+p vdd input output
+n vss input output
+
+endmac
+
+wp vdd sn sp ! output driver
+wp vdd sp sn
+n sp bp n1 ! left side
+n sn bn n1
+n n1 ap n3
+n n2 an n3
+n n3 cn vss
+n sp bn n2 ! right side
+n sn bp n2
+n n1 an n4
+n n2 ap n4
+n n4 cp vss
+
+inv ap an ! form inversions
+inv bp bn
+inv cp cn
+
+set ap 0 0 1 10 0 20 1 30 0 40 1 50 0 60 1 70
+set bp 0 0      1 20      0 40      1 60
+set cp 0 0                1 40
+
+format ap bp cp sp sn
+
+page
+step 74
+

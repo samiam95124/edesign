@@ -1,0 +1,5 @@
+del test.txt
+reserve 640*1024;icd.exe > test.txt;reserve 50*1024
+echo Contents of test file:
+echo
+type test.txt

@@ -1,0 +1,244 @@
+Microsoft (R) Macro Assembler Version 6.00     		    03/19/92 11:44:34
+'pointer device access routines'			     Page 1 - 1
+
+
+				                title   'pointer device access routines'
+				                name    auxio
+				                page    55,132
+
+ = 03F8				comm_data       equ     03f8h           ; port assignments for COM1
+ = 03F9				com_ier         equ     03f9h
+ = 03FC				comm_mcr        equ     03fch
+ = 03FD				comm_stat       equ     03fdh
+
+				        .386
+				        .model  small, c
+
+ 0000				        .code
+
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				;                                                             ;
+				; INITALIZE COM1:                                             ;
+				;                                                             ;
+				; Initalizes COM1: to 9600 baud, 8 bits, odd parity, one      ;
+				; stop bit, as required by the Summagraphics tablet.          ;
+				; The uart is cleared of any garbage waiting.                 ;
+				;                                                             ;
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ 0000				iniaux  proc    syscall
+ 0000  66| BA 0000		        mov     dx,0            ; set COM1:
+ 0004  66| B8 00EB		        mov     ax,000ebh       ; set 9600,8,o,1
+ 0008  CD 14			        int     20              ; initalize port
+ 000A  C3			        ret                     ; exit
+ 000B				iniaux  endp
+
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				;                                                             ;
+				; CHECK STATUS COM1:                                          ;
+				;                                                             ;
+				; Returns status of character waiting for COM1:. This is      ;
+				; 0 if no character awaits, or 0ffh if one is.                ;
+				;                                                             ;
+				; function stsaux: byte;                                      ;
+				;                                                             ;
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ 000B				stsaux  proc    syscall
+ 000B  66| BA 03FD		        mov     dx,comm_stat    ; index status port
+ 000F  EC			        in      al,dx           ; get status
+ 0010  66| 83 E0 01		        and     ax,001h         ; mask
+ 0014  74 04			        jz      stsaux01        ; not ready, exit
+ 0016  66| B8 00FF		        mov     ax,0ffh         ; else set ready code
+ 001A				stsaux01:
+ 001A  C3			        ret
+ 001B				stsaux  endp
+
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				;                                                             ;
+				; INPUT COM1:                                                 ;
+				;                                                             ;
+				; Inputs a single character from COM1:.                       ;
+Microsoft (R) Macro Assembler Version 6.00     		    03/19/92 11:44:34
+'pointer device access routines'			     Page 2 - 1
+
+
+				; Features a timeout to insure that this routine will not     ;
+				; hangup. There is no error indication for this.              ;
+				;                                                             ;
+				; function getaux: byte;                                      ;
+				;                                                             ;
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ 001B				getaux  proc    syscall
+ 001B  53			        push    ebx             ; save registers used
+ 001C  66| BB 2710		        mov     bx,10000        ; set timeout value
+ 0020  66| BA 03FD		        mov     dx,comm_stat    ; index status port
+ 0024				getaux01:
+ 0024  EC			        in      al,dx           ; get status
+ 0025  24 01			        and     al,001h         ; mask
+ 0027  75 08			        jnz     getaux02        ; ready, skip
+ 0029  66| 4B			        dec     bx              ; process timeout
+ 002B  8A C3			        mov     al,bl           ; check timeout occurred
+ 002D  0A C7			        or      al,bh
+ 002F  75 F3			        jnz     getaux01        ; no, loop
+ 0031				getaux02:
+ 0031  66| BA 03F8		        mov     dx,comm_data    ; index data port
+ 0035  EC			        in      al,dx           ; get byte      
+ 0036  66| 0F B6 C0		        movzx   ax,al           ; extend to word
+ 003A  5B			        pop     ebx             ; restore registers
+ 003B  C3			        ret
+ 003C				getaux  endp
+
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				;                                                             ;
+				; OUTPUT COM1:                                                ;
+				;                                                             ;
+				; Outputs a single byte to the COM1: port.                    ;
+				;                                                             ;
+				; procedure putaux(b: byte);                                  ;
+				;                                                             ;
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ 003C				putaux  proc    syscall b: byte
+ 003F  66| BA 03FD		        mov     dx,comm_stat    ; index status port
+ 0043				putaux01:
+ 0043  EC			        in      al,dx           ; get status
+ 0044  24 20			        and     al,020h         ; mask
+ 0046  74 FB			        jz      putaux01        ; loop till ready
+ 0048  8A 45 08			        mov     al,b            ; get byte to output
+ 004B  66| BA 03F8		        mov     dx,comm_data    ; index data port
+ 004F  EE			        out     dx,al           ; output byte
+				        ret                     ; exit
+ 0052				putaux  endp
+
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				;                                                             ;
+Microsoft (R) Macro Assembler Version 6.00     		    03/19/92 11:44:34
+'pointer device access routines'			     Page 3 - 1
+
+
+				; INITALIZE MOUSE DRIVER                                      ;
+				;                                                             ;
+				; procedure inims; cexternal;                                 ;
+				;                                                             ;
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ 0052				inims   proc    syscall
+ 0052  66| B8 0000		        mov     ax,00000h       ; reset mouse and get status
+ 0056  CD 33			        int     33h             ; execute
+ 0058  C3			        ret                     ; exit
+ 0059				inims   endp
+
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				;                                                             ;
+				; READ MOTION COUNTERS                                        ;
+				;                                                             ;
+				; procedure readmot(var x, y: integer); cexternal;            ;
+				;                                                             ;
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ = 0008				motx    =       8
+ = 000C				moty    =       12
+
+ 0059				readmot proc    syscall
+ 0059  55			        push    ebp             ; link parameters
+ 005A  8B EC			        mov     ebp,esp
+ 005C  53			        push    ebx             ; preserve caller registers
+ 005D  66| B8 000B		        mov     ax,0000bh       ; read motion counters
+ 0061  CD 33			        int     33h             ; execute
+ 0063  0F BF C9			        movsx   ecx,cx          ; extend x
+ 0066  0F BF D2			        movsx   edx,dx          ; extend y
+ 0069  8B 5D 08			        mov     ebx,[ebp+motx]  ; get address of x
+ 006C  89 0B			        mov     [ebx],ecx       ; place
+ 006E  8B 5D 0C			        mov     ebx,[ebp+moty]  ; get address of y
+ 0071  89 13			        mov     [ebx],edx       ; place
+ 0073  5B			        pop     ebx             ; restore registers and return
+ 0074  5D			        pop     ebp             ; unlink
+ 0075  C3			        ret
+ 0076				readmot endp
+
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				;                                                             ;
+				; READ BUTTON STATUS                                          ;
+				;                                                             ;
+				; Reads the current button press status.                      ;
+				;                                                             ;
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ 0076				readsts proc    syscall
+ 0076  66| B8 0003		        mov     ax,00003h       ; get mouse button status
+ 007A  CD 33			        int     33h             ; execute
+Microsoft (R) Macro Assembler Version 6.00     		    03/19/92 11:44:34
+'pointer device access routines'			     Page 4 - 1
+
+
+ 007C  0F B7 C3			        movzx   eax,bx          ; extend
+ 007F  C3			        ret
+ 0080				readsts endp
+
+				        end
+
+Microsoft (R) Macro Assembler Version 6.00     		    03/19/92 11:44:34
+'pointer device access routines'			     Symbols 5 - 1
+
+
+
+
+Segments and Groups:
+
+                N a m e                 Size     Length   Align   Combine Class
+
+DGROUP . . . . . . . . . . . . .	GROUP
+_DATA  . . . . . . . . . . . . .	32 Bit	 0000	  DWord	  Public  'DATA'	
+_TEXT  . . . . . . . . . . . . .	32 Bit	 0080	  DWord	  Public  'CODE'	
+Microsoft (R) Macro Assembler Version 6.00     		    03/19/92 11:44:34
+'pointer device access routines'			     Symbols 6 - 1
+
+
+
+
+Procedures,  parameters and locals:
+
+                N a m e                 Type     Value    Attr
+
+getaux . . . . . . . . . . . . .	P Near	 001B	  _TEXT	Length= 0021 Public SYSCALL
+  getaux01 . . . . . . . . . . .	L Near	 0024	  _TEXT	
+  getaux02 . . . . . . . . . . .	L Near	 0031	  _TEXT	
+iniaux . . . . . . . . . . . . .	P Near	 0000	  _TEXT	Length= 000B Public SYSCALL
+inims  . . . . . . . . . . . . .	P Near	 0052	  _TEXT	Length= 0007 Public SYSCALL
+putaux . . . . . . . . . . . . .	P Near	 003C	  _TEXT	Length= 0016 Public SYSCALL
+  b  . . . . . . . . . . . . . .	Byte	 bp + 0008
+  putaux01 . . . . . . . . . . .	L Near	 0043	  _TEXT	
+readmot  . . . . . . . . . . . .	P Near	 0059	  _TEXT	Length= 001D Public SYSCALL
+readsts  . . . . . . . . . . . .	P Near	 0076	  _TEXT	Length= 000A Public SYSCALL
+stsaux . . . . . . . . . . . . .	P Near	 000B	  _TEXT	Length= 0010 Public SYSCALL
+  stsaux01 . . . . . . . . . . .	L Near	 001A	  _TEXT	
+Microsoft (R) Macro Assembler Version 6.00     		    03/19/92 11:44:34
+'pointer device access routines'			     Symbols 7 - 1
+
+
+
+
+Symbols:
+
+                N a m e                 Type     Value    Attr
+
+@CodeSize  . . . . . . . . . . .	Number	 0000h	 
+@DataSize  . . . . . . . . . . .	Number	 0000h	 
+@Interface . . . . . . . . . . .	Number	 0001h	 
+@Model . . . . . . . . . . . . .	Number	 0002h	 
+@code  . . . . . . . . . . . . .	Text   	 _TEXT
+@data  . . . . . . . . . . . . .	Text   	 DGROUP
+@fardata?  . . . . . . . . . . .	Text   	 FAR_BSS
+@fardata . . . . . . . . . . . .	Text   	 FAR_DATA
+@stack . . . . . . . . . . . . .	Text   	 DGROUP
+com_ier  . . . . . . . . . . . .	Number	 03F9h	 
+comm_data  . . . . . . . . . . .	Number	 03F8h	 
+comm_mcr . . . . . . . . . . . .	Number	 03FCh	 
+comm_stat  . . . . . . . . . . .	Number	 03FDh	 
+motx . . . . . . . . . . . . . .	Number	 0008h	 
+moty . . . . . . . . . . . . . .	Number	 000Ch	 
+
+	   0 Warnings
+	   0 Errors

@@ -1,0 +1,59 @@
+{**************************************************************
+
+TIME TEST
+
+Tests the basic DOS time call, giving its basic period, and
+a test of the time function itself.
+
+**************************************************************}
+
+program clocktest(input, output);
+
+var c: char;
+    t, t1, p: longint;
+    i: integer;
+    h, m, s: longint; { hour, minute, second }
+
+function _gettim: longint; external; { get current system time }
+function _kbdrdy: boolean; external; { check keyboard ready }
+function _kbdinp: char; external; { get keyboard character }
+
+begin
+
+   writeln;
+   writeln('DOS clock call test');
+   writeln;
+   p := 0;
+   for i := 1 to 100 do begin
+
+      t := _gettim;
+      repeat t1 := _gettim until t1 <> t;
+      if (t1 - t) > p then p := t1-t
+
+   end;
+   writeln('Clock increment period: ', p);
+   writeln('The clock increment is the basic resolution of ');
+   writeln('system timing in hundreths of a second.');
+   writeln;
+   writeln('hit any key to stop clock');
+   while not _kbdrdy do begin { read and output clock time }
+
+      t := _gettim; { get current time }
+      { find hours }
+      h := t div (60{minutes}*(60{seconds}*100{hundreths}));
+      { and subtract }
+      t := t mod (60{minutes}*(60{seconds}*100{hundreths}));
+      { find minutes }
+      m := t div (60{seconds}*100{hundreths});
+      t := t mod (60{seconds}*100{hundreths});
+      { find seconds }
+      s := t div 100{hundreths};
+      t := t mod 100{hundreths};
+      write('Time: ', h:2, ':', m:2, ':', s:2, ':', t:2, '\d')
+
+   end;
+   c := _kbdinp; if c = chr(0) then c := _kbdinp 
+
+end.
+
+

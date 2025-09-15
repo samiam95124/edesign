@@ -1,0 +1,63 @@
+                        MICROCELL SYSTEM OVERVIEW
+
+Microcell layout is a symbolic layout system. The microcell idea takes the
+traditional cells a new step "down":
+
+   Cell: an area layout (probably rectangular) which contains an arbitrary
+   custom layout and edge connectors.
+
+   Macrocell: Logically, a cell that consists of a collection of subcells
+   with interconnect. May refer to any unitized complex function.
+
+   Microcell: A cell containing one or a small number of features present
+   on an IC, such as a contact, via, etc.
+
+The microcell contruction starts with a layout grid. The size of the grid
+is determined so that each feature we need to represent can be present
+in a grid cell, adjacent to any other cell, without possible design rule
+violation. That is:
+
+                 -------------
+                 | A | B | C |
+                 -------------
+                 | D | E | F |
+                 -------------
+                 | G | H | I |
+                 -------------
+
+If cell E can have any of A, B, C, D, F, G, H, and I be any given cell
+in any possible combination without design rule violation, the system is
+valid.
+The basis of the system is a "book" of microcells. At present there are
+only two books:
+
+   1. Single layer metal.
+
+   2. Double layer metal.
+
+Actually the second is simply the addition of a set of cells to the first.
+it should be obvious from the above that the system is rule free, or correct
+by construct. This leaves only a set of "construction rules" that dictate how
+the cell is built.
+The object of the microcell generator is to build a standard cell. All such
+cells MUST be rectangular. The microcell generator can also generate
+macrocells, which also must be rectangular. Typically, an IC build will
+include the following steps:
+
+   1. Construct cells. Each leaf cell is constructed into a cell.
+
+   2. Construct macrocells. Each cell containing other cells is
+   built by placement of defined cells and then routing between them.
+   This process terminates with the macrocell that defines the IC
+   function.
+
+   3. Construct pad cells. Typically each pad cell needed is manually
+   generated.
+
+   4. Construct pad macrocells. Since cells must be rectangular, these
+   will consist of side cells, and perhaps corner spacers. Alternately,
+   a clockwise or counter-clockwise overlap can be used to enable access
+   to the corners.
+   A pseudo-pad ring can also be constructed for IC's that will serve
+   as both standalone IC's and macrocells.
+

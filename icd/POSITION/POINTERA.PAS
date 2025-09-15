@@ -1,0 +1,315 @@
+{**************************************************************
+*                                                             *
+* POINTER DEVICE DRIVERS                                      *
+*                                                             *
+* Implements various pointer devices.                         *
+*                                                             *
+**************************************************************}
+
+module summasii;
+
+uses {$U ..\common.j} common;
+
+type 
+
+   { pointer device types }
+
+   ptrtyp = (pdsummasii, { Summasketch II tablet }
+                pdmsmouse); { Microsoft mouse }
+
+var 
+
+   ptrdev: ptrtyp; { current pointer device }   
+
+procedure iniaux; cexternal; { initalize COM1: port }
+function getaux: byte; cexternal; { get com1: }
+procedure putaux(b: byte); cexternal; { put com1: }
+function stsaux: boolean; cexternal; { get com1: status }
+procedure deverr(e: devcod); cexternal; { process device error }
+procedure wait(t: integer); cexternal; { wait time }
+procedure inims; cexternal; { initalize mouse }
+{ read motion counters }
+procedure readmot(var x, y: integer); cexternal;
+function readsts: integer; cexternal; { read mouse status }
+{}
+{**************************************************************
+
+INITIALIZE SUMMASKETCH II
+
+Initalize the pointer device, a SummaGraphics II tablet.
+
+**************************************************************}
+
+procedure inisummasii(var s: labtyp); { device select string }
+
+var i:     integer; { delay counter }
+    pi:    pckinx;  { index for puck buttons }
+    b:     byte;    { byte holder }
+    sc:    packed array[1..59] of char;
+    c:     char;
+
+begin
+
+   { setup comparision string }
+   sc := 'MM2  12x12 Tablet  by Summagraphics  Firmware Version 1.1k ';
+   iniaux; { initalize tablet port }
+   putaux(ord(' ')); { send autobaud configure }
+   putaux(0); { send initalize command }
+   wait(1{10ms}); { wait for tablet to initalize }
+   putaux(ord('D')); { set report on demand mode }
+   wait(10{100ms}); { wait }
+   { clean out any garbage characters }
+   while stsaux do b := getaux;
+   { get tablet ID }
+   putaux(ord('z'));
+   putaux(ord('?'));
+   for i := 1 to 54 do begin { check proper response }
+
+      c := chr(getaux); { get character }
+      if c <> sc[i] then deverr(deptr) { bad match }
+
+   end;
+   for i := 55 to 58 do c := chr(getaux); { dispose of version number }
+   if getaux <> 13 then deverr(deptr); { check trailing CR }
+   putaux(ord('D')); { set report on demand mode }
+   putaux(ord('z')); { set binary report mode }
+   putaux(ord('b'))
+
+end;
+{}
+{**************************************************************
+
+READ SUMMASKETCH II POSITION AND BUTTONS
+
+Reads the current position, and updates. Also captures pointer
+buttons. Designed around the SummaGraphics II tablet.
+
+**************************************************************}
+
+procedure readsummasii;
+
+const tabmaxx = 5850; { maximum tablet count in x }
+      tabmaxy = 5850; { maximum tablet count in y }
+
+var report: array [1..5] of byte;
+    i:      1..5;
+    b:      byte; { byte holder }
+
+begin
+
+   { clean out any garbage characters }
+   while stsaux do b := getaux;
+   putaux(ord('P')); { output report request }
+   for i := 1 to 5 do report[i] := getaux; { get response bytes }
+   puck.v := (report[1] and $40) = 0; { set puck valid status }
+   { get current button up/down statuses.
+     note: buttons are redefined as clockwise }
+   puck.b[1].s := (report[1] and $07) = 1;
+   puck.b[2].s := (report[1] and $07) = 4;
+   puck.b[3].s := (report[1] and $07) = 3;
+   puck.b[4].s := (report[1] and $07) = 2;
+   puck.cl.x := report[2] or (report[3] * 128);
+   puck.cl.y := report[4] or (report[5] * 128);
+   puck.cl.y := tabmaxy - puck.cl.y; { flip y }
+   puck.cl.x := puck.cl.x*(maxx+1) div tabmaxx; { scale to screen }
+   puck.cl.y := puck.cl.y*(maxx+1) div tabmaxx;
+   { limit to screen }
+   if puck.cl.x > maxx then 
+      begin puck.cl.x := maxx; puck.v := false end;
+   if puck.cl.y > maxy then 
+      begin puck.cl.y := maxy; puck.v := false end
+
+end;
+{}
+{**************************************************************
+
+INITIALIZE MICROSOFT MOUSE
+
+Initalize the mouse. 
+
+**************************************************************}
+
+procedure inimsmouse(var s: labtyp); { device select string }
+
+var pi: pckinx; { index for puck buttons }
+
+begin
+
+   inims; { initalize mouse driver }
+
+end;
+{}
+{**************************************************************
+
+READ MICROSOFT MOUSE POSITION AND BUTTONS
+
+Reads the current position, and updates. Also captures pointer
+buttons. Designed around the microsoft mouse interface.
+
+**************************************************************}
+
+procedure readmsmouse;
+
+var offx, offy: integer; { offsets }
+    butsts:     integer; { button status word }
+    sen:        integer; { movement sensitivity
+                           ("mickeys" per pixel) }
+
+begin
+
+   sen := 1; { set mickeys per pixel }
+   puck.v := true; { set puck allways valid }
+   readmot(offx, offy); { read motion counters }
+   puck.cl.x := cur.x+(offx div sen); { update }
+   puck.cl.y := cur.y+(offy div sen);
+   if puck.cl.x > maxx then puck.cl.x := maxx; { limit to screen }
+   if puck.cl.x < minx then puck.cl.x := minx;
+   if puck.cl.y > maxy then puck.cl.y := maxy;
+   if puck.cl.y < miny then puck.cl.y := miny;
+   butsts := readsts; { read button statuses }
+   puck.b[1].s := (butsts and 1) <> 0; { set left button status }
+   puck.b[2].s := (butsts and 2) <> 0; { set right button status }
+   puck.b[4].s := (butsts and 4) <> 0; { set center button status }
+   puck.b[3].s := false { no such button on a mouse }
+
+end;
+{}
+{**************************************************************
+
+UPDATE POINTER POSITION
+
+Reads the current position, and updates. Also captures pointer
+buttons. 
+
+**************************************************************}
+
+procedure updptr;
+
+var pi: pckinx; { index for puck buttons }
+
+{ check cursor location drag }
+
+function drag(b: point): boolean;
+
+begin
+
+   drag := (abs(cur.x - b.x) > dragmgn) or 
+           (abs(cur.y - b.y) > dragmgn)
+
+end; 
+
+{ update button status }
+
+procedure updbut(var b:  pckbut);
+
+begin
+
+   b.a := b.s and not b.l; { determine if button has just asserted }
+   b.d := not b.s and b.l;
+   { reset drags, and save assertions }
+   if b.a then begin { button just asserted }
+
+      b.dg := false; { clear drag } 
+      b.ap.x := puck.cl.x; { set assertion position }
+      b.ap.y := puck.cl.y 
+
+   end;
+   if b.d then begin { button just deasserted }
+
+      b.dp.x := puck.cl.x; { set deassertion position }
+      b.dp.y := puck.cl.y 
+
+   end;
+   { set drag, check if we have wandered since assertion }
+   if drag(b.ap) then b.dg := true; { set has dragged }
+   b.l := b.s { save button last status }
+
+end;
+
+begin
+
+   { read pointer device }
+   case ptrdev of { device type }
+
+      pdsummasii: readsummasii;
+      pdmsmouse:  readmsmouse;
+
+   end;
+   { update button statuses }
+   for pi := 1 to 4 do updbut(puck.b[pi]);
+   { check for puck movement }
+   if ((puck.cl.x <> puck.ol.x) or (puck.cl.y <> puck.ol.y)) and
+      puck.v then puck.m := true;
+   puck.ol := puck.cl { save current puck location }
+
+end;
+{}
+{**************************************************************
+
+INITIALIZE POINTER DEVICE
+
+Selects the pointer device, and attaches it. Initalizes 
+the pointer data.
+
+**************************************************************}
+
+procedure iniptr(var s: labtyp); { device select string }
+
+var pi:    pckinx;  { index for puck buttons }
+
+{ compare labels. Allows 2nd label to contain wildcards }
+
+function labcmp(var a: labtyp; b: labtyp): boolean;
+
+var i: labinx; { index for label }
+    c: boolean; { compare flag }
+
+begin
+
+   c := true; { set compare good }
+   for i := 1 to labmax do { check compare }
+      if (b[i] <> '?') and (a[i] <> b[i]) then c := false;
+   labcmp := c { return result }
+
+end;
+   
+begin
+
+   { search for device type }
+   if labcmp(s, 'SUMMASII            ') then 
+      ptrdev := pdsummasii { summasketch II }
+   else if labcmp(s, 'MSMOUSE?????????????') then 
+      ptrdev := pdmsmouse { microsoft mouse }
+   else deverr(deptr); { no driver found }
+   { initalize device }
+   case ptrdev of { device type }
+
+      pdsummasii: inisummasii(s);
+      pdmsmouse:  inimsmouse(s);
+
+   end;
+   { initalize puck control record }
+   puck.cl.x := 0; { clear position values }
+   puck.cl.y := 0;
+   puck.ol.x := 0; { clear old position } 
+   puck.ol.y := 0;
+   puck.m := false; { clear movement flag }
+   puck.v := false; { set puck position invalid }
+   for pi := 1 to 4 do with puck.b[pi] do begin { puck buttons }
+ 
+      s := false; { set button inactive }
+      s := false; { set last status inactive }
+      a := false; { clear assertion flag }
+      d := false; { clear deassertion flag }
+      dg := false; { clear drag flag }
+      ap.x := 0; { clear assert location }
+      ap.y := 0;
+      dp.x := 0; { clear deassert location }
+      dp.y := 0
+
+   end
+
+end;
+{}
+end. { module }
+

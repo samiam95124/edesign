@@ -1,0 +1,1904 @@
+{**************************************************************
+*                                                             *
+*                TRACE LIST FACILLITY                         *
+*                                                             *
+*                 8/88 S. A. Moore                            *
+*                                                             *
+* Converts simulation output trace files into two basic       *
+* ascii output list forms and outputs. Either a linear list   *
+* mode or a waveform trace mode are possible.                 *
+* Files used:                                                 *
+*                                                             *
+*      file.trc - The simulator output trace file.            *
+*      file.dic - The node dictionary.                        *
+*      file.fmt - The trace convertion command file.          *
+*                                                             *
+* The format file is an ascii command file that sets various  *
+* aspects of the output format.                               *
+*                                                             *
+**************************************************************}
+
+program trc(command, output);
+
+uses stddef,
+     strlib;
+
+label 99; { abort program }
+
+const linmax = 80; { maximum command line }
+      labmax = 40; { maximum characters per label }
+      trcmax = 80; { maximum number of trace steps saved }
+
+type bytfil  = file of byte; { byte file }
+     labinx  = 1..labmax; { index for label }
+     { note that there are 16 states of a node, the
+       perfect number for table lookups. They are
+       also broken evenly into indeterminate and
+       determinate states. }
+     nodest  = (         { node states }
+     { indeterminate }
+                undef,   { unspecified }
+                indet,   { stored indeterminate }
+                indrh,   { indeterminate driven by high }
+                indrl,   { indeterminate driven by low }
+                widh,    { weak indeterminate driven by high }
+                widl,    { weak indeterminate driven by low }
+                cont,    { conflicting drives }
+                wcont,   { conflicting weak drives }
+     { determinate }
+                high,    { driven high }
+                low,     { driven low }
+                strh,    { stored high }
+                strl,    { stored low }
+                whigh,   { weak driven high }
+                wlow,    { weak driven low }
+                vdd,     { high supply rail }
+                vss      { low supply rail }
+                );
+     nodlab  = packed array [labinx] of char; { label for node }
+     nodptr = ^node;   { node pointer }
+     node    = record   { node }
+
+                  lab:    nodlab;  { name of the node }
+                  idn:    char;    { analog trace ID }
+                  state:  nodest;  { current state }
+                  vol:    real;    { current voltage }
+                  num:    integer; { number of addressed node }
+                  next:   nodptr   { next list node }
+
+               end;
+     cixptr  = ^celinx;   { cell index pointer }
+     celptr  = ^cell;     { cell pointer }
+     cell    = record     { cell }
+
+                  lab:    nodlab;  { name of cell }
+                  nod:    nodptr;  { node list }
+                  cell:   cixptr;  { cell reference list }
+                  cnt:    integer; { number of nodes contained }
+                  next:   celptr   { next cell }
+
+               end;
+     celinx  = record     { cell index }
+
+                  cell:   celptr; { index to cell }
+                  next:   cixptr  { next }
+
+               end;
+    lininx   = 1..linmax; { command line index }
+    errcod   = (ecpar,    { command/parameter not found }
+                ecnf,     { command not found }
+                eilovf,   { input line overflow }
+                elabtl,   { label too long }
+                ecfns,    { circuit file not specified }
+                eivopt,   { invalid option }
+                ecfnf,    { circuit file not found }
+                enumovf,  { integer overflow }
+                enumnf,   { number not found }
+                einvcmd,  { invalid command }
+                enodnf,   { node not found }
+                einvtff,  { invalid trace file format }
+                einvnod,  { invalid node specification }
+                einvdff,  { invalid dictionary file format }
+                eivlor,   { input value out of range }
+                einvnf,   { invalid numeric format }
+                esys);    { system error }
+    equsta   = array [nodest] of char;   { state equate table }
+    line     = array [lininx] of char;   { input line buffer }
+    trcinx   = 1..trcmax; { index for trace buffer }
+    trclin   = array [trcinx] of record { single trace line }
+
+                  sta: nodest; { state version }
+                  vol: real    { voltage version }
+
+               end;
+    trcptr   = ^trcbuf; { trace buffer pointer }
+    trcbuf   = record { trace buffer }
+
+                  nod: nodptr; { pointer to traced node }
+                  buf: trclin; { line of trace }
+                  next: trcptr { next entry }
+
+               end;
+
+var nodtbl: nodptr;    { node table }
+    celtbl: celptr;    { cell list }
+    clkcnt: integer;   { current clock }
+    clkscale: integer; { clock scaling factor }
+    stepscale: real;   { time per step }
+    equtbl: equsta;    { node state memnonics }
+    cmdlin: line;      { input command buffer }
+    cmdptr: lininx;    { current command line position }
+    outnam: nodlab;    { output file name }
+    outfil: text;      { output file }
+    outopn: boolean;   { output file open }
+    fmtnam: nodlab;    { format file name }
+    fmtfil: text;      { format file }
+    fmtopn: boolean;   { format file open }
+    trcnam: nodlab;    { trace file name }
+    trcfil: bytfil;    { trace file }
+    trcopn: boolean;   { trace file open }
+    dicnam: nodlab;    { dictionary file name }
+    dicfil: bytfil;    { dictionary file }
+    dicopn: boolean;   { dictionary file open }
+    trace:  boolean;   { trace mode flag }
+    atrace: boolean;   { analog trace mode flag }
+    trctbl: trcptr;    { trace table root }
+    stpcnt: integer;   { step count }
+    labtop: 0..labmax; { top label character count }
+    trccnt: trcinx;    { current tracing count }
+    i:      integer;   { step counter }
+    lswidth: integer;  { width of output listing }
+    lslen:  integer;   { length of page }
+    lincnt: byte;      { current line on page count }
+    pagcnt: integer;   { current page count }
+    trcnum: integer;   { number of traces in a chart }
+    first: boolean;    { first trace on page }
+    margin: integer;   { left margin }
+    nxtnod: integer;   { next node number }
+    nxtclk: integer;   { next active trace clock }
+    nxtsta: nodest;    { next node state }
+    nxtvol: real;      { next node voltage }
+    highlm: real;      { high level limit }
+    lowlm: real;       { low level limit }
+    highvol: real;     { high voltage }
+    lowvol: real;      { low voltage }
+    indvol: real;      { indeterminate voltage }
+    hightrc: real;     { high tracing limit }
+    lowtrc: real;      { low tracing limit }
+    i1: integer;
+    h, l: byte;
+
+{**************************************************************
+
+Process error
+
+Prints an error message by the given error code and aborts.
+The procedure does not return.
+
+**************************************************************}
+
+procedure error(e: errcod);
+
+begin
+
+   write('*** '); { output header }
+   case e of { error }
+
+      ecpar:   writeln('Command/parameter expected');
+      ecnf:    writeln('Command not found');
+      eilovf:  writeln('Input line overflow');
+      elabtl:  writeln('Label too long');
+      ecfns:   writeln('Circuit file not specified');
+      eivopt:  writeln('Invalid option');
+      ecfnf:   writeln('Circuit file not found');
+      enumovf: writeln('Input numeric overflow');
+      enumnf:  writeln('Numeric not found');
+      einvcmd: writeln('Invalid command');
+      enodnf:  writeln('Node not found');
+      einvtff: writeln('Invalid trace file format');
+      einvnod: writeln('Invalid node specification');
+      einvdff: writeln('Invalid dictionary file format');
+      eivlor:  writeln('Input value out of range');
+      einvnf:  writeln('Invalid numeric format');
+      esys:    writeln('System error: contact Moore/CAD');
+
+   end;
+   goto 99
+
+end;
+
+{**************************************************************
+
+Read word
+
+Reads a word from a byte file, in high-low order.
+
+**************************************************************}
+
+procedure readword(var f: bytfil; var w: integer);
+
+var h, l: byte;
+
+begin
+
+   read(f, h); { get high }
+   read(f, l); { get low }
+   w := h*256+l { convert }
+
+end;
+
+{**************************************************************
+
+Determine label length
+
+Determines the number of non-space characters in the label.
+
+**************************************************************}
+
+function len(var n: nodlab): labinx;
+
+var i: labinx; { index for label }
+    l: 0..labmax; { count }
+
+begin
+   l := 0; { initalize count }
+   for i := 1 to labmax do if n[i] <> ' ' then
+      l := l + 1; { count non-space character }
+   len := l { return result }
+end;
+
+{**************************************************************
+
+Check label equality
+
+Checks if the labels are equal, without case.
+
+**************************************************************}
+
+function equ(var a, b: nodlab): boolean;
+
+var i : labinx; { index for labels }
+    m : boolean; { match flag }
+
+begin
+
+   m := true; { set match }
+   for i := 1 to labmax do { check matches }
+      if lcase(a[i]) <> lcase(b[i]) then m := false;
+   equ := m { return result }
+
+end;
+
+{**************************************************************
+
+Add index specification to label
+
+Adds an index specification of the form:
+
+     [num]
+
+to the end of the given label.
+
+***************************************************************}
+
+procedure addinx(var n: nodlab; i: byte);
+
+var x: labinx;
+    f: boolean;
+
+begin
+
+   x := 1; { find end of label }
+   while (x < labmax) and (n[x] in ['A'..'Z', 'a'..'z', '_', '0'..'9']) do
+      x := x + 1; { skip forward }
+   if n[x] in ['A'..'Z', 'a'..'z', '_', '0'..'9'] then error(elabtl);
+   n[x] := '['; { place left }
+   x := x + 1; { next }
+   f := false; { set no leading digit }
+   if (i div 100) <> 0 then begin { place hundreds digit }
+
+      if x > labmax then error(elabtl); { overflow }
+      n[x] := chr((i div 100) + ord('0')); { place digit }
+      i := i - ((i div 100) * 100); { subtract that }
+      x := x + 1; { next }
+      f := true { set leading placed }
+
+   end;
+   if ((i div 10) <> 0) or f then begin { place tens digit }
+
+      if x > labmax then error(elabtl); { overflow }
+      n[x] := chr((i div 10) + ord('0')); { place digit }
+      i := i - ((i div 10) * 10); { subtract that }
+      x := x + 1 { next }
+
+   end;
+   { place ones digit }
+   if x > labmax then error(elabtl); { overflow }
+   n[x] := chr(i + ord('0')); { place digit }
+   x := x + 1; { next }
+   if x > labmax then error(elabtl); { overflow }
+   n[x] := ']'; { place right }
+   x := x + 1; { next }
+   { blank out the rest }
+   while x <= labmax do begin n[x] := ' '; x := x + 1 end;
+
+end;
+
+{**************************************************************
+
+Strip primary
+
+Strips the first primary name off. This may be of the form:
+
+   name
+
+or
+
+   name[n]
+
+**************************************************************}
+
+procedure strip(var n, w: nodlab; var c: integer);
+
+var i : labinx; { index for label }
+
+procedure getchr; { dispose of first character }
+
+var i: labinx;
+
+begin
+
+   for i := 1 to labmax - 1 do { move characters left }
+      n[i] := n[i + 1]
+
+end;
+
+begin
+
+   c := maxint; { flag no index parsed }
+   i := 1; { set first }
+   w := '                                        '; { clear result }
+   { get primary }
+   { validate first character }
+   if not(n[1] in ['A'..'Z', 'a'..'z', '_']) then error(einvnod);
+   while n[1] in ['A'..'Z', 'a'..'z', '_', '0'..'9'] do begin
+
+      w[i] := n[1]; { place character }
+      i := i + 1; { next }
+      getchr { skip }
+
+   end;
+   if n[1] = '[' then begin { index number }
+
+      getchr; { skip '[' }
+      c := 0; { clear count }
+      { check valid digit }
+      if not (n[1] in ['0'..'9']) then error(einvnod);
+      while n[1] in ['0'..'9'] do begin { read number }
+
+         c := c*10 + (ord(n[1])-ord('0')); { convert }
+         getchr { skip }
+
+      end;
+      if not (n[1] = ']') then error(einvnod); { error }
+      getchr; { skip ']' }
+      if c = 0 then error(einvnod) { invalid cell number }
+
+   end;
+   if n[1] = '.' then begin
+
+      getchr; { skip '.' }
+      if len(n) = 0 then error(einvnod) { error }
+
+   end
+
+end;
+
+{**************************************************************
+
+Find node entry
+
+Returns the node number for a given node name.
+
+**************************************************************}
+
+procedure fndnode(    n: nodlab;   { label for node }
+                  var c: integer); { returns number of node }
+
+var m: boolean; { match flag }
+    cp: celptr; { cell index }
+    cn, cc: integer;
+    np: nodptr;
+    ip: cixptr;
+    w: nodlab;
+    i: labinx;
+
+procedure search;
+
+begin
+
+   strip(n, w, cn); { strip primary name }
+   { if there is an index, add that }
+   if cn <> maxint then addinx(w, cn);
+   m := false; { clear match flag }
+   np := cp^.nod; { index node list start }
+   while (np <> nil) and not m do begin
+
+      if equ(np^.lab, w) then m := true { found }
+      else begin np := np^.next; c := c + 1 end
+
+   end;
+   i := 1; { clear out any index }
+   while (i < labmax) and (w[i] <> '[') do i := i + 1; { skip to '[' }
+   if w[i] = '[' then { clear it out }
+      while i <= labmax do begin w[i] := ' '; i := i + 1 end;
+   if cn = maxint then cn := 1; { default to cell instance one }
+   if not m then begin { search cell list }
+
+      ip := cp^.cell; { index index list start }
+      cc := 1; { clear cell count }
+      while (ip <> nil) and not m do begin
+
+         if equ(ip^.cell^.lab, w) then begin
+
+            if cc = cn then m := true { found }
+            else cc := cc + 1 { next cell }
+
+         end;
+         if not m then { skip to next }
+            begin ip := ip^.next; c := c + ip^.cell^.cnt end
+
+      end;
+      if not m then error(enodnf); { error }
+      cp := ip^.cell; { break open that cell }
+      search { and search that }
+
+   end
+
+end;
+
+begin
+
+   { find top cell for implied first level }
+   cp := celtbl; { index cell table root }
+   if cp = nil then error(enodnf); { no list }
+   { find last (top) entry) }
+   while cp^.next <> nil do cp := cp^.next;
+   c := 0; { clear node count }
+   search; { search list }
+   if len(n) <> 0 then error(einvnod) { error }
+
+end;
+
+{**************************************************************
+
+Load node dictionary
+
+Loads the node name dictionary.
+
+***************************************************************}
+
+procedure loaddic;
+
+var cp, lc, cp2: celptr; { pointer for cell list }
+    np, ln: nodptr; { pointer for node list }
+    ci, li: cixptr; { pointers for indexes }
+    cc, cn, nc: integer;
+    pc: byte;
+    b: byte;
+
+procedure readlab(var n: nodlab);
+
+var i, l: labinx;
+    b: byte;
+
+begin
+
+   read(dicfil, b); { get string length }
+   l := b;
+   if l > labmax then error(elabtl); { overflow }
+   n := '                                        '; { clear }
+   i := 1; { set 1st character }
+   while l <> 0 do begin { read characters }
+
+      read(dicfil, b); { get character }
+      n[i] := chr(b); { place }
+      l := l - 1; { count }
+      i := i + 1
+
+   end
+
+end;
+
+begin
+
+   lc := nil; { set no last cell }
+   cp := nil; { clear cell pointer }
+   repeat { cells }
+
+      read(dicfil, b); { get the code }
+      if b <> 0 then begin { not end }
+
+         if b <> 1 then error(einvdff); { flag error }
+         if cp <> nil then begin { dispose of cell last parameters }
+
+            while pc <> 0 do begin
+
+               if cp^.nod = nil then error(esys); { error }
+               cp^.nod := cp^.nod^.next; { gap list }
+               pc := pc - 1 { count }
+
+            end
+
+         end;
+         new(cp); { get new cell entry }
+         cp^.next := nil; { clear next }
+         if lc <> nil then lc^.next := cp { add top end }
+         else celtbl := cp; { insert as first }
+         lc := cp; { set last }
+         readlab(cp^.lab);  { read cell label }
+         read(dicfil, pc); { read parameter count }
+         ln := nil; { clear last node }
+         li := nil; { clear last index }
+         nc := 0; { clear node count }
+         repeat { nodes }
+
+            read(dicfil, b); { get the next code }
+            if b = 3 then begin { node }
+
+               new(np); { get a new node entry }
+               np^.next := nil; { clear next }
+               if ln <> nil then ln^.next := np { add top end }
+               else cp^.nod := np; { insert as first }
+               ln := np; { set last }
+               nc := nc + 1; { count node }
+               readlab(np^.lab) { get label }
+
+            end else if b = 4 then begin { subcell reference }
+
+               readword(dicfil, cn); { get the cell number }
+               cp2 := celtbl; { index cell table start }
+               cc := 1; { clear cell count }
+               while (cp2 <> nil) and (cc <> cn) do begin
+
+                  cp2 := cp2^.next; { link next }
+                  cc := cc + 1 { count }
+
+               end;
+               if cp2 = nil then error(einvdff); { error }
+               new(ci); { get a new index }
+               ci^.next := nil; { clear next }
+               if li <> nil then li^.next := ci { add top end }
+               else cp^.cell := ci; { insert as first }
+               li := ci; { set last }
+               ci^.cell := cp2; { index that cell }
+               nc := nc + cp2^.cnt { find number of nodes }
+
+            end else if b <> 2 then error(einvdff) { invalid code }
+
+         until b = 2; { end of cell }
+         { find number of nodes, which is nodes minus parameters }
+         cp^.cnt := nc - pc
+
+      end
+
+   until b = 0 { end of file }
+
+end;
+
+{*******************************************************************************
+
+Add extention
+
+Adds the extention to the filename. If an extention is already present, this is
+left alone.
+
+*******************************************************************************}
+
+procedure addext(var  w: string;  { filename }
+                 view e: string); { extention }
+
+var i1, i2: integer; { indexes for labels }
+
+begin
+
+   i1 := 1; { index start of filename }
+   { skip to first '.' or space }
+   while (i1 < max(w)) and (w[i1] <> '.') and
+         (w[i1] <> ' ') do i1 := i1 + 1;
+   if w[i1] <> '.' then begin { no extention present }
+
+      if w[i1] = ' ' then begin { plant extention }
+
+         i2 := 1; { set 1st extention }
+         while (i1 <= max(w)) and (i2 <= max(e)) do begin
+
+            w[i1] := e[i2]; { place character }
+            i1 := i1 + 1; { next characters }
+            i2 := i2 + 1
+
+         end;
+         if i2 < max(e) then
+            if e[i2] <> ' ' then error(elabtl) { error }
+
+      end
+
+   end
+
+end;
+
+{**************************************************************
+
+Output list header
+
+Prints the header for the list output mode.
+This consists of a vertical list of all the labels, each
+label over the collumn of data comprising the trace.
+Note that only as many lines as the longest label to be
+printed are used.
+
+**************************************************************}
+
+procedure header(var f: text); { file to output to }
+
+var np : nodptr; { pointer for node list }
+    c : labinx; { index for node names }
+    i : byte; { index for line }
+
+begin
+
+   for c := 1 to labtop do begin { output names }
+
+      for i := 1 to margin do write(f, ' '); { print margin }
+      if c = labtop then write(f, 'Time   ')
+      else write(f, '       ');
+      np := nodtbl; { index node root }
+      i := 8 + margin; { set line position }
+      while (np <> nil) and (i <= lswidth) do begin
+
+         { traverse node list }
+         if np^.lab[c] <> ' ' then
+            write(f, np^.lab[c]) { output node label character }
+         else write(f, '.'); { mark }
+         np := np^.next;      { index next node }
+         i := i + 1 { count collumns }
+
+      end;
+      writeln(f); { terminate line }
+      lincnt := lincnt + 1 { count lines }
+
+   end;
+   for i := 1 to margin do write(f, ' '); { output margin }
+   for i := 1 to lswidth - margin do
+      write(f, '-'); { output divider }
+   writeln(f); { terminate line }
+   lincnt := lincnt + 1 { count line }
+
+end;
+
+{**************************************************************
+
+List current node states
+
+Outputs each node state in it's own vertical collumn, preceeded
+by the scaled clock time.
+
+**************************************************************}
+
+procedure listnodes(var f: text); { file to output to }
+
+var np : nodptr; { pointer for node list }
+    i : byte; { index for line }
+
+begin
+
+   for i := 1 to margin do write(f, ' '); { output margin }
+   write(f, clkcnt * clkscale, ' '); { output current clock }
+   i := 8 + margin; { set position }
+   np := nodtbl; { index root }
+   while (np <> nil) and (i <= lswidth) do begin
+
+      { output node states }
+      write(f, equtbl[np^.state]); { output state }
+      np := np^.next; { link next }
+      i := i + 1 { next position }
+
+   end;
+   writeln(f); { terminate }
+   lincnt := lincnt + 1 { count line }
+
+end;
+
+{**************************************************************
+
+Find label maximum for print
+
+Finds the maximum label length. If a format list is present,
+then the maximum is found by that list, else the maximum is
+found by the whole node list.
+
+**************************************************************}
+
+procedure fndtop;
+
+var np: nodptr; { pointer for nodes }
+
+begin
+
+   labtop := 0; { initalize top }
+   np := nodtbl; { index node table root }
+   while np <> nil do begin { traverse node list }
+
+      { check this entry greater than maximum,
+        and update max if so }
+      if len(np^.lab) > labtop then
+         labtop := len(np^.lab);
+      np := np^.next { link next }
+
+   end
+
+end;
+
+{**************************************************************
+
+Enter new format entry
+
+Places a new format entry at the tail end of the format
+table. This will point at the given node.
+
+**************************************************************}
+
+procedure newfmt(var n: nodlab);
+
+var np, l: nodptr; { node pointers }
+    w: integer;
+    c: char;
+
+begin
+
+   fndnode(n, w); { find node number }
+   l := nodtbl; { index node table }
+   c := 'A'; { set 1st ident char }
+   if l <> nil then while l^.next <> nil do begin
+
+      l := l^.next; { skip to end }
+      c := succ(c) { next ident }
+
+   end;
+   new(np); { get a node entry }
+   np^.next := nil; { clear next }
+   if l = nil then nodtbl := np { link to root }
+   else begin l^.next := np; c := succ(c) end; { link to last }
+   np^.lab := n; { place label }
+   np^.state := undef; { clear state }
+   np^.num := w; { place node number }
+   np^.idn := c { place ident }
+
+end;
+
+{**************************************************************
+
+Read input line
+
+Reads a line of text from the given text file into the
+command buffer. No interactive processing is implemented.
+
+**************************************************************}
+
+procedure readline(var f: text); { input file }
+
+var i : lininx; { index for line }
+
+begin
+   for i := 1 to linmax do cmdlin[i] := ' '; { clear command line }
+   i := 1; { set 1st character position }
+   while not eoln(f) do begin { read characters }
+
+      if i > linmax then error(eilovf); { process error }
+      read(f, cmdlin[i]); { get a character }
+      i := i + 1 { next character position }
+
+   end;
+   readln(f); { skip line end }
+   cmdptr := 1 { set 1st character position }
+end;
+
+{**************************************************************
+
+Check character
+
+Returns the character at the current command line position.
+If the position is off the end of the line, a blank is returned
+instead.
+
+**************************************************************}
+
+function chkchr: char;
+
+var c : char;
+
+begin
+   { return contents of at line }
+   if cmdptr <= linmax then c := cmdlin[cmdptr]
+   else c := ' '; { off end, return zip }
+   chkchr := c { return result }
+end;
+
+{**************************************************************
+
+Get character
+
+Skips to the next command line character. This will only
+occur if we are not at the end of the line.
+
+**************************************************************}
+
+procedure getchr;
+
+begin
+   if cmdptr <= linmax then cmdptr := cmdptr + 1 { advance }
+end;
+
+{**************************************************************
+
+Skip spaces
+
+Skips spaces in the command line. If at line end, we stop.
+
+***************************************************************}
+
+procedure skpspc;
+
+begin
+   while (chkchr = ' ') and (cmdptr <= linmax) do
+      getchr
+end;
+
+{**************************************************************
+
+Get word
+
+Gets a word from the command line. This will be any sequence
+of non-space characters after any leading spaces, and
+terminated by a space.
+Generates an error on label overflow or no word found.
+
+***************************************************************}
+
+procedure getword(var n: nodlab);
+
+var i : labinx; { index for label }
+
+begin
+   n := '                                        ';
+   skpspc; { skip spaces }
+   i := 1; { initalize label pointer }
+   while (chkchr <> ' ') and (chkchr <> '!') do begin
+
+      if i > labmax then error(elabtl); { process error }
+      n[i] := chkchr; { place character }
+      i := i + 1; { next character }
+      getchr { next character }
+
+   end;
+   { convert to lower case }
+   for i := 1 to labmax do n[i] := lcase(n[i]);
+   { no word found }
+   if n = '                                        ' then error(ecpar)
+end;
+
+{**************************************************************
+
+Get number
+
+Reads and converts the decimal numeric at the command line
+position. Indicates an error on numeric overflow, or number
+not found.
+
+**************************************************************}
+
+procedure getnum(var n: integer);
+
+begin
+   n := 0; { initalize number }
+   skpspc; { skip spaces }
+   { check any digits }
+   if not (chkchr in ['0'..'9']) then error(enumnf);
+   while chkchr in ['0'..'9'] do begin
+
+      if n > maxint/10 then error(enumovf); { overflow }
+      n := n * 10; { scale }
+      n := n + ord(chkchr) - ord('0'); { add new digit }
+      getchr { next }
+
+   end
+end;
+
+{**************************************************************
+
+Process caller line
+
+Read a line from the given file, and processes the circuit
+file there and any command line options.
+
+**************************************************************}
+
+procedure prcopt(var f: text);
+
+begin
+   readline(f); { load command line }
+   skpspc; { skip spaces }
+   if cmdptr > linmax then error(ecfns); { error }
+   getword(fmtnam) { get the circuit file name }
+end;
+
+{**************************************************************
+
+Read single real
+
+Reads the single precision IEEE format real from the given
+file, and converts that to our real.
+
+**************************************************************}
+
+procedure readsreal(var f: bytfil; var r: real);
+
+var fc:  record case boolean of { float convertion }
+
+            false: (r: sreal);
+            true:  (b: packed array [1..4] of byte)
+
+         end; 
+
+begin
+
+   read(f, fc.b[1]); { read bytes of single real }
+   read(f, fc.b[2]);
+   read(f, fc.b[3]);
+   read(f, fc.b[4]);
+   r := fc.r { place result }
+
+end;
+{}
+{**************************************************************
+
+READ 32 BIT NUMBER FROM FILE
+
+Reads a number in 32 bit signed magnitude format. The highest
+order byte appears first, and the least order last. The high
+byte 7th bit contains the sign.
+
+**************************************************************}
+
+procedure read32(var f: bytfil; var i: integer); 
+
+var b: byte;    { read byte holder }
+    s: integer; { sign of result }
+    t: integer; { temp }
+
+begin
+
+   s := 1; { set no sign }
+   read(f, b);
+   if b >= 128 then begin { signed }
+
+      s := -1; { set sign }
+      b := b - 128 { remove sign }
+
+   end;
+   t := b; { place in large buffer }
+   i := t*16777216;
+   read(f, b);
+   t := b; { place in large buffer }
+   i := i + t*65536;
+   read(f, b);
+   t := b; { place in large buffer }
+   i := i + t*256;
+   read(f, b);
+   i := i + b;
+   i := i*s { set sign of result }
+
+end;
+
+{**************************************************************
+
+Get real
+
+Reads and converts the decimal numeric at the command line
+position. Indicates an error on numeric overflow, or number
+not found.
+
+**************************************************************}
+
+procedure getrnm(var n: real);
+
+var dp: boolean; { decimal point flag }
+    p: real; { scaling factor }
+    s: real; { sign }
+
+begin
+
+   n := 0{0.0}; { initalize number }
+   p := 1{1.0};   { set scaling factor }
+   s := 1{1.0}; { set sign }
+   dp := false; { set decimal point not scanned }
+   skpspc; { skip spaces }
+   if chkchr = '-' then begin s := -s; getchr end
+   else if chkchr = '+' then begin getchr end;
+   skpspc; { skip spaces }
+   { check any digits }
+   if not (chkchr in ['0'..'9', '.']) then error(enumnf);
+   while chkchr in ['0'..'9', '.'] do begin
+
+      if chkchr = '.' then begin { decimal point }
+
+         if dp then error(einvnf); { error }
+         getchr; { skip '.' }
+         dp := true { set decimal passed }
+
+      end else begin { parse digit }
+
+         if dp then begin { after decimal point }
+
+            p := p / 10.0; { find next scale }
+            n := n + (p * (ord(chkchr) - ord('0'))) { add new digit }
+
+         end else begin { before decimal point }
+
+            n := n * 10.0; { scale }
+            n := n + ord(chkchr) - ord('0') { add new digit }
+
+         end;
+         getchr { next }
+
+      end
+
+   end;
+   if lcase(chkchr) in ['f', 'p', 'n', 'u', 'm', 'k', 'g', 't'] then
+   case lcase(chkchr) of
+
+      'f': begin n := n * 10e-15; getchr end; { femto }
+      'p': begin n := n * 10e-12; getchr end; { pico }
+      'n': begin n := n * 10e-9; getchr end;  { nano }
+      'u': begin n := n * 10e-6; getchr end;  { micro }
+      'm': begin
+
+              getchr; { skip 'm' }
+              if not (lcase(chkchr) in ['a'..'z']) then
+                 n := n * 10e-3               { mili }
+              else if lcase(chkchr) = 'e' then begin
+
+                 getchr; { skip }
+                 if lcase(chkchr) <> 'g' then error(einvnf); { error }
+                 getchr; { skip }
+                 n := n * 1e6                 { mega }
+
+              end else if lcase(chkchr) = 'i' then begin
+
+                 getchr; { skip }
+                 if lcase(chkchr) <> 'l' then error(einvnf); { error }
+                 getchr; { skip }
+                 n := n * 25.4e-6              { mil }
+
+              end else error(einvnf) { error }
+
+           end;
+
+      'k': begin n := n * 1e3; getchr end;   { kilo }
+      'g': begin n := n * 1e9; getchr end;   { giga }
+      't': begin n := n * 1e12; getchr end   { tera }
+
+   end;
+   n := n*s { set sign of result }
+
+end;
+
+{**************************************************************
+
+Create trace buffers
+
+Creates a table of trace buffers, one for each node present.
+Each trace buffer is set to point to it's recording node.
+
+**************************************************************}
+
+procedure maktrc;
+
+var np: nodptr; { pointer for nodes }
+    t, t1: trcptr; { pointers for traces }
+
+begin
+   trcnum := 0; { initalize trace count }
+   np := nodtbl; { index node table root }
+   while np <> nil do begin { create traces }
+
+      new(t); { create a new trace }
+      t^.nod  := np; { point to the node }
+      t^.next := trctbl; { link into table }
+      trctbl := t;
+      np := np^.next; { link next node }
+      trcnum := trcnum + 1 { count traces }
+
+   end;
+   { trace table created, but backwards so reverse }
+   t := trctbl; { index trace table root }
+   trctbl := nil; { clear trace table }
+   while t <> nil do begin { insert traces }
+
+      t1 := t^.next; { index next trace }
+      t^.next := trctbl; { link into table }
+      trctbl := t;
+      t := t1 { link over }
+
+   end
+end;
+
+{**************************************************************
+
+Store traces
+
+The state of all nodes are saved in there trace buffers at the
+proper trace data position.
+
+**************************************************************}
+
+procedure strtrc(tc: trcinx); { current trace count }
+
+var t: trcptr; { pointer for traces }
+
+begin
+   t := trctbl; { index trace table root }
+   while t <> nil do begin { store trace info }
+
+      t^.buf[tc].sta := t^.nod^.state; { place state }
+      t^.buf[tc].vol := t^.nod^.vol; { place voltage }
+      t := t^.next { link next trace }
+
+   end
+end;
+
+{**************************************************************
+
+Output trace header
+
+Prints the trace header. This is a list of numbers representing
+scaled clock values for the coming trace, listed in collumar
+form. Only as many lines as needed are used.
+
+**************************************************************}
+
+procedure trchead(var f: text; tc: trcinx);
+
+var s: array [1..5] of char; { integer convert save }
+    i, x: 1..5;
+    c: integer;
+    l: trcinx;
+    ni: labinx; { label index }
+    si: byte; { screen index }
+
+procedure cvtnum(n: integer); { convert integer to ascii }
+
+begin
+   s[1] := chr(n div 10000 + ord('0')); { find digits }
+   s[2] := chr((n mod 10000) div 1000 + ord('0'));
+   s[3] := chr((n mod 1000) div 100 + ord('0'));
+   s[4] := chr((n mod 100) div 10 + ord('0'));
+   s[5] := chr(n mod 10 + ord('0'))
+end;
+
+begin
+   c := (clkcnt + 1) - tc * clkscale; { find starting clock }
+   cvtnum((c + tc)*clkscale); { find top number }
+   i := 1; { find number of digits }
+   while (i < 5) and (s[i] = '0') do i := i + 1;
+   for i := i to 5 do begin { line }
+
+      { output margin }
+      for si := 1 to margin do write(f, ' ');
+      { space over label }
+      for ni := 1 to labtop + 1 do write(f, ' ');
+      for l := 0 to tc - 1 do begin { digits }
+
+         cvtnum((c+l)*clkscale); { find clock }
+         { eliminate leading zeros }
+         x := 1;
+         while (x < 5) and (s[x] = '0') do begin
+
+            s[x] := ' '; { blank out }
+            x := x + 1
+
+         end;
+         write(f, s[i]) { output digit }
+
+      end;
+      writeln(f); { terminate line }
+      lincnt := lincnt + 1 { count lines }
+
+   end;
+   { output margin }
+   for si := 1 to margin do write(f, ' ');
+   { print dividing line }
+   for si := 1 to tc + labtop + 1 do write(f, '-');
+   writeln(f); { terminate line }
+   lincnt := lincnt + 1 { count line }
+end;
+
+{**************************************************************
+
+Output centering margin
+
+Outputs the number of left side spaces required to center
+the string whose length is given. If the string is >= the line
+length, nothing happens.
+
+**************************************************************}
+
+procedure center(var f: text; n: byte);
+
+var i: byte;
+
+begin
+   if n < lswidth then { fits in line }
+      { space off }
+      for i := 1 to (lswidth div 2) - (n div 2) do write(f, ' ')
+end;
+
+{**************************************************************
+
+Print page header
+
+Prints the header for a pagenated list. Includes our logo,
+the circuit title, and the page number.
+
+**************************************************************}
+
+procedure prtpgh(var f: text);
+
+var s: packed array [1..60] of char; { holder for strings }
+    t: byte; { print width holder }
+    i: byte; { string index }
+
+begin
+   page(f); { output new page }
+   lincnt := 0; { reset line count }
+   { print out logo }
+   t := 60; { set print width }
+   s := 'Cktsim logic simulator vs 1.0 copyright (C) 1989 Moore/CAD  ';
+   center(f, t); { center that }
+   if t <= lswidth then
+      for i := 1 to t do write(f, s[i]); { print logo }
+   writeln(f); { terminate line }
+   lincnt := lincnt + 1; { count }
+   writeln(f); { space off }
+   lincnt := lincnt + 1; { count }
+   writeln(f);
+   lincnt := lincnt + 1; { count }
+   { output indicator line }
+   if trace then begin
+
+   t := 24;
+   s := 'Circuit state trace for                                     '
+
+   end else if atrace then begin
+
+   t := 26;
+   s := 'Circuit voltage trace for                                   '
+
+   end else begin
+
+   t := 23;
+   s := 'Circuit state list for                                      '
+
+   end;
+   center(f, t + len(fmtnam) + 4); { center that line }
+   if (t + len(fmtnam) + 4) <= lswidth then begin
+
+      for i := 1 to t do write(f, s[i]); { print line }
+      write(f, '- '); { bracket name }
+      i := 1; { set 1st label character }
+      { print label }
+      while (i <= labmax) and (fmtnam[i] <> '.') and
+            (fmtnam[i] <> ' ') do begin
+
+         write(f, fmtnam[i]); { print character }
+         i := i + 1 { next character }
+
+      end;
+      write(f, ' -') { bracket name }
+
+   end;
+   writeln(f); { terminate line }
+   lincnt := lincnt + 1; { count }
+   writeln(f); { space off }
+   lincnt := lincnt + 1; { count }
+   writeln(f);
+   lincnt := lincnt + 1 { count }
+end;
+
+{**************************************************************
+
+Print page number
+
+Prints two blank lines, then the page number centered on the
+line.
+
+**************************************************************}
+
+procedure pagnum(var f: text);
+
+begin
+   writeln(f); { space off }
+   lincnt := lincnt + 1; { count }
+   writeln(f);
+   lincnt := lincnt + 1; { count }
+   if pagcnt < 10 then center(f, 1+4) { center 1 digit }
+   else if pagcnt < 100 then center(f, 2+4) { center 2 digits }
+   else if pagcnt < 1000 then center(f, 3+4) { etc. }
+   else if pagcnt < 10000 then center(f, 4+4)
+   else center(f, 5+4);
+   writeln(f, '- ', pagcnt:1, ' -'); { output page count }
+   lincnt := lincnt + 1; { count }
+   pagcnt := pagcnt + 1 { next page }
+end;
+
+{**************************************************************
+
+List traces
+
+A trace line for each node is output, preceeded by the node name.
+
+**************************************************************}
+
+procedure listtrc(var f: text; tc: trcinx);
+
+var t: trcptr; { pointer for traces }
+    i: labinx; { index for labels }
+    ti: trcinx; { index for traces }
+    si: byte; { screen index }
+
+begin
+   t := trctbl; { index trace table root }
+   while t <> nil do begin { output traces }
+
+      if (lincnt = 0) and (lslen <> 0) then begin
+
+         prtpgh(f); { output page header }
+         trchead(f, trccnt) { output trace header }
+
+      end;
+      { output margin }
+      for si := 1 to margin do write(f, ' ');
+      for i := 1 to labtop do { output node label }
+         if t^.nod^.lab[i] <> ' ' then
+            write(f, t^.nod^.lab[i])
+         else write(f, '.'); { format }
+      write(f, '.'); { space off }
+      for ti := 1 to tc do { output trace states }
+         if t^.buf[ti].sta in [undef, indet, indrh, indrl, widh,
+                           widl, cont, wcont] then
+            write(f, 'x') { output indeterminate }
+         else if t^.buf[ti].sta in [high, strh, whigh, vdd] then
+            write(f, '-') { output high }
+         else write(f, '_'); { output low }
+      writeln(f); { terminate line }
+      lincnt := lincnt + 1; { count lines }
+      t := t^.next; { link next entry }
+      if lslen <> 0 then
+         if lincnt = lslen -3 then begin
+
+         { end of page }
+         pagnum(f); { print the page number }
+         lincnt := 0 { set page start }
+
+      end
+
+   end
+end;
+{**************************************************************
+
+List analog
+
+A primary version of the analog trace facillity. Fixed at
+a 50 line format (which gives 10 lines per volt for 5v).
+
+**************************************************************}
+
+procedure listana(var f: text; tc: trcinx);
+
+var inc: real; { volts per line }
+    high, low: real; { limits for current line }
+    c: char; { output holder }
+    line: 1..50; { line counter }
+    ti: trcinx;
+    tp: trcptr;
+    mi: byte;
+
+begin
+
+   inc := (hightrc-lowtrc)/50; { find volts per line }
+   high := hightrc; { set current line high }
+   low := hightrc - inc; { set current line low }
+   for line := 1 to 50 do begin { lines of trace }
+
+      for mi := 1 to margin do write(f, ' '); { output margin }
+      for ti := 1 to tc do begin { time increments }
+
+         c := '.'; { set default character }
+         tp := trctbl; { index trace table }
+         while tp <> nil do begin { traverse traces }
+
+            if (tp^.buf[ti].vol >= low) and
+               (tp^.buf[ti].vol <= high) then
+               { trace is within our limits, mark trace }
+               if c <> '.' then c := '*' { collision, mark }
+               else c := tp^.nod^.idn; { place ID }
+            tp := tp^.next { next entry }
+
+         end;
+         write(f, c); { output marker }
+
+      end;
+      writeln(f); { terminate line }
+      high := high - inc; { find new margins }
+      low := low - inc
+
+   end
+
+end;
+
+{**************************************************************
+
+Execute single line
+
+Executes the command in the command line buffer. Anyplace
+'!' appears is a comment, as is a blank line.
+
+***************************************************************}
+
+procedure exclin;
+
+var w, n: nodlab; { label holders }
+
+begin
+
+   skpspc; { skip spaces }
+   if (chkchr <> '!') and (cmdptr <= linmax) then
+      begin { not comment }
+
+      getword(w); { get command word }
+      if w = 'clockscale                              ' then
+         { set clock scaling command }
+         getnum(clkscale) { get the clock scaling }
+      else if w = 'chart                                   ' then
+         trace := true { set to trace mode }
+      else if w = 'list                                    ' then
+         trace := false { set to list mode }
+      else if (w = 'step                                    ') or
+              (w = 's                                       ') then begin
+
+              getnum(stpcnt); { get the step count }
+              stpcnt := stpcnt div clkscale { scale }
+
+      end else if w = 'line                                    ' then
+         getnum(lswidth) { get the list width }
+      else if w = 'page                                    ' then begin
+
+         { set pagenation mode }
+         skpspc; { check parameter present }
+         if chkchr in ['0'..'9'] then
+            getnum(lslen) { get the list length }
+         else lslen := 60 { set default }
+
+      end else if w = 'margin                                  ' then begin
+
+         { set left margin for list }
+         skpspc; { check parameter present }
+         if chkchr in ['0'..'9'] then
+            getnum(margin) { get the margin count }
+         else margin := 10 { set default }
+
+      end else if w = 'format                                  ' then
+
+         { create new format entries }
+
+         repeat
+
+            getword(n); { get node }
+            newfmt(n); { create new format entry }
+            skpspc { skip spaces }
+
+         until (cmdptr > linmax) or (chkchr = '!')
+
+      else if w = 'stepscale                               ' then
+         getrnm(stepscale) { get analog step scale }
+      else if w = 'highlimit                               ' then
+         getrnm(highlm) { get high limit }
+      else if w = 'lowlimit                                ' then
+         getrnm(lowlm) { get low limit }
+      else if w = 'analogchart                             ' then
+         atrace := true { set analog trace mode }
+      else if w = 'highvoltage                             ' then
+         getrnm(highvol) { get high voltage }
+      else if w = 'lowvoltage                              ' then
+         getrnm(lowvol) { get low voltage }
+      else if w = 'indeterminatevoltage                    ' then
+         getrnm(indvol) { get indeterminate voltage }
+      else if w = 'hightrace                               ' then
+         getrnm(hightrc) { get high tracing voltage }
+      else if w = 'lowtrace                                ' then
+         getrnm(lowtrc) { get low tracing voltage }
+      else error(ecnf) { process error }
+
+   end
+
+end;
+
+{**************************************************************
+
+Execute procedure file
+
+Loads each line of the given file in turn, and executes
+the commands contained there.
+
+***************************************************************}
+
+procedure excprf(var f: text);
+
+begin
+   while not eof(f) do begin { read lines }
+
+      readline(f); { read next line }
+      exclin { execute line }
+
+   end
+end;
+
+{**************************************************************
+
+Read trace
+
+The next trace is read. If we are at the end of the file,
+the time is set to the maximum, which will cause all further
+trace intake to stop (since it represents a clock that will
+never be reached).
+Both state and analog formats are read. When one format is
+read, the other is derived, so that both a state and an
+analog voltage allways result.
+Also converts the real analog time to a step time.
+
+***************************************************************}
+
+procedure readtrc;
+
+var time: real;
+    b: byte;
+
+begin
+
+   read(trcfil, b); { get next trace code }
+   if (b div 16) = $01 then begin { state trace }
+
+      read32(trcfil, nxtnod); { get node number }
+      read32(trcfil, nxtclk); { get time }
+      case b mod 16 of { state convertions }
+
+         0:  begin nxtsta := undef; nxtvol := indvol end;
+         1:  begin nxtsta := indet; nxtvol := indvol end;
+         2:  begin nxtsta := cont;  nxtvol := indvol end;
+         3:  begin nxtsta := wcont; nxtvol := indvol end;
+
+         4:  begin nxtsta := indrl; nxtvol := indvol end;
+         5:  begin nxtsta := widl;  nxtvol := indvol end;
+         6:  begin nxtsta := indrh; nxtvol := indvol end;
+         7:  begin nxtsta := widh;  nxtvol := indvol end;
+
+         8:  begin nxtsta := vss;   nxtvol := lowvol end;
+         9:  begin nxtsta := low;   nxtvol := lowvol end;
+         10: begin nxtsta := wlow;  nxtvol := lowvol end;
+         11: begin nxtsta := strl;  nxtvol := lowvol end;
+
+         12: begin nxtsta := vdd;   nxtvol := highvol end;
+         13: begin nxtsta := high;  nxtvol := highvol end;
+         14: begin nxtsta := whigh; nxtvol := highvol end;
+         15: begin nxtsta := strh;  nxtvol := highvol end
+
+      end
+
+   end else if (b div 16) = $02 then begin { analog trace }
+
+      read32(trcfil, nxtnod); { get node number }
+      readsreal(trcfil, time); { get time }
+      readsreal(trcfil, nxtvol); { get voltage }
+      { convert to state }
+      if nxtvol < lowlm then nxtsta := low
+      else if nxtvol < highlm then nxtsta := cont
+      else nxtsta := high;
+      { convert time }
+      nxtclk := round(time / stepscale)
+
+   end else if (b div 16) = $00 then
+      nxtclk := maxint { set to impossible time }
+   else error(einvtff) { bad file format }
+
+{;writeln('nxtclk: ', nxtclk:1, ' nxtnod: ', nxtnod:1,
+' nxtvol: ', nxtvol);}
+
+end;
+
+{**************************************************************
+
+Update traces
+
+If the run clock matches the current clock, that means that
+the trace data following in the file is to be set this cycle.
+
+***************************************************************}
+
+procedure update;
+
+var np: nodptr; { pointer for node }
+
+begin
+
+   while nxtclk = clkcnt do begin { update }
+
+      { find the node entry }
+      np := nodtbl; { index node table }
+      while np <> nil do begin { traverse table }
+
+         if np^.num = nxtnod then begin
+
+            np^.state := nxtsta; { place new state }
+            np^.vol := nxtvol; { place new voltage }
+            np := nil { flag end }
+
+         end else np := np^.next { next entry }
+
+      end;
+      readtrc { read next trace entry }
+
+   end
+
+end;
+
+{**************************************************************
+
+Main program
+
+Initalizes global variables, processes the options, loads
+the circuit file and runs the simulation.
+
+**************************************************************}
+
+begin
+
+   writeln('Trace converter 0.1 Copyright (C) 1988 S. A. Moore');
+
+   { initalize node memnonic table }
+
+   equtbl[undef] := 'U'; { undefined }
+   equtbl[indet] := 'I'; { indeterminate }
+   equtbl[indrh] := 'A'; { indeterminate driven high }
+   equtbl[indrl] := 'B'; { indeterminate driven low }
+   equtbl[widh]  := 'D'; { indeterminate driven weakly high }
+   equtbl[widl]  := 'E'; { indeterminate driven weakly low }
+   equtbl[cont]  := 'C'; { contention }
+   equtbl[wcont] := 'F'; { weak contention }
+   equtbl[high]  := '1'; { high driven }
+   equtbl[low]   := '0'; { low driven }
+   equtbl[strh]  := 'H'; { stored high }
+   equtbl[strl]  := 'L'; { stored low }
+   equtbl[whigh] := 'J'; { high driven weakly }
+   equtbl[wlow]  := 'K'; { low driven weakly }
+   equtbl[vdd]   := 'P'; { power }
+   equtbl[vss]   := 'G'; { ground }
+
+   { initalize node and fet tables }
+
+   nodtbl := nil;
+   trctbl := nil;
+   celtbl := nil;
+   clkcnt := 0; { set clock time 0 }
+   clkscale := 1; { set clock scaling to 1 }
+   stepscale := 0.0; { clear step scale }
+   stpcnt := 50; { set default step count }
+   labtop := 1; { set default label top }
+   trccnt := 1; { initalize tracing count }
+   lswidth := 79; { set default listing width }
+   lslen := 0; { set no pagination }
+   lincnt := 0; { set line count }
+   pagcnt := 1; { set 1st page }
+   trcnum := 0; { set no traces }
+   first := true; { set 1st on page }
+   margin := 0; { no left margin }
+   highlm := 0.0; { clear limits }
+   lowlm := 0.0;
+
+   { process options and open output file }
+
+   trace := false; { set trace mode off }
+   atrace := false; { set analog trace mode off }
+   fmtopn := false; { set no files open }
+   trcopn := false;
+   dicopn := false;
+   outopn := false;
+   { assign default output }
+   outnam := '_output                                 ';
+   prcopt(command); { process options }
+   trcnam := fmtnam; { copy filename }
+   outnam := fmtnam;
+   dicnam := fmtnam;
+   { place extentions }
+   addext(fmtnam, '.fmt                                    ');
+   addext(trcnam, '.trc                                    ');
+   addext(outnam, '.lst                                    ');
+   addext(dicnam, '.dic                                    ');
+   { check circuit file exists }
+   if not exists(fmtnam) then error(ecfnf);
+   if not exists(trcnam) then error(ecfnf);
+   if not exists(dicnam) then error(ecfnf);
+   assign(fmtfil, fmtnam); { open procedure file }
+   reset(fmtfil);
+   fmtopn := true;
+   assign(trcfil, trcnam); { open trace file }
+   reset(trcfil);
+   trcopn := true;
+   assign(dicfil, dicnam); { open dictionary file }
+   reset(dicfil);
+   dicopn := true;
+   assign(outfil, outnam); { open output file }
+   rewrite(outfil);
+   outopn := true;
+
+   { perform setup }
+
+   loaddic; { load dictionary file }
+   excprf(fmtfil); { execute procedure file }
+   fndtop; { find new label top }
+   readtrc; { read 1st trace entry }
+
+   { run trace }
+
+   if trace or atrace then maktrc; { make trace table }
+   for i := 1 to stpcnt do begin { run sim }
+
+      update; { update trace lines }
+      if trace then begin { process trace step }
+
+         strtrc(trccnt); { store traces }
+         { check if we have enough traces to fill a screen }
+         if trccnt = (lswidth - labtop - 1 - margin) then begin
+
+            { determine size of trace }
+            i1 := clkcnt * clkscale; { find scaled top }
+            if i1 < 10 then i1 := 1 { one digit }
+            else if i1 < 100 then i1 := 2 { two digits }
+            else if i1 < 1000 then i1 := 3 { etc }
+            else if i1 < 10000 then i1 := 4
+            else i1 := 5;
+            i1 := i1 + 1; { add divider line }
+            if ((lincnt + trcnum + i1) > lslen) and
+               (lslen <> 0) and (lincnt <> 0) then begin
+
+               { chart to big for page, skip to next page }
+               { space down to page end }
+               for i1 := lincnt to lslen - 3 - 1 do writeln(outfil);
+               pagnum(outfil); { print the page number }
+               lincnt := 0; { reset to page start }
+               first := true { restore virginity (quite a trick !) }
+
+            end;
+            if (lincnt = 0) and (lslen <> 0) then
+               prtpgh(outfil); { output page header }
+            if not first then begin
+
+               writeln(outfil); { provide spacing }
+               lincnt := lincnt + 1 { count that }
+
+            end;
+            trchead(outfil, trccnt); { output trace header }
+            listtrc(outfil, trccnt); { output full trace }
+            trccnt := 1; { reset trace count }
+            first := false { remove virginity }
+
+         end else trccnt := trccnt + 1 { count traces }
+
+      end else if atrace then begin { process analog trace step }
+
+         { we have simplified the rules of analog tracing by
+           assuming only one trace per screen }
+         strtrc(trccnt); { store traces }
+         { check if we have enough traces to fill a screen }
+         if trccnt = (lswidth - margin) then begin
+
+            if lslen <> 0 then prtpgh(outfil); { output page header }
+            writeln(outfil); { space off }
+            listana(outfil, trccnt); { output traces }
+            trccnt := 1 { reset trace counter }
+
+         end else trccnt := trccnt + 1 { next trace count }
+
+      end else begin { process list format }
+
+         if lincnt = 0 then begin { output header }
+
+            { if pagenation on, output page header }
+            if lslen <> 0 then prtpgh(outfil);
+            header(outfil); { output our header }
+
+         end;
+         listnodes(outfil); { list node states }
+         { if we overflow a page, reset to next page }
+         if lslen <> 0 then
+            if lincnt = lslen - 3 then begin
+
+           { end of page }
+            pagnum(outfil); { print the page number }
+            lincnt := 0
+
+         end
+
+      end;
+      clkcnt := clkcnt + 1 { advance clock }
+
+   end;
+   if trace and (trccnt <> 0) then begin
+
+      trccnt := trccnt - 1; { back out last count }
+      clkcnt := clkcnt - 1; { this really could be done better }
+      { determine size of trace }
+      i1 := clkcnt * clkscale; { find scaled top }
+      if i1 < 10 then i1 := 1 { one digit }
+      else if i1 < 100 then i1 := 2 { two digits }
+      else if i1 < 1000 then i1 := 3 { etc }
+      else if i1 < 10000 then i1 := 4
+      else i1 := 5;
+      i1 := i1 + 1; { add divider line }
+      if ((lincnt + trcnum + i1) > lslen) and
+         (lslen <> 0) and (lincnt <> 0) then begin
+
+         { chart to big for page, skip to next page }
+         { space down to page end }
+         for i := lincnt to lslen - 3 - 1 do writeln(outfil);
+         pagnum(outfil); { print the page number }
+         lincnt := 0 { reset to page start }
+
+      end;
+      if (lincnt = 0) and (lslen <> 0) then
+         prtpgh(outfil); { output page header }
+      if not first then begin
+
+         writeln(outfil); { provide spacing }
+         lincnt := lincnt + 1
+
+      end;
+      trchead(outfil, trccnt); { output trace header }
+      listtrc(outfil, trccnt) { output full trace }
+
+   end else if atrace and (trccnt <> 0 )then begin
+
+      { process analog trace step }
+      trccnt := trccnt - 1; { back out last count }
+      { we have simplified the rules of analog tracing by
+        assuming only one trace per screen }
+      if lslen <> 0 then prtpgh(outfil); { output page header }
+      writeln(outfil); { space off }
+      listana(outfil, trccnt) { output traces }
+
+   end;
+   if (lincnt <> 0) and (lslen <> 0) then begin { finish page }
+
+      { space down to page end }
+      for i := lincnt to lslen - 3 - 1 do writeln(outfil);
+      pagnum(outfil) { print the page number }
+
+   end;
+
+   99: { abort program }
+
+   if fmtopn then close(fmtfil); { close the files }
+   if trcopn then close(trcfil);
+   if outopn then close(outfil);
+   if dicopn then close(dicfil)
+
+end.

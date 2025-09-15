@@ -1,0 +1,99 @@
+                     PLAN FOR HIGH LEVEL CIRCUIT MODELING
+
+Overview:
+
+Our basic plan is to allow access to the simulator in order to allow
+higher level models of circuits than transistor in any given language.
+Such models typically run faster and have better memory utilization
+than transistor implementations. They also allow the design to begin
+on a more abstract level.
+
+Implementation:
+
+Each model to be used in the simulation is represented by a compiled
+procedure. There is no retriction of type of language used.
+Each procedure used must have one or more "model" calls in the input
+language:
+
+model name file.typ {<node>}
+
+Where the file contains the procedure code. The name is used to call the
+model procedure, as:
+
+name {<node>}
+
+This behaves much as a macro call, where each node replaces a node in the
+declaration statement.
+
+Loading and processing the model:
+
+The model must exist as a relocatable procedure, without any global data.
+It should ideally be re-entrant. The simulator will include each file
+containing the model to the net list at compile time, and the entire
+contents of the file will be loaded with the simulator at an unspecified
+address. The first address will be called to execute the model for simulation.
+
+Model calls:
+
+The model is called exacty once at the start of the simulation. At this time,
+it allocates it's local variables, and performs any setup required, such
+as setting simulated nodes/registers/etc. to an undefined state.
+The model is given the actual node list used as parameters, and is free to
+inspect or modify these nodes. Each node is passed to the procedure by
+address, in the order hl, de, bc, then acending order on the stack. This
+corresponds with the Pascal language.
+The model then makes a "clock" call back to the simulator. The simulator will
+return to the model exactly once at the beginning of each tick, before the
+net evaluation and after any sets. Models do not participate in settling.
+At that time, the model is given the actual node list used as parameters,
+and is free to inspect or modify these nodes.
+
+Model services:
+
+The model is free to use the standard library services, including I/O
+and space allocation. It may keep track of the simulator clock, as required,
+by simply counting each model procedure entry.
+
+Typical form of model code:
+
+< definition of node >
+
+procedure nand(var a, b, o: node);
+
+begin
+   while true do begin { simulate }
+
+      clock; { simulate single clock }
+      if (a = b) and ((a = high) or (a = dhigh)) then o := low
+      else o := high
+
+   end
+end;
+
+The typical format is to call for the simulator at a single given point
+in a master loop, but the pass point may wander as in a typical co-routine
+call. Outputs to the console can be made, for instance, to warn of errors
+in the simulation, and of course, the model may call for a halt to the
+simulation.
+
+This is an example of a model requiring storage:
+
+procedure sr(var s, r, o, on: node);
+
+var bit: boolean;
+
+begin
+   while true do begin { simulate }
+
+      clock; { simulate }
+      if s = high then bit := high
+      else if r = high then bit := low;
+      case bit of
+
+         true:  begin o := high; on := low end;
+         false: begin o := low; on := high  end
+
+      end
+
+   end
+end;

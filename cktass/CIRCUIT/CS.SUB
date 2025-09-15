@@ -1,0 +1,11 @@
+c
+c assemble and trace a circuit file
+c
+
+cas !1 #v
+cpg !1
+flt !1
+sim !1
+era !1.lst
+trc !1
+

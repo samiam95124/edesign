@@ -1,0 +1,13 @@
+rem
+rem Script to fill the directory with 1000 .cel files.
+rem This is a test of the ICD files list function.
+rem The result can be cleaned up by "del TST*.cel".
+rem
+set i 1
+while i <= 1000
+
+   copy test.cel TST!(i).cel
+   set i i+1
+
+endwhile
+

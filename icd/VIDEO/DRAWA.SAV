@@ -1,0 +1,3194 @@
+        TITLE   'drawing primitive routines'
+        name    draw
+        page    55,132
+
+        .386
+        .model  small, c
+
+vidbuf  equ     0a0000h         ; address of video buffer
+bytoff  equ     3               ; used to convert pixels to bute offset
+rmwbit  equ     0               ; value for data rotate/func select reg
+bytshf  equ     3               ; used to convert pixels to bute offset
+
+        public  varseg
+
+        extern  syscall pixadd:near ; calculate pixel address  
+        extern  segvid:dword    ; change video segment (vector)  
+        extern  linbyt:dword    ; number of bytes in line
+        extern  linep:dword     ; line draw vector
+        extern  linesp:dword    ; line draw with save vector
+        extern  linerp:dword    ; line restore vector
+        extern  blockp:dword    ; block draw vector
+        extern  dogridp:dword   ; draw grid vector
+        .code
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;                                                             ;
+; DRAW LINE                                                   ;
+;                                                             ;
+; Draws a line between the start and end points.              ;
+;                                                             ;
+; procedure line(x1, y1, x2, y2: integer; c: color)           ;
+;                                                             ;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+x1      =       8
+y1      =       12
+x2      =       16
+y2      =       20
+clr     =       24
+
+line    proc    syscall
+        jmp     [linep]         ; goto proper routine
+line    endp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;                                                             ;
+; LINE DRAW PLANAR                                            ;
+;                                                             ;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+linepl  proc    syscall
+        push    ebp             ; link parameters
+        mov     ebp,esp
+        push    ebx             ; save registers
+        push    esi
+        push    edi        
+
+; Compute address of first pixel, select color
+
+        mov     eax,[ebp+y1]    ; get y
+        mul     [linbyt]        ; find lines offset
+        mov     ebx,[ebp+x1]    ; get x
+        shr     ebx,3           ; convert to byte offset
+        add     eax,ebx         ; offset
+        movzx   ebx,ax          ; set up offset
+        add     ebx,vidbuf      ; offset to video buffer
+        shr     eax,8           ; place 64kb offset in ah
+        mov     [varseg],ah     ; and save
+        call    [segvid]        ; select segment
+        push    ebx             ; save video address
+	mov	ecx,[ebp+x1]	; Fetch x1
+	and	cl,7		; Get bit position within first byte
+	mov	bl,80h		; Assume first bit
+	shr	bl,cl		; Rotate mask bit into place
+	mov	[fstmsk],bl	; Save mask
+
+; Load set/reset registers with current color, select bit mask reg
+
+	mov	al,[ebp+clr]    ; get color
+	mov	dx,03ceh	; Use color for set/reset value
+	mov	ah,al
+	mov	al,0
+	out	dx,ax
+	mov	ax,00F01h	; Enable set/reset
+	out	dx,ax
+	mov	ax,0FF08h	; Set bit mask to FFh
+	out	dx,ax
+	mov	ax,00007h       ; Set color don't care to 00h
+	out	dx,ax
+	mov	al,5		; Index of mode reg
+	out	dx,al		; Select mode reg
+	inc	dx
+	in	al,dx		; Read previous value
+	or	al,0bh		; Enable color compare, write mode 3
+	out	dx,al
+
+; Compute dx and dy and determine which coordinate is major
+
+	mov	eax,[linbyt]    ; Set raster increment
+	mov	[pitch],ax
+	mov	esi,[ebp+x2]	; Compute dx (X1-X0) in SI
+	sub	esi,[ebp+x1]
+	mov	[deltax],esi	; Save in local variable
+	jge	dxpos		; If dx is negative, make it positive
+	neg	esi
+dxpos:
+	mov	edi,[ebp+y2]	; Compute dy (Y1-Y0) in DI
+	sub	edi,[ebp+y1]
+	jge	dypos		; If dy is negative, make it positive
+	neg	[pitch]		; Also, invert the pitch
+	neg	edi
+dypos:
+
+; Figure out which coordinate is the major one
+
+	or	esi,esi		; Check for vertical line
+	je	vertical
+	or	edi,edi		; Check for horizontal line
+	je	horizontal
+	cmp	esi,edi		; Check that dx > dy
+	jl	ymajorjump
+	jmp	xmajor
+ymajorjump:
+	jmp	ymajor
+
+; Vertical Line
+
+vertical:
+	mov    	ecx,edi		; Set up counter
+	inc	ecx		; Number of pixels is one greater
+	pop	edi		; Fetch offset
+	mov	bx,[pitch]	; Fetch pitch
+	or	bx,bx		; Check for y decreasing
+	jns	vertset         ; go
+
+; Y1 < Y0, but we want to draw down only, so compute address of
+; (X1,Y1) and start from there
+
+	neg	bx
+	xchg	esi,ecx		; Preserve counter
+	mov	eax,[ebp+y2]	; Fetch y coordinate
+	mul	[linbyt]        ; multiply by raster width
+	mov	ecx,[ebp+x2]	; add x coordinate/8
+	shr	ecx,3           ; convert to byte offset
+	add	eax,ecx         ; offset
+        movzx   ecx,ax          ; set up offset
+        add     ecx,vidbuf      ; offset to video buffer
+        mov     edi,ecx         ; save
+        shr     eax,8           ; place 64kb offset in ah
+	mov	[varseg],ah	; Save page number for later
+	call	[segvid]
+	xchg	esi,ecx		; Restore counter
+	mov	al,[fstmsk]	; Fetch mask
+vertset:
+        mov     esi,ecx         ; save total count
+vertpag:
+        mov     ax,65535        ; find left in page
+        mov     dx,0
+        sub     ax,di
+        div     bx              ; find number of lines
+        inc     ax              ; adjust
+        cmp     si,ax           ; check remainder < lines
+        jc      vertend         ; yes, go
+        sub     si,ax           ; find new total
+        mov     cx,ax           ; place subtotal
+	mov	al,[fstmsk]	; Fetch mask
+vertloop:
+	and	[edi],al	; Latch data, then set to new value
+	add	di,bx		; Update offset
+	loopw	vertloop
+	mov	ah,[varseg]	; fetch page number
+	inc	ah		; Advance page number
+	call	[segvid]
+	mov	[varseg],ah	; save page number
+        or      si,si           ; check end of all
+        jnz     vertpag         ; go next page if not
+        jmp     endline         ; exit
+vertend:
+        mov     cx,si           ; place count
+	mov	al,[fstmsk]	; Fetch mask
+vertendl: 
+	and	[edi],al	; Latch data, then set to new value
+	add	di,bx		; Update offset
+	loopw	vertendl
+        jmp     endline         ; exit
+        
+; Horizontal line
+
+horizontal:
+	pop	edi		; Fetch offset
+
+; Draw pixels from the leading partial byte
+
+	mov	eax,[ebp+x1]	; Fetch x coordinate (assume x1 > x0)
+	cmp	[deltax],0	; Is x1 > x0?
+	jns	HorzInOrder
+
+; X1 < X0, but we want to draw right only, so compute address of
+; (X1,Y1) and start from there
+
+	mov	eax,[ebp+y2]	; Fetch y coordinate
+	mul	[linbyt]        ; multiply by raster width
+	mov	ecx,[ebp+x2]	; add x coordinate/8
+	shr	ecx,3           ; convert to byte offset
+	add	eax,ecx         ; offset
+        movzx   ecx,ax          ; set up offset
+        add     ecx,vidbuf      ; offset to video buffer
+        mov     edi,ecx         ; save
+        shr     eax,8           ; place 64kb offset in ah
+	mov	[varseg],ah	; Save page number for later
+	call	[segvid]
+
+	mov	edx,03cfh       ; Put gr ctrl data register in DX
+	mov	eax,[ebp+x2]
+
+horzinorder:
+	mov	ecx,esi		; Set counter of pixels
+	inc	ecx
+	and	eax,7		; Check for partial byte
+	jz	horzfull
+	mov	bl,0ffh 	; Compute the mask
+	xchg	bh,cl		; Preserve counter (CL into BH)
+	mov	cl,al
+	shr	bl,cl
+	xchg	bh,cl		; Restore counter
+	add	ecx,eax   	; Update counter
+	sub	ecx,8
+	jge	maskset	        ; Modify mask if only one byte
+	neg	ecx
+	shr	bl,cl
+	shl	bl,cl
+	xor	ecx,ecx		; Set bit count to zero
+maskset:
+	mov	al,bl		; Fetch mask
+	and	[edi],al	; Latch data, write new data
+	inc	di		; Advance to next byte
+
+; Draw the middle complete bytes
+
+horzfull:
+	mov	ebx,ecx		; Check if any bytes to set
+	cmp	ebx,8
+	jl	horztrailing
+	shr	ecx,3		; Compute count
+        mov     edx,ecx         ; save
+horzfull01:
+        mov     cx,65535        ; find bytes left in page
+        sub     cx,di
+        movzx   ecx,cx          ; expand
+        inc     ecx             ; adjust
+        cmp     edx,ecx         ; check rem < left
+        jle     horzfull02      ; yes, go
+        sub     edx,ecx         ; find new total
+	mov	ah,[edi]	; 'Prime' latch with FFh
+	mov	eax,0ffffffffh 	; Set CPU mask
+        cmp     ecx,4           ; check >= 4 bytes to make dwords
+        jc      horzfull03      ; no, skip
+        push    ecx             ; save count
+        shr     ecx,2           ; find dword count
+        rep     stosd           ; place
+        pop     ecx             ; restore count
+        and     ecx,3           ; mask for remainder
+horzfull03:
+	rep	stosb		; Fill bytes
+        movzx   edi,di          ; clear overflow
+        add     edi,vidbuf
+	mov	ah,[varseg]	; fetch page number
+	inc	ah		; Advance page number
+	call	[segvid]
+	mov	[varseg],ah	; save page number
+        or      edx,edx         ; check end
+        jnz     horzfull01      ; no, loop
+        jmp     horztrailing    ; go
+horzfull02:
+        mov     ecx,edx         ; set remainder as count
+	mov	ah,[edi]	; 'Prime' latch with FFh
+	mov	eax,0ffffffffh 	; Set CPU mask
+        cmp     ecx,4           ; check >= 4 bytes to make dwords
+        jc      horzfull04      ; no, skip
+        push    ecx             ; save count
+        shr     ecx,2           ; find dword count
+        rep     stosd           ; place
+        pop     ecx             ; restore count
+        and     ecx,3           ; mask for remainder
+horzfull04:
+	rep	stosb		; Fill bytes
+        movzx   edi,di          ; clear overflow
+        add     edi,vidbuf
+
+; Draw the trailing partial byte
+
+horztrailing:
+	and	bl,7
+	jz	horzdone
+	mov	al,0ffh 	; Compute mask
+	mov	ecx,ebx
+	shr	al,cl
+	not	al
+	and	[edi],al	; Latch data, write new data
+
+horzdone:
+	jmp	endline
+
+; Diagonal line for x-major
+
+; Compute constants for x-major
+
+xmajor:
+	mov	ecx,esi		; Set counter to dx+1
+	inc	ecx
+	sal	edi,1		; D1 = dy*2
+	mov	ebx,edi		; D  = dy*2-dx
+	sub	ebx,esi
+	neg	esi		; D2 = dy*2-dx-dx
+	add	esi,ebx
+	mov	[d1],edi	; Save d1
+	mov	[d2],esi	; Save d2
+	pop	edi		; Restore offset of first pixel
+	mov	al,[fstmsk]	; Fetch the initial mask
+	mov	ah,[edi]	; Load initial latches
+	xor	esi,esi		; Keep 0 in SI
+
+; Jump according to sign of dx and dy
+
+	or	[pitch],si	; Check if dy is positive
+	jns	xmypos
+	neg	[pitch]		; Restore pitch
+	or	[deltax],esi
+	js	xnynjump
+	jmp	xpyn		; Go do dy negative dx positive
+xnynjump:
+	jmp	xnyn		; Go do both dy and dx negative
+
+xmypos:
+	or	[deltax],esi	; Check if dx also positive
+	jns	xpyp		; Jump if both dx and dy are positive
+	jmp	xnyp		; Jump if dx is negative and dy positive
+
+; Draw line where DX > 0 and DY > 0 and x major
+
+xpyp:
+	xor	dl,dl		; Clear mask accumulator
+        mov     ah,[varseg]     ; get segment
+xpypnext:			; Loop over pixels to be set
+	or	dl,al		; Add next bit into mask accumulator
+	ror	al,1		; Update mask
+	jnc	xpypskip	; Skip update if not in next byte
+	and	[edi],dl 	; Load latches, change pixels, in last
+	add	di,1		; Advance to the next byte
+        jnc     xpypskip2       ; no overflow, skip
+	inc	ah      	; Select next page
+	call	[segvid]
+xpypskip2:
+	xor	dl,dl		; Reset mask accumulator
+xpypskip:
+	or	ebx,ebx		; If d >= 0 then ...
+	js	xpypdneg
+	and	[edi],dl 	; Set previous scanline pixels
+	xor	dl,dl		; Reset mask accumulator
+	add	ebx,[d2]	; ... d = d + d2
+	add	di,[pitch]	; Update offset
+	jnc	xpypskip1       ; no page overflow, skip
+	inc	ah      	; Select next page
+	call	[segvid]
+xpypskip1:
+	loop	xpypnext
+	jmp	endline
+xpypdneg:
+	add	ebx,[d1]	; If d < 0 then d = d + d1
+	loop	xpypnext
+	and	[edi],dl 	; Set (possible) last partial byte
+	jmp	endline
+
+; Draw line where DX < 0 and DY > 0 and X major
+
+xnyp:
+        mov     ah,[varseg]     ; get segment
+xnypnext:			; Loop over pixels to be set
+	and	[edi],al 	; Latch data, then set to new value
+	rol	al,1		; Update mask
+	sbb	di,si		; and address (if needed)
+        jnc     xnypskip1       ; no page overflow, skip
+	dec	ah      	; Select previous page
+	call	[segvid]
+xnypskip1:
+	or	ebx,ebx		; If d >= 0 then ...
+	js	xnypdneg
+	add	ebx,[d2]	; ... d = d + d2
+	add	di,[pitch]	; Update offset
+        jnc     xnypskip        ; no page overflow, skip
+	inc	ah      	; Select next page
+	call	[segvid]
+xnypskip:
+	loop	xnypnext
+	jmp	endline
+xnypdneg:
+	add	ebx,[d1]	; If d < 0 then d = d + d1
+	loop	xnypnext
+	jmp	endline
+
+; Draw line where DX > 0 and DY < 0 and x major
+
+xpyn:
+        mov     ah,[varseg]     ; get segment
+xpynnext:			; Loop over pixels to be set
+	and	[edi],al 	; Latch data, then set to new value
+	ror	al,1		; Update mask
+	adc	di,si		; and address (if needed)
+        jnc     xpynskip1       ; no page overflow, skip
+	inc	ah      	; Select next page
+	call	[segvid]
+xpynskip1:
+	or	ebx,ebx		; If d >= 0 then ...
+	js	xpyndneg
+	add	ebx,[d2]	; ... d = d + d2
+	sub	di,[pitch]	; Update offset
+        jnc     xpynskip        ; no page overflow, skip
+	dec	ah      	; Select previous page
+	call	[segvid]
+xpynskip:
+	loop	xpynnext
+	jmp	endline
+xpyndneg:
+	add	ebx,[d1]	; If d < 0 then d = d + d1
+	loop	xpynnext
+	jmp	endline
+
+; Draw line where DX < 0 and DY < 0 and x major
+
+xnyn:
+        mov     ah,[varseg]     ; get segment
+xnynnext:			; Loop over pixels to be set
+	and	[edi],al 	; Latch data, then set to new value
+	rol	al,1		; Update mask
+	sbb	di,si		; and address (if needed)
+        jnc     xnynskip1       ; no page overflow, skip
+	dec	ah      	; Select previous page
+	call	[segvid]
+xnynskip1:        
+	or	ebx,ebx		; If d >= 0 then ...
+	js	xnyndneg
+	add	ebx,[d2]	; ... d = d + d2
+	sub	di,[pitch]	; Update offset
+        jnc     xnynskip        ; no page overflow, skip
+	dec	ah      	; Select previous page
+	call	[segvid]
+xnynskip:
+	loop	xnynnext
+	jmp	endline
+xnyndneg:
+	add	ebx,[d1]	; If d < 0 then d = d + d1
+	loop	xnynnext
+	jmp	endline
+
+; Diagonal line for y-major
+
+; Compute constants for dx < dy
+
+ymajor:
+	mov	ecx,edi		; Set counter to dy+1
+	inc	ecx
+	sal	esi,1		; D1 = dx * 2
+	mov	ebx,esi		; D  = dx * 2 - dy
+	sub	ebx,edi
+	neg	edi		; D2 = -dy + dx * 2 - dy
+	add	edi,ebx
+	mov	[d2],edi	; Save d2
+	mov	[d1],esi	; Save d1
+	pop	edi		; Restore address of first pixel
+	mov	al,[fstmsk]	; Fetch mask
+	xor	esi,esi		; Keep 0 in SI
+
+; Jump according to sign of dx and dy
+  
+	or	[pitch],si	; Check if dy is positive
+	jns	ymypos
+	neg	[pitch]
+	or	[deltax],esi
+	js	nxnyjump
+	jmp	pxny		; Go do dy negative dx positive
+nxnyjump:
+	jmp	nxny		; Go do both dy and dx negative
+
+ymypos:
+	or	[deltax],esi	; Check if dx also positive
+	jns	pxpy		; Jump if both dx and dy are positive
+	jmp	nxpy		; Jump if dx is negative and dy positive
+
+; Draw line where DX > 0 and DY > 0 and y major
+  
+pxpy:
+        mov     ah,[varseg]     ; get segment
+pxpynext:
+	and	[edi],al 	; Latch data, then set to new value
+	add	di,[pitch]	; Update offset
+        jnc     pxpyskip        ; no page overflow, skip
+	inc	ah      	; Select next page
+	call	[segvid]
+pxpyskip:
+	or	ebx,ebx		; If d >= 0 then ...
+	js	pxpydneg
+	add	ebx,[d2]	; ... d = d + d2
+	ror	al,1		; Update mask
+	adc	di,si		; and address (if needed)
+        jnc     pxpyskip1       ; no page overflow, skip
+	inc	ah      	; Select next page
+	call	[segvid]
+pxpyskip1:
+	loop	pxpynext
+	jmp	endline
+pxpydneg:
+	add	ebx,[d1]	; If d < 0 then d = d + d1
+	loop	pxpynext
+	jmp	endline
+
+; Draw line where DX < 0 and DY > 0 and y major
+  
+nxpy:
+        mov     ah,[varseg]     ; get segment
+nxpynext:
+	and	[edi],al 	; Latch data, then set to new value
+	add	di,[pitch]	; Update offset
+        jnc     nxpyskip        ; no page overflow, skip
+	inc	ah      	; Select next page
+	call	[segvid]
+nxpyskip:
+	or	ebx,ebx		; If d >= 0 then ...
+	js	nxpydneg
+	add	ebx,[d2]	; ... d = d + d2
+	rol	al,1		; Update mask
+	sbb	di,si		; and address (if needed)
+        jnc     nxpyskip1       ; no page overflow, skip
+	dec	ah      	; Select previous page
+	call	[segvid]
+nxpyskip1:
+	loop	nxpynext
+	jmp	endline
+nxpydneg:
+	add	ebx,[d1]	; If d < 0 then d = d + d1
+	loop	nxpynext
+	jmp	endline
+
+; Draw line where DX > 0 and DY < 0 and y major
+  
+pxny:
+        mov     ah,[varseg]     ; get segment
+pxnynext:
+	and	[edi],al 	; Latch data, then set to new value
+	sub	di,[pitch]	; Update offset
+        jnc     pxnyskip        ; no page overflow, skip
+	dec	ah      	; Select previous page
+	call	[segvid]
+pxnyskip:
+	or	ebx,ebx		; If d >= 0 then ...
+	js	pxnydneg
+	add	ebx,[d2]	; ... d = d + d2
+	ror	al,1		; Update mask
+	adc	di,si		; and address (if needed)
+        jnc     pxnyskip1       ; no page overflow, skip
+	inc	ah      	; Select next page
+	call	[segvid]
+pxnyskip1:
+	loop	pxnynext
+	jmp	endline
+pxnydneg:
+	add	ebx,[d1]	; If d < 0 then d = d + d1
+	loop	pxnynext
+	jmp	endline
+
+; Draw line where DX < 0 and DY < 0 and y major
+  
+nxny:
+        mov     ah,[varseg]     ; get segment
+nxnynext:
+	and	[edi],al 	; Latch data, then set to new value
+	sub	di,[pitch]	; Update offset
+        jnc     nxnyskip        ; no page overflow, skip
+	dec	ah      	; Select previous page
+	call	[segvid]
+nxnyskip:
+	or	ebx,ebx		; If d >= 0 then ...
+	js	nxnydneg
+	add	ebx,[d2]	; ... d = d + d2
+	rol	al,1		; Update mask
+	sbb	di,si		; and address (if needed)
+        jnc     nxnyskip1       ; no page overflow, skip
+	dec	ah      	; Select previous page
+	call	[segvid]
+nxnyskip1:
+	loop	nxnynext
+	jmp	endline
+nxnydneg:
+	add	ebx,[d1]	; If d < 0 then d = d + d1
+	loop	nxnynext
+	jmp	endline
+
+; exit
+
+endline:
+        mov     dx,03ceh        ; reset mode register
+        mov     ax,00005h       
+        out     dx,ax
+        pop     edi             ; restore registers and return
+        pop     esi
+        pop     ebx
+        pop     ebp             ; unlink
+        ret
+linepl  endp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;                                                             ;
+; LINE DRAW PACKED                                            ;
+;                                                             ;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+linepk  proc    syscall
+        push    ebp             ; link parameters
+        mov     ebp,esp
+        push    ebx             ; save registers
+        push    esi
+        push    edi        
+
+; Convert (x,y) starting point to video address and select page
+
+	mov	eax,[ebp+y1]	; Convert (x,y) to address
+	mul	word ptr [linbyt] ; multiply y by pitch
+	mov	ecx,[ebp+x1]	; fetch x
+	shr	ecx,1		; convert pixel to byte number
+	add	eax,ecx		; add to previous product
+        add     eax,vidbuf      ; offset by video base
+	push	eax		; Save address on stack for later
+	mov	ah,dl		; Copy page number into ah
+	mov	[varseg],Ah	; Save page number
+	call	[segvid]	; Select proper page
+	mov	bx,00ff0h	; Set initial mask (assume x even)
+				; bl=src mask, bh=dst mask
+	mov	eax,[ebp+x1]	; Move bit0 of x into sign bit
+	ror	ax,1
+	cwd			; Set dx to ffff if x is odd
+	xor	bx,dx		; Invert masks if x was odd
+	mov	al,[ebp+clr]	; Duplicate color into high nibble
+	and	al,0fh
+	shl	al,4
+	or	[ebp+clr],al
+
+; Compute dx and dy and determine which coordinate is major
+
+	mov	eax,[linbyt]    ; set raster increment
+	mov     [pitch],ax
+	mov	esi,[ebp+x2]	; compute dx reg-si
+	sub	esi,[ebp+x1]
+	mov	deltax,esi
+	jge	dxispos
+	neg	esi
+dxispos:
+	mov	edi,[ebp+y2]	; compute dy reg-di
+	sub	edi,[ebp+y1]
+	jge	dyispos
+	neg	[pitch]
+	neg	edi
+dyispos:
+
+; Determine which coordinate is the major one
+
+	cmp	esi,edi		; check that dx > dy
+	jge	xmajor
+	jmp	ymajor
+
+; Compute constants for x-major
+
+xmajor:
+	mov	ecx,esi		; set counter to dx+1
+	inc	ecx
+	sal	edi,1		; d1 = dy*2
+	mov	edx,edi		; d  = dy*2-dx
+	sub    	edx,esi
+	neg	esi		; d2 = dy*2-dx-dx
+	add	esi,edx
+	mov	[d1],edi	; save d1
+	mov	[d2],esi	; save d2
+	pop	edi		; restore offset of first pixel
+
+; Jump according to sign of dx and dy
+
+	test	[pitch],08000h  ; Check if dy is positive
+	jz	yp
+	neg	[pitch]         ; Restore pitch
+	test	[deltax],08000h
+	jnz	xnyn
+	jmp	xpyn 	        ; go do dy negative dx positive
+yp:
+	test	[deltax],08000h ; ...no, check if dx also positive
+	jnz	xnyp 	        ; ...dx is negative and dy positive
+
+; Draw line where DX > 0 and DY > 0 and x is the major coordinate
+
+xpyp:
+	mov	ah,[ebp+clr]	; Fetch color of the pixel
+next0:		        	; Loop over pixels to be set
+	mov	al,ah		; Fetch source color
+	and	al,bl		; Clear the 'other' nibble
+	and	[edi],bh 	; Clear nibble at destination
+	or	[edi],al 	; Combine source and destination
+	not	ebx		; Swap masks
+	or	bl,bl		; Check if need to move into next byte
+	jns	page0	        ; if upper nibble clear skip update
+	add	di,1		; if upper nibble set get next byte
+	jnc	page0
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	inc	ah		; Update page number
+	call	[segvid]  	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+page0:
+	test	edx,8000h	; if d >= 0 then ...
+	jnz	dneg0
+	add	edx,[d2]   	; ... d = d + d2
+	add	di,[pitch]	; update offset
+	jnc	fix00
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	inc	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+        jmp     fix00           ; go
+dneg0:
+	add	edx,[d1]	; if d < 0 then d = d + d1
+fix00:
+	loop	next0
+	jmp	linedone
+
+; Draw line where DX < 0 and DY > 0 and X major
+
+xnyp:
+	mov	ah,[ebp+clr]	; Fetch color of the pixel
+next3:			        ; Loop over pixels to be set
+	mov	al,ah		; Fetch source color
+	and	al,bl		; Clear the 'other' nibble
+	and	[edi],bh 	; Clear nibble at destination
+	or	[edi],al 	; Combine source and destination
+	not	ebx		; Swap masks
+	or	bl,bl		; Check if need to move into next byte
+	js	page3	        ; if upper nibble set skip update
+	sub	di,1		; else must point to next byte
+	jnc	page3
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	dec	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+page3:
+	test	edx,8000h	; if d >= 0 then ...
+	jnz     dneg3
+	add	edx,[d2]        ; ... d = d + d2
+	add	di,[pitch]	; update offset
+	jnc	fix33
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	inc	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+        jmp     fix33           ; go
+dneg3:
+	add	edx,[d1]	; if d < 0 then d = d + d1
+fix33:
+	loop	next3
+	jmp	linedone
+
+; Draw line where DX > 0 and DY < 0 and x major
+
+xpyn:
+	mov	ah,[ebp+clr]	; Fetch color of the pixel
+next7:			        ; Loop over pixels to be set
+	mov	al,ah		; Fetch source color
+	and	al,bl		; Clear the 'other' nibble
+	and	[edi],bh 	; Clear nibble at destination
+	or	[edi],al 	; Combine source and destination
+	not	ebx		; Swap masks
+	or	bl,bl		; Check if need to move into next byte
+	jns	page7	        ; if upper nibble clear skip update
+	add	di,1		; if upper nibble set get next byte
+	jnc	page7
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	inc	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+page7:
+	test	edx,8000h	; if d >= 0 then ...
+	jnz	dneg7
+	add     edx,[d2]	; ... d = d + d2
+	sub	di,[pitch]	; update offset
+	jnc	fix77
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	dec	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+        jmp     fix77           ; go
+dneg7:
+	add	edx,[d1]	; if d < 0 then d = d + d1
+fix77:
+	loop	next7
+	jmp	linedone
+
+; Draw line where DX < 0 and DY < 0 and x major
+
+xnyn:
+	mov	ah,[ebp+clr]	; Fetch color of the pixel
+next4:			        ; Loop over pixels to be set
+	mov	al,ah		; Fetch source color
+	and	al,bl		; Clear the 'other' nibble
+	and	[edi],bh 	; Clear nibble at destination
+	or	[edi],al 	; Combine source and destination
+	not	ebx		; Swap masks
+	or	bl,bl		; Check if need to move into next byte
+	js	page4	        ; if upper nibble set skip update
+	sub	di,1		; if upper nibble clear get next byte
+	jnc     page4
+	xchg	ah,[varseg]	; Preserve AL, and fetch page number
+	dec	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+page4:
+	test	edx,8000h	; if d >= 0 then ...
+	jnz	dneg4
+	add	edx,[d2]	; ... d = d + d2
+	sub	di,[pitch]	; update offset
+	jnc	fix44
+	xchg	ah,[varseg]	; Preserve AL, and fetch page number
+	dec	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+        jmp     fix44           ; go
+dneg4:
+	add	edx,[d1]	; if d < 0 then d = d + d1
+fix44:
+	loop	next4
+	jmp	linedone
+
+; Compute constants for dx < dy
+
+ymajor:
+	mov	ecx,edi		; set counter to dy+1
+	inc	ecx
+	sal	esi,1		; d1 = dx * 2
+	mov	edx,esi		; d  = dx * 2 - dy
+	sub	edx,edi
+	neg	edi		; d2 = -dy + dx * 2 - dy
+	add	edi,edx
+	mov	[d2],edi 	; save d2
+	mov	[d1],esi 	; save d1
+	pop	edi		; Restore address of first pixel
+
+; Jump according to sign of dx and dy
+
+	test	[pitch],08000h ; Check if dy is positive
+	jz	py
+	neg	[pitch]
+	test	[deltax],08000h
+	jnz	nxny
+	jmp	pxny 	        ; go do dy negative dx positive
+py:
+	test	[deltax],08000h ; ...no, check if dx also positive
+	jnz	nxpy 	        ; ...dx is negative and dy positive
+
+; Draw line where DX > 0 and DY > 0 and y major
+
+pxpy:
+	mov	ah,[ebp+clr]	; Fetch color of the pixel
+next1:
+	mov	al,ah		; Fetch source color
+	and	al,bl		; Clear the 'other' nibble
+	and	[edi],bh 	; Clear nibble at destination
+	or	[edi],al 	; Combine source and destination
+	add	di,[pitch]	; update offset
+	jnc	page1
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	inc	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+page1:
+	test	edx,08000h	; if d >= 0 then ...
+	jnz	dneg1
+	add	edx,[d2]	; ... d = d + d2
+	not	ebx		; Swap masks
+	or	bl,bl		; Check if need to move into next byte
+	jns	loop1   	; if upper nibble clear skip update
+	add	di,1		; if upper nibble set get next byte
+	jnc	loop1
+	xchg	ah,[varseg]	; Preserve AL, and fetch page number
+	inc	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+        jmp     loop1           ; go
+dneg1:
+	add	edx,[d1]	; if d < 0 then d = d + d1
+loop1:
+	loop	next1
+	jmp	linedone
+
+; Draw line where DX < 0 and DY > 0 and y major
+
+nxpy:
+	mov	ah,[ebp+clr]	; Fetch color of the pixel
+next2:
+	mov	al,ah		; Fetch source color
+	and	al,bl		; Clear the 'other' nibble
+	and	[edi],bh 	; Clear nibble at destination
+	or	[edi],al 	; Combine source and destination
+	add	di,[pitch]	; update offset
+	jnc	page2
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	inc	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+page2:
+	test	edx,08000h	; if d >= 0 then ...
+	jnz	dneg2
+	add	edx,[d2]	; ... d = d + d2
+	not	ebx		; Swap masks
+	or	bl,bl		; Check if need to move into next byte
+	js	loop2	        ; if upper nibble set skip update
+	sub	di,1		; if upper nibble clear get next byte
+	jnc	loop2
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	dec	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+        jmp     loop2           ; go
+dneg2:
+	add	edx,[d1]	; if d < 0 then d = d + d1
+loop2:
+	loop	next2
+	jmp	linedone
+
+; Draw line where DX > 0 and DY < 0 and y major
+
+pxny:
+	mov	ah,[ebp+clr]	; Fetch color of the pixel
+next6:
+	mov	al,ah		; Fetch source color
+	and	al,bl		; Clear the 'other' nibble
+	and	[edi],bh 	; Clear nibble at destination
+	or	[edi],al 	; Combine source and destination
+	sub	di,[pitch]	; update offset
+	jnc	page6
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	dec	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+page6:
+	test	edx,08000h	; if d >= 0 then ...
+	jnz	dneg6
+        add	edx,[d2]	; ... d = d + d2
+	not	ebx		; Swap masks
+	or	bl,bl		; Check if need to move into next byte
+	jns	loop6	        ; if upper nibble clear skip update
+	add	di,1		; if upper nibble set get next byte
+	jnc	loop6
+	xchg	ah,[varseg]	; Preserve AL, and fetch page number
+	inc	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+        jmp     loop6           ; go
+dneg6:
+	add	edx,[d1]	; if d < 0 then d = d + d1
+loop6:
+	loop	next6
+	jmp	linedone
+
+; Draw line where DX < 0 and DY < 0 and y major
+
+nxny:
+	mov	ah,[ebp+clr]	; Fetch color of the pixel
+next5:
+	mov	al,ah		; Fetch source color
+	and	al,bl		; Clear the 'other' nibble
+	and	[edi],bh 	; Clear nibble at destination
+	or	[edi],al 	; Combine source and destination
+	sub	di,[pitch]	; update offset
+	jnc	page5
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	dec	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+page5:
+	test	edx,08000h	; if d >= 0 then ...
+	jnz	dneg5
+	add	edx,[d2]	; ... d = d + d2
+	not	ebx		; Swap masks
+	or	bl,bl		; Check if need to move into next byte
+	js	loop5	        ; if upper nibble set skip update
+	sub	di,1		; if upper nibble clear get next byte
+	jnc	loop5
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+        dec	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+        jmp     loop5           ; go
+dneg5:
+	add	edx,[d1]	; if d < 0 then d = d + d1
+loop5:
+	loop	next5
+	jmp	linedone
+
+; Clean up and return to caller
+
+linedone:
+        pop     edi             ; restore registers and return
+        pop     esi
+        pop     ebx
+        pop     ebp             ; unlink
+        ret
+linepk  endp
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;                                                             ;
+; DRAW LINE WITH SAVE                                         ;
+;                                                             ;
+; Draws a line between the start and end points. Saves the    ;
+; pixels under the line to the given buffer.                  ;
+;                                                             ;
+; procedure linesav(x1, y1, x2, y2: integer; c: color;        ;
+;                   var lines: linarr; var i: lininx)         ;
+;                                                             ;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+x1      =       8
+y1      =       12
+x2      =       16
+y2      =       20
+clr     =       24
+lines   =       26
+i       =       30
+
+linesav proc    syscall
+        jmp     [linesp]        ; goto proper routine
+linesav endp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;                                                             ;
+; LINE DRAW WITH SAVE PLANAR                                  ;
+;                                                             ;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Routine to load a the current pixel to the save buffer
+; Expects: ah  = bit mask
+;          edi = video address
+;          bp  = parameters offset from linesav below
+;          
+
+plcpix  proc    syscall
+        push    ax              ; save
+        push    ebx
+        push    cx
+        mov     ch,ah           ; place bit mask
+        xor     bl,bl           ; clear bit accumulator 
+        mov     ax,304h         ; ah := initial bit plane number
+                                ; al := read map select register number
+plcp01: out     dx,ax           ; select bit plane
+        mov     bh,[edi]        ; get byte from current bit plane
+        and     bh,ch           ; mask the bit
+        neg     bh              ; move that bit to 7
+        rol     bx,1            ; and accumulate in bl
+        dec     ah              ; set next bit plane number
+        jge     plcp01          ; loop next bit
+        mov     al,bl           ; place result
+        mov     ebx,[pixarr]    ; get target address
+        mov     [ebx],al        ; place bit value
+        inc     ebx             ; next location
+        mov     [pixarr],ebx    ; replace
+        or      [edi],al        ; place color to bit
+        pop     cx              ; restore
+        pop     ebx
+        pop     ax
+        ret
+plcpix  endp  
+
+linespl proc    syscall
+        push    ebp             ; link parameters
+        mov     ebp,esp
+        push    ebx             ; preserve caller registers
+        push    esi
+        push    edi
+
+; offset to index
+
+        mov     ebx,[ebp+i]     ; get index
+        movzx   eax,word ptr [ebx]
+        dec     eax             ; adjust to 0
+        add     eax,[ebp+lines] ; offset array
+        mov     [pixarr],eax    ; save
+        mov     dx,3ceh         ; dx := graphics controller port addr
+        mov     ah,[ebp+clr]    ; save pixel set color
+        xor     al,al           ; place set/reset register number
+        out     dx,ax           ; activate
+       
+; configure the graphics controller
+
+        mov     ax,0f01h        ; ah := 1111b (bit plane mask for
+                                ;  enable set/reset)
+        out     dx,ax           ; al := enable set/reset register #
+        mov     ah,rmwbit       ; bits 3 and 4 of ah := function
+        mov     al,3            ; al := data rotate/func select reg #
+        out     dx,ax
+
+; check for vertical line
+
+        mov     esi,linbyt      ; increment for video buffer
+        mov     ecx,[ebp+x2]        
+        sub     ecx,[ebp+x1]    ; cx := x2 - x1
+        jz      lins30          ; jump if vertical line
+
+; force x1 < x2
+
+        jns     lins01          ; jump if x2 > x1
+        neg     cx              ; cx := x1 - x2
+        mov     ebx,[ebp+x2]    ; exchange x1 and x2
+        xchg    ebx,[ebp+x1]
+        mov     [ebp+x2],ebx       
+        mov     ebx,[ebp+y2]    ; exchange x1 and y2
+        xchg    ebx,[ebp+y1]        
+        mov     [ebp+y2],ebx
+
+; calculate dy := abs(y2-y1)
+
+lins01: mov     ebx,[ebp+y2]
+        sub     ebx,[ebp+y1]    ; bx := y2 - y1
+        jz      lins40          ; jump if horizontal line
+        jns     lins03          ; jump if slope is positive
+        neg     bx              ; bx := y1 - y2
+        neg     esi             ; negate increment for buffer interleave
+
+; select appropriate routine for slope of line
+
+lins03: mov     [vrtinc],esi  ; save vertical increment
+        mov     [varrot],lins17
+        cmp     bx,cx
+        jle     lins04          ; jump if dy <= dx (slope <= 1)
+        mov     [varrot],lins20
+        xchg    bx,cx           ; exchange dy and dx
+        
+; calculate initial decision variable and increments
+
+lins04: shl     bx,1            ; bx := 2 * dy
+        mov     [varir1],bx   ; incr1 := 2 * dy
+        sub     bx,cx         
+        mov     si,bx           ; si := d = 2 * dy - dx
+        sub     bx,cx   
+        mov     [varir2],bx   ; incr2 := 2 * (dy - dx)
+
+; calculate first pixel address
+
+        push    cx              ; preserve this register
+        mov     eax,[ebp+y1]    ; ax := y
+        mov     ebx,[ebp+x1]    ; bx := x
+        call    pixadd          ; ah := bit mask 
+                                ; ebx -> buffer
+                                ; cl := # bits to shift left
+        mov     [varseg],al     ; save segment
+        mov     edi,ebx         ; edi -> buffer
+        shl     ah,cl           ; ah := bit mask in proper position
+        mov     bl,ah           ; ah,bl := bit mask
+        pop     cx              ; restore this register
+        mov     al,8            ; al := bit mask register number
+        inc     cx              ; cx := # of pixels to draw
+        push    esi
+        mov     esi,[ebp+i]     ; index index
+        add     [esi],cx        ; offset
+        pop     esi
+        jmp     [varrot]    ; jump to appropriate routine for slope
+
+; routine for vertical lines
+
+lins30: mov     eax,[ebp+y1]    ; ax := y1
+        mov     ebx,[ebp+y2]    ; bx := y2
+        mov     cx,bx
+        sub     cx,ax           ; cx := dy
+        jge     lins31          ; jump if dy >= 0
+        neg     cx              ; force dy >= 0
+        mov     eax,ebx         ; ax := y2
+lins31: inc     cx              ; cx # of pixels to draw
+        mov     edi,[ebp+i]     ; index index
+        add     [edi],cx        ; offset
+        mov     ebx,[ebp+x1]    ; bx := x
+        push    cx              ; preserve this register
+        call    pixadd          ; ah := bit mask
+                                ; ebx -> video buffer
+                                ; cl := # of bits to shift left
+        mov     [varseg],al     ; save segment
+        mov     edi,ebx         ; place index
+        
+; set up grapics controller
+
+        shl     ah,cl           ; ah := bit mask in proper position
+        mov     al,8            ; al := bit mask reg number
+        out     dx,ax
+        pop     cx              ; restore this register
+
+; draw the line
+
+lins32:
+        call    plcpix          ; place pixel
+        add     di,si           ; increment to next line
+        jnc     lins33          ; no carry, skip
+
+; Because we only draw downwards, only one segment crossing is
+; considered.
+
+        push    ax              ; save
+        mov     ah,[varseg]     ; set next segment
+        inc     ah
+        mov     [varseg],ah
+        call    [segvid]        ; select segment
+        pop     ax              ; restore
+lins33:
+        loopw   lins32
+        jmp     lins25
+
+; routine for horizontal lines (slope = 0)
+
+lins40:    
+        mov     eax,[ebp+y1]
+        mov     ebx,[ebp+x1]
+        mov     ecx,[ebp+x2]    ; find number of pixels to do
+        sub     ecx,ebx
+        inc     cx
+        mov     edi,[ebp+i]     ; index index
+        add     [edi],cx        ; offset
+        push    cx              ; save
+        call    pixadd          ; ah := bit mask 
+                                ; es:bx -> video buffer
+                                ; cl := # of bits to shift left
+        mov     edi,ebx         ; es:di -> buffer
+        shl     ah,cl           ; ah := bit mask in proper position
+        mov     al,8            ; al := bit mask reg number
+        pop     cx              ; restore count
+
+; draw the line
+
+lins42: out     dx,ax           ; enable
+        call    plcpix          ; save pixel 
+        ror     ah,1            ; next pixel
+        adc     edi,0           ; increment di on wrap
+        jnc     lins420         ; no carry, skip
+        push    ax              ; save
+        mov     ah,[varseg]     ; set next segment
+        inc     ah
+        mov     [varseg],ah
+        call    [segvid]        ; select segment
+        pop     ax              ; restore
+lins420:
+        loopw   lins42          ; loop
+        jmp     lins25          ; done, exit
+
+; routine for dy <= dx (slope <= 1) ; edi -> video buffer
+                                ; al = bit mask register number
+                                ; bl = bit mask for 1st pixel
+                                ; cx = # of pixels to draw
+                                ; dx = graphics controller port addr
+                                ; si = decision variable
+
+lins17:
+        out     dx,ax           ; update bit mask register
+        call    plcpix          ; save pixel
+        ror     ah,1            ; next bit
+        adc     di,0            ; increment to next byte on wraparound
+        jnc     lins170         ; no carry, skip
+        push    ax              ; save
+        mov     ah,[varseg]     ; set next segment
+        inc     ah
+        mov     [varseg],ah
+        call    [segvid]        ; select segment
+        pop     ax              ; restore
+lins170:
+        or      si,si           ; test sign of d
+        jns     lins18          ; jump if d >= 0
+        add     si,[varir1]     ; d := d + incr1
+        loopw   lins17          ; next pixel
+        jmp     lins25          ; done, exit
+lins18:
+        add     si,[varir2]     ; d := d + incr2
+        push    ax
+        mov     eax,[vrtinc]
+        add     eax,edi         ; increment y    
+        mov     di,ax           ; place "under" address
+        sub     eax,vidbuf      ; compare to video segment
+        and     eax,0ffff0000h  ; check overflow either direction
+        jz      lins180         ; no, skip
+        shr     eax,8           ; get high order in ah
+        add     ah,[varseg]     ; find net segment
+        mov     [varseg],ah     ; save
+        call    [segvid]        ; index that segment
+lins180:
+        pop     ax              ; restore
+        loopw   lins17          ; next pixel
+        jmp     lins25          ; done, exit
+
+; routine for dy > dx (slope > 1) ; edi -> video buffer
+                                ; ah = bit mask for 1st pixel
+                                ; al = bit mask register number
+                                ; cx = # pixels to draw
+                                ; dx = graphics controller port addr
+                                ; si = decision variable
+lins20:  
+        out     dx,ax           ; update bit mask register
+        call    plcpix          ; save pixel
+        push    ax              ; save
+        mov     eax,[vrtinc]    ; get increment
+        add     eax,edi         ; increment y    
+        mov     di,ax           ; place "under" address
+        sub     eax,vidbuf      ; compare to video segment
+        and     eax,0ffff0000h  ; check overflow either direction
+        jz      lins21          ; no, skip
+        shr     eax,8           ; get high order in ah
+        add     ah,[varseg]     ; find net segment
+        mov     [varseg],ah     ; save
+        call    [segvid]        ; index that segment
+lins21:
+        pop     ax              ; restore
+        or      si,si           ; test sign of d
+        jns     lins23          ; jump if d >= 0
+        add     si,[varir1]   ; d := d + incr1
+        loopw   lins20
+        jmp     lins25
+lins23: 
+        add     si,[varir2]   ; d := d + incr2
+        ror     ah,1            ; rotate bit mask
+        adc     edi,0           ; increment di if when mask rotated to
+                                ; leftmost pixel position
+        jnc     lins24          ; not next segment, skip
+        push    ax              ; save
+        mov     ah,[varseg]     ; get current segment
+        inc     ah              ; increment
+        mov     [varseg],ah     ; update
+        call    [segvid]        ; change segment
+        pop     ax              ; restore
+lins24:
+        loopw   lins20             
+
+; restore default graphics controller state and return to caller
+
+lins25: xor     ax,ax           ; ah := 0, al := 0
+        out     dx,ax           ; restore set/reset register
+        inc     ax              ; ah := 0, al := 1
+        out     dx,ax           ; restore enable set/reset register
+        mov     al,3            ; ah := 0, al := 3
+        out     dx,ax           ; al := data rotate/func select reg #
+        mov     ax,0ff08h       ; ah := 11111111b, al := 8
+        out     dx,ax           ; restore bit mask register
+        pop     edi             ; restore registers and return
+        pop     esi
+        pop     ebx
+        pop     ebp             ; unlink
+        ret
+linespl endp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;                                                             ;
+; LINE DRAW WITH SAVE PACKED                                  ;
+;                                                             ;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+linespk proc    syscall
+        push    ebp             ; link parameters
+        mov     ebp,esp
+        push    ebx             ; save registers
+        push    esi
+        push    edi      
+
+; Set up save address
+  
+        mov     ebx,[ebp+i]     ; get index
+        movzx   eax,word ptr [ebx]
+        dec     eax             ; adjust to 0
+        add     eax,[ebp+lines] ; offset array
+        push    eax             ; save
+
+; Convert (x,y) starting point to video address and select page
+
+	mov	eax,[ebp+y1]	; Convert (x,y) to address
+	mul	word ptr [linbyt] ; multiply y by pitch
+	mov	ecx,[ebp+x1]	; fetch x
+	shr	ecx,1		; convert pixel to byte number
+	add	eax,ecx		; add to previous product
+        add     eax,vidbuf      ; offset by video base
+	push	eax		; Save address on stack for later
+	mov	ah,dl		; Copy page number into ah
+	mov	[varseg],Ah	; Save page number
+	call	[segvid]	; Select proper page
+	mov	bx,00ff0h	; Set initial mask (assume x even)
+				; bl=src mask, bh=dst mask
+	mov	eax,[ebp+x1]	; Move bit0 of x into sign bit
+	ror	ax,1
+	cwd			; Set dx to ffff if x is odd
+	xor	bx,dx		; Invert masks if x was odd
+	mov	al,[ebp+clr]	; Duplicate color into high nibble
+	and	al,0fh
+	shl	al,4
+	or	[ebp+clr],al
+
+; Compute dx and dy and determine which coordinate is major
+
+	mov	eax,[linbyt]    ; set raster increment
+	mov     [pitch],ax
+	mov	esi,[ebp+x2]	; compute dx reg-si
+	sub	esi,[ebp+x1]
+	mov	deltax,esi
+	jge	dxisposs
+	neg	esi
+dxisposs:
+	mov	edi,[ebp+y2]	; compute dy reg-di
+	sub	edi,[ebp+y1]
+	jge	dyisposs
+	neg	[pitch]
+	neg	edi
+dyisposs:
+
+; Determine which coordinate is the major one
+
+	cmp	esi,edi		; check that dx > dy
+	jge	xmajors
+	jmp	ymajors
+
+; Compute constants for x-major
+
+xmajors:
+	mov	ecx,esi		; set counter to dx+1
+	inc	ecx
+        mov     edx,[ebp+i]     ; index index
+        add     [edx],cx        ; offset
+	sal	edi,1		; d1 = dy*2
+	mov	edx,edi		; d  = dy*2-dx
+	sub    	edx,esi
+	neg	esi		; d2 = dy*2-dx-dx
+	add	esi,edx
+	mov	[d1],edi	; save d1
+	mov	[d2],esi	; save d2
+	pop	edi		; restore offset of first pixel
+
+; Jump according to sign of dx and dy
+
+	test	[pitch],08000h  ; Check if dy is positive
+	jz	yps
+	neg	[pitch]         ; Restore pitch
+	test	[deltax],08000h
+	jnz	xnyns
+	jmp	xpyns 	        ; go do dy negative dx positive
+yps:
+	test	[deltax],08000h ; ...no, check if dx also positive
+	jnz	xnyps 	        ; ...dx is negative and dy positive
+
+; Draw line where DX > 0 and DY > 0 and x is the major coordinate
+
+xpyps:
+        pop     esi             ; get save address
+	mov	ah,[ebp+clr]	; Fetch color of the pixel
+nexts0:		        	; Loop over pixels to be set
+        mov     al,[edi]        ; save existing color
+        mov     [esi],al
+        inc     esi             ; next
+	mov	al,ah		; Fetch source color
+	and	al,bl		; Clear the 'other' nibble
+	and	[edi],bh 	; Clear nibble at destination
+	or	[edi],al 	; Combine source and destination
+	not	ebx		; Swap masks
+	or	bl,bl		; Check if need to move into next byte
+	jns	pages0	        ; if upper nibble clear skip update
+	add	di,1		; if upper nibble set get next byte
+	jnc	pages0
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	inc	ah		; Update page number
+	call	[segvid]  	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+pages0:
+	test	edx,8000h	; if d >= 0 then ...
+	jnz	dnegs0
+	add	edx,[d2]   	; ... d = d + d2
+	add	di,[pitch]	; update offset
+	jnc	fixs00
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	inc	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+        jmp     fixs00           ; go
+dnegs0:
+	add	edx,[d1]	; if d < 0 then d = d + d1
+fixs00:
+	loop	nexts0
+	jmp	linedones
+
+; Draw line where DX < 0 and DY > 0 and X major
+
+xnyps:
+        pop     esi             ; get save address
+	mov	ah,[ebp+clr]	; Fetch color of the pixel
+nexts3:			        ; Loop over pixels to be set
+        mov     al,[edi]        ; save existing color
+        mov     [esi],al
+        inc     esi             ; next
+	mov	al,ah		; Fetch source color
+	and	al,bl		; Clear the 'other' nibble
+	and	[edi],bh 	; Clear nibble at destination
+	or	[edi],al 	; Combine source and destination
+	not	ebx		; Swap masks
+	or	bl,bl		; Check if need to move into next byte
+	js	pages3	        ; if upper nibble set skip update
+	sub	di,1		; else must point to next byte
+	jnc	pages3
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	dec	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+pages3:
+	test	edx,8000h	; if d >= 0 then ...
+	jnz     dnegs3
+	add	edx,[d2]        ; ... d = d + d2
+	add	di,[pitch]	; update offset
+	jnc	fixs33
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	inc	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+        jmp     fixs33           ; go
+dnegs3:
+	add	edx,[d1]	; if d < 0 then d = d + d1
+fixs33:
+	loop	nexts3
+	jmp	linedones
+
+; Draw line where DX > 0 and DY < 0 and x major
+
+xpyns:
+        pop     esi             ; get save address
+	mov	ah,[ebp+clr]	; Fetch color of the pixel
+nexts7:			        ; Loop over pixels to be set
+        mov     al,[edi]        ; save existing color
+        mov     [esi],al
+        inc     esi             ; next
+	mov	al,ah		; Fetch source color
+	and	al,bl		; Clear the 'other' nibble
+	and	[edi],bh 	; Clear nibble at destination
+	or	[edi],al 	; Combine source and destination
+	not	ebx		; Swap masks
+	or	bl,bl		; Check if need to move into next byte
+	jns	pages7	        ; if upper nibble clear skip update
+	add	di,1		; if upper nibble set get next byte
+	jnc	pages7
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	inc	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+pages7:
+	test	edx,8000h	; if d >= 0 then ...
+	jnz	dnegs7
+	add     edx,[d2]	; ... d = d + d2
+	sub	di,[pitch]	; update offset
+	jnc	fixs77
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	dec	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+        jmp     fixs77           ; go
+dnegs7:
+	add	edx,[d1]	; if d < 0 then d = d + d1
+fixs77:
+	loop	nexts7
+	jmp	linedones
+
+; Draw line where DX < 0 and DY < 0 and x major
+
+xnyns:
+        pop     esi             ; get save address
+	mov	ah,[ebp+clr]	; Fetch color of the pixel
+nexts4:			        ; Loop over pixels to be set
+        mov     al,[edi]        ; save existing color
+        mov     [esi],al
+        inc     esi             ; next
+	mov	al,ah		; Fetch source color
+	and	al,bl		; Clear the 'other' nibble
+	and	[edi],bh 	; Clear nibble at destination
+	or	[edi],al 	; Combine source and destination
+	not	ebx		; Swap masks
+	or	bl,bl		; Check if need to move into next byte
+	js	pages4	        ; if upper nibble set skip update
+	sub	di,1		; if upper nibble clear get next byte
+	jnc     pages4
+	xchg	ah,[varseg]	; Preserve AL, and fetch page number
+	dec	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+pages4:
+	test	edx,8000h	; if d >= 0 then ...
+	jnz	dnegs4
+	add	edx,[d2]	; ... d = d + d2
+	sub	di,[pitch]	; update offset
+	jnc	fixs44
+	xchg	ah,[varseg]	; Preserve AL, and fetch page number
+	dec	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+        jmp     fixs44           ; go
+dnegs4:
+	add	edx,[d1]	; if d < 0 then d = d + d1
+fixs44:
+	loop	nexts4
+	jmp	linedones
+
+; Compute constants for dx < dy
+
+ymajors:
+	mov	ecx,edi		; set counter to dy+1
+	inc	ecx
+        mov     edx,[ebp+i]     ; index index
+        add     [edx],cx        ; offset
+	sal	esi,1		; d1 = dx * 2
+	mov	edx,esi		; d  = dx * 2 - dy
+	sub	edx,edi
+	neg	edi		; d2 = -dy + dx * 2 - dy
+	add	edi,edx
+	mov	[d2],edi 	; save d2
+	mov	[d1],esi 	; save d1
+	pop	edi		; Restore address of first pixel
+
+; Jump according to sign of dx and dy
+
+	test	[pitch],08000h ; Check if dy is positive
+	jz	pys
+	neg	[pitch]
+	test	[deltax],08000h
+	jnz	nxnys
+	jmp	pxnys 	        ; go do dy negative dx positive
+pys:
+	test	[deltax],08000h ; ...no, check if dx also positive
+	jnz	nxpys 	        ; ...dx is negative and dy positive
+
+; Draw line where DX > 0 and DY > 0 and y major
+
+pxpys:
+        pop     esi             ; get save address
+	mov	ah,[ebp+clr]	; Fetch color of the pixel
+nexts1:
+        mov     al,[edi]        ; save existing color
+        mov     [esi],al
+        inc     esi             ; next
+	mov	al,ah		; Fetch source color
+	and	al,bl		; Clear the 'other' nibble
+	and	[edi],bh 	; Clear nibble at destination
+	or	[edi],al 	; Combine source and destination
+	add	di,[pitch]	; update offset
+	jnc	pages1
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	inc	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+pages1:
+	test	edx,08000h	; if d >= 0 then ...
+	jnz	dnegs1
+	add	edx,[d2]	; ... d = d + d2
+	not	ebx		; Swap masks
+	or	bl,bl		; Check if need to move into next byte
+	jns	loops1   	; if upper nibble clear skip update
+	add	di,1		; if upper nibble set get next byte
+	jnc	loops1
+	xchg	ah,[varseg]	; Preserve AL, and fetch page number
+	inc	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+        jmp     loops1           ; go
+dnegs1:
+	add	edx,[d1]	; if d < 0 then d = d + d1
+loops1:
+	loop	nexts1
+	jmp	linedones
+
+; Draw line where DX < 0 and DY > 0 and y major
+
+nxpys:
+        pop     esi             ; get save address
+	mov	ah,[ebp+clr]	; Fetch color of the pixel
+nexts2:
+        mov     al,[edi]        ; save existing color
+        mov     [esi],al
+        inc     esi             ; next
+	mov	al,ah		; Fetch source color
+	and	al,bl		; Clear the 'other' nibble
+	and	[edi],bh 	; Clear nibble at destination
+	or	[edi],al 	; Combine source and destination
+	add	di,[pitch]	; update offset
+	jnc	pages2
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	inc	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+pages2:
+	test	edx,08000h	; if d >= 0 then ...
+	jnz	dnegs2
+	add	edx,[d2]	; ... d = d + d2
+	not	ebx		; Swap masks
+	or	bl,bl		; Check if need to move into next byte
+	js	loops2	        ; if upper nibble set skip update
+	sub	di,1		; if upper nibble clear get next byte
+	jnc	loops2
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	dec	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+        jmp     loops2           ; go
+dnegs2:
+	add	edx,[d1]	; if d < 0 then d = d + d1
+loops2:
+	loop	nexts2
+	jmp	linedones
+
+; Draw line where DX > 0 and DY < 0 and y major
+
+pxnys:
+        pop     esi             ; get save address
+	mov	ah,[ebp+clr]	; Fetch color of the pixel
+nexts6:
+        mov     al,[edi]        ; save existing color
+        mov     [esi],al
+        inc     esi             ; next
+	mov	al,ah		; Fetch source color
+	and	al,bl		; Clear the 'other' nibble
+	and	[edi],bh 	; Clear nibble at destination
+	or	[edi],al 	; Combine source and destination
+	sub	di,[pitch]	; update offset
+	jnc	pages6
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	dec	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+pages6:
+	test	edx,08000h	; if d >= 0 then ...
+	jnz	dnegs6
+        add	edx,[d2]	; ... d = d + d2
+	not	ebx		; Swap masks
+	or	bl,bl		; Check if need to move into next byte
+	jns	loops6	        ; if upper nibble clear skip update
+	add	di,1		; if upper nibble set get next byte
+	jnc	loops6
+	xchg	ah,[varseg]	; Preserve AL, and fetch page number
+	inc	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+        jmp     loops6          ; go
+dnegs6:
+	add	edx,[d1]	; if d < 0 then d = d + d1
+loops6:
+	loop	nexts6
+	jmp	linedones
+
+; Draw line where DX < 0 and DY < 0 and y major
+
+nxnys:
+        pop     esi             ; get save address
+	mov	ah,[ebp+clr]	; Fetch color of the pixel
+nexts5:
+        mov     al,[edi]        ; save existing color
+        mov     [esi],al
+        inc     esi             ; next
+	mov	al,ah		; Fetch source color
+	and	al,bl		; Clear the 'other' nibble
+	and	[edi],bh 	; Clear nibble at destination
+	or	[edi],al 	; Combine source and destination
+	sub	di,[pitch]	; update offset
+	jnc	pages5
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	dec	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+pages5:
+	test	edx,08000h	; if d >= 0 then ...
+	jnz	dnegs5
+	add	edx,[d2]	; ... d = d + d2
+	not	ebx		; Swap masks
+	or	bl,bl		; Check if need to move into next byte
+	js	loops5	        ; if upper nibble set skip update
+	sub	di,1		; if upper nibble clear get next byte
+	jnc	loops5
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+        dec	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+        jmp     loops5          ; go
+dnegs5:
+	add	edx,[d1]	; if d < 0 then d = d + d1
+loops5:
+	loop	nexts5
+	jmp	linedones
+
+; Clean up and return to caller
+
+linedones:
+        pop     edi             ; restore registers and return
+        pop     esi
+        pop     ebx
+        pop     ebp             ; unlink
+        ret
+linespk endp
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;                                                             ;
+; DRAW LINE FROM BUFFER                                       ;
+;                                                             ;
+; Draws a line between the start and end points. The pixels   ;
+; used are recovered from the buffer.                         ;
+;                                                             ;
+; procedure linerst(x1, y1, x2, y2: integer;                  ;
+;                   var lines: linarr; var i: lininx)         ;
+;                                                             ;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+x1      =       8
+y1      =       12
+x2      =       16
+y2      =       20
+lines   =       24
+i       =       28
+
+linerst proc    syscall
+        jmp     [linerp]        ; goto proper routine
+linerst endp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;                                                             ;
+; LINE RESTORE PLANAR                                         ;
+;                                                             ;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Routine to restore the current pixel from the save buffer
+; Expects: ah  = bit mask
+;          edi = video address
+;          bp  = parameters offset from linerst below
+;          
+
+rstpix  proc    syscall
+        push    ax              ; save
+        push    ebx
+        mov     ebx,[pixarr]    ; get next pixel address
+        mov     ah,[ebx]        ; get bit value
+        inc     ebx             ; next location
+        mov     [pixarr],ebx    ; replace
+        xor     al,al           ; place set/reset register number
+        out     dx,ax           ; activate
+        or      [edi],al        ; place color to bit
+        pop     ebx             ; restore
+        pop     ax
+        ret
+rstpix  endp  
+
+linerpl proc    syscall
+        push    ebp             ; link parameters
+        mov     ebp,esp
+        push    ebx             ; preserve caller registers
+        push    esi
+        push    edi
+
+; offset to index
+
+        mov     ebx,[ebp+i]     ; get index
+        movzx   eax,word ptr [ebx]
+        dec     eax             ; adjust to 0
+        add     eax,[ebp+lines] ; offset array
+        mov     [pixarr],eax    ; save
+       
+; configure the graphics controller
+
+        mov     dx,3ceh         ; dx := graphics controller port addr
+        mov     ax,0f01h        ; ah := 1111b (bit plane mask for
+                                ;  enable set/reset)
+        out     dx,ax           ; al := enable set/reset register #
+        mov     ah,rmwbit       ; bits 3 and 4 of ah := function
+        mov     al,3            ; al := data rotate/func select reg #
+        out     dx,ax
+
+; check for vertical line
+
+        mov     esi,linbyt      ; increment for video buffer
+        mov     ecx,[ebp+x2]        
+        sub     ecx,[ebp+x1]    ; cx := x2 - x1
+        jz      linr30          ; jump if vertical line
+
+; force x1 < x2
+
+        jns     linr01          ; jump if x2 > x1
+        neg     cx              ; cx := x1 - x2
+        mov     ebx,[ebp+x2]    ; exchange x1 and x2
+        xchg    ebx,[ebp+x1]
+        mov     [ebp+x2],ebx       
+        mov     ebx,[ebp+y2]    ; exchange x1 and y2
+        xchg    ebx,[ebp+y1]        
+        mov     [ebp+y2],ebx
+
+; calculate dy := abs(y2-y1)
+
+linr01: mov     ebx,[ebp+y2]
+        sub     ebx,[ebp+y1]    ; bx := y2 - y1
+        jz      linr05          ; jump if horizontal line
+        jns     linr03          ; jump if slope is positive
+        neg     bx              ; bx := y1 - y2
+        neg     esi             ; negate increment for buffer interleave
+
+; select appropriate routine for slope of line
+
+linr03: mov     [vrtinc],esi ; save vertical increment
+        mov     [varrot],linr17
+        cmp     bx,cx
+        jle     linr04          ; jump if dy <= dx (slope <= 1)
+        mov     [varrot],linr20
+        xchg    bx,cx           ; exchange dy and dx
+        
+; calculate initial decision variable and increments
+
+linr04: shl     bx,1            ; bx := 2 * dy
+        mov     [varir1],bx   ; incr1 := 2 * dy
+        sub     bx,cx         
+        mov     si,bx           ; si := d = 2 * dy - dx
+        sub     bx,cx   
+        mov     [varir2],bx   ; incr2 := 2 * (dy - dx)
+
+; calculate first pixel address
+
+        push    cx              ; preserve this register
+        mov     eax,[ebp+y1]    ; ax := y
+        mov     ebx,[ebp+x1]    ; bx := x
+        call    pixadd          ; ah := bit mask 
+                                ; ebx -> buffer
+                                ; cl := # bits to shift left
+        mov     [varseg],al     ; save segment
+        mov     edi,ebx         ; edi -> buffer
+        shl     ah,cl           ; ah := bit mask in proper position
+        mov     bl,ah           ; ah,bl := bit mask
+        pop     cx              ; restore this register
+        mov     al,8            ; al := bit mask register number
+        inc     cx              ; cx := # of pixels to draw
+        push    esi
+        mov     esi,[ebp+i]     ; index index
+        add     [esi],cx        ; offset
+        pop     esi
+        jmp     [varrot]    ; jump to appropriate routine for slope
+;
+linr05: jmp     linr40          ; waypoint for horizontal        
+
+; routine for vertical lines
+
+linr30: mov     eax,[ebp+y1]    ; ax := y1
+        mov     ebx,[ebp+y2]    ; bx := y2
+        mov     cx,bx
+        sub     cx,ax           ; cx := dy
+        jge     linr31          ; jump if dy >= 0
+        neg     cx              ; force dy >= 0
+        mov     eax,ebx         ; ax := y2
+linr31: inc     cx              ; cx # of pixels to draw
+        mov     edi,[ebp+i]     ; index index
+        add     [edi],cx        ; offset
+        mov     ebx,[ebp+x1]    ; bx := x
+        push    cx              ; preserve this register
+        call    pixadd          ; ah := bit mask
+                                ; ebx -> video buffer
+                                ; cl := # of bits to shift left
+        mov     [varseg],al     ; save segment
+        mov     edi,ebx         ; place index
+        
+; set up grapics controller
+
+        shl     ah,cl           ; ah := bit mask in proper position
+        mov     al,8            ; al := bit mask reg number
+        out     dx,ax
+        pop     cx              ; restore this register
+
+; draw the line
+
+linr32:
+        call    rstpix          ; place pixel
+        add     di,si           ; increment to next line
+        jnc     linr33          ; no carry, skip
+
+; Because we only draw downwards, only one segment crossing is
+; considered.
+
+        push    ax              ; save
+        mov     ah,[varseg]     ; set next segment
+        inc     ah
+        mov     [varseg],ah
+        call    [segvid]        ; select segment
+        pop     ax              ; restore
+linr33:
+        loopw   linr32
+        jmp     linr25
+
+; routine for horizontal lines (slope = 0)
+
+linr40:    
+        mov     eax,[ebp+y1]
+        mov     ebx,[ebp+x1]
+        mov     ecx,[ebp+x2]    ; find number of pixels to do
+        sub     ecx,ebx
+        inc     cx
+        mov     edi,[ebp+i]     ; index index
+        add     [edi],cx        ; offset
+        push    cx              ; save
+        call    pixadd          ; ah := bit mask 
+                                ; ebx -> video buffer
+                                ; cl := # of bits to shift left
+        mov     edi,ebx         ; edi -> buffer
+        shl     ah,cl           ; ah := bit mask in proper position
+        mov     al,8            ; al := bit mask reg number
+        pop     cx              ; restore count
+
+; draw the line
+
+linr42: out     dx,ax           ; enable
+        call    rstpix          ; save pixel 
+        ror     ah,1            ; next pixel
+        adc     edi,0           ; increment di on wrap
+        jnc     linr420         ; no carry, skip
+        push    ax              ; save
+        mov     ah,[varseg]     ; set next segment
+        inc     ah
+        mov     [varseg],ah
+        call    [segvid]        ; select segment
+        pop     ax              ; restore
+linr420:
+        loopw   linr42          ; loop
+        jmp     linr25          ; done, exit
+
+; routine for dy >= dx (slope <= 1)     ; edi -> video buffer
+                                ; al = bit mask register number
+                                ; bl = bit mask for 1st pixel
+                                ; cx = # of pixels to draw
+                                ; dx = graphics controller port addr
+                                ; si = decision variable
+
+linr17:
+        out     dx,ax           ; update bit mask register
+        call    rstpix          ; save pixel
+        ror     ah,1            ; next bit
+        adc     di,0            ; increment to next byte on wraparound
+        jnc     linr170         ; no carry, skip
+        push    ax              ; save
+        mov     ah,[varseg]     ; set next segment
+        inc     ah
+        mov     [varseg],ah
+        call    [segvid]        ; select segment
+        pop     ax              ; restore
+linr170:
+        or      si,si           ; test sign of d
+        jns     linr18          ; jump if d >= 0
+        add     si,[varir1]   ; d := d + incr1
+        loopw   linr17          ; next pixel
+        jmp     linr25          ; done, exit
+linr18:
+        add     si,[varir2]   ; d := d + incr2
+        push    ax
+        mov     eax,[vrtinc]
+        add     eax,edi         ; increment y    
+        mov     di,ax           ; place "under" address
+        sub     eax,vidbuf      ; compare to video segment
+        and     eax,0ffff0000h  ; check overflow either direction
+        jz      linr180         ; no, skip
+        shr     eax,8           ; get high order in ah
+        add     ah,[varseg]     ; find net segment
+        mov     [varseg],ah     ; save
+        call    [segvid]        ; index that segment
+linr180:
+        pop     ax              ; restore
+        loopw   linr17          ; next pixel
+        jmp     linr25          ; done, exit
+
+; routine for dy > dx (slope > 1) ; edi -> video buffer
+                                ; ah = bit mask for 1st pixel
+                                ; al = bit mask register number
+                                ; cx = # pixels to draw
+                                ; dx = graphics controller port addr
+                                ; si = decision variable
+linr20: 
+        out     dx,ax           ; update bit mask register
+        call    rstpix          ; save pixel
+        push    ax              ; save
+        mov     eax,[vrtinc] ; get increment
+        add     eax,edi         ; increment y    
+        mov     di,ax           ; place "under" address
+        sub     eax,vidbuf      ; compare to video segment
+        and     eax,0ffff0000h  ; check overflow either direction
+        jz      lins21          ; no, skip
+        shr     eax,8           ; get high order in ah
+        add     ah,[varseg]     ; find net segment
+        mov     [varseg],ah     ; save
+        call    [segvid]        ; index that segment
+lins21:
+        pop     ax              ; restore
+        or      si,si           ; test sign of d
+        jns     linr23          ; jump if d >= 0
+        add     si,[varir1]   ; d := d + incr1
+        loopw   linr20
+        jmp     linr25
+linr23: 
+        add     si,varir2     ; d := d + incr2
+        ror     ah,1            ; rotate bit mask
+        adc     di,0            ; increment di if when mask rotated to
+                                ; leftmost pixel position
+        jnc     linr24          ; not next segment, skip
+        push    ax              ; save
+        mov     ah,[varseg]     ; get current segment
+        inc     ah              ; increment
+        mov     [varseg],ah     ; update
+        call    [segvid]        ; change segment
+        pop     ax              ; restore
+linr24:
+        loopw   linr20             
+
+; restore default graphics controller state and return to caller
+
+linr25: xor     ax,ax           ; ah := 0, al := 0
+        out     dx,ax           ; restore set/reset register
+        inc     ax              ; ah := 0, al := 1
+        out     dx,ax           ; restore enable set/reset register
+        mov     al,3            ; ah := 0, al := 3
+        out     dx,ax           ; al := data rotate/func select reg #
+        mov     ax,0ff08h       ; ah := 11111111b, al := 8
+        out     dx,ax           ; restore bit mask register
+        pop     edi             ; restore registers and return
+        pop     esi
+        pop     ebx
+        pop     ebp             ; unlink
+        ret
+linerpl endp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;                                                             ;
+; LINE RESTORE PACKED                                         ;
+;                                                             ;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+linerpk proc    syscall
+        push    ebp             ; link parameters
+        mov     ebp,esp
+        push    ebx             ; save registers
+        push    esi
+        push    edi      
+
+; Set up save address
+  
+        mov     ebx,[ebp+i]     ; get index
+        movzx   eax,word ptr [ebx]
+        dec     eax             ; adjust to 0
+        add     eax,[ebp+lines] ; offset array
+        push    eax             ; save
+
+; Convert (x,y) starting point to video address and select page
+
+	mov	eax,[ebp+y1]	; Convert (x,y) to address
+	mul	word ptr [linbyt] ; multiply y by pitch
+	mov	ecx,[ebp+x1]	; fetch x
+	shr	ecx,1		; convert pixel to byte number
+	add	eax,ecx		; add to previous product
+        add     eax,vidbuf      ; offset by video base
+	push	eax		; Save address on stack for later
+	mov	ah,dl		; Copy page number into ah
+	mov	[varseg],Ah	; Save page number
+	call	[segvid]	; Select proper page
+	mov	bx,00ff0h	; Set initial mask (assume x even)
+				; bl=src mask, bh=dst mask
+	mov	eax,[ebp+x1]	; Move bit0 of x into sign bit
+	ror	ax,1
+	cwd			; Set dx to ffff if x is odd
+	xor	bx,dx		; Invert masks if x was odd
+	mov	al,[ebp+clr]	; Duplicate color into high nibble
+	and	al,0fh
+	shl	al,4
+	or	[ebp+clr],al
+
+; Compute dx and dy and determine which coordinate is major
+
+	mov	eax,[linbyt]    ; set raster increment
+	mov     [pitch],ax
+	mov	esi,[ebp+x2]	; compute dx reg-si
+	sub	esi,[ebp+x1]
+	mov	deltax,esi
+	jge	dxisposr
+	neg	esi
+dxisposr:
+	mov	edi,[ebp+y2]	; compute dy reg-di
+	sub	edi,[ebp+y1]
+	jge	dyisposr
+	neg	[pitch]
+	neg	edi
+dyisposr:
+
+; Determine which coordinate is the major one
+
+	cmp	esi,edi		; check that dx > dy
+	jge	xmajorr
+	jmp	ymajorr
+
+; Compute constants for x-major
+
+xmajorr:
+	mov	ecx,esi		; set counter to dx+1
+	inc	ecx
+        mov     edx,[ebp+i]     ; index index
+        add     [edx],cx        ; offset
+	sal	edi,1		; d1 = dy*2
+	mov	edx,edi		; d  = dy*2-dx
+	sub    	edx,esi
+	neg	esi		; d2 = dy*2-dx-dx
+	add	esi,edx
+	mov	[d1],edi	; save d1
+	mov	[d2],esi	; save d2
+	pop	edi		; restore offset of first pixel
+
+; Jump according to sign of dx and dy
+
+	test	[pitch],08000h  ; Check if dy is positive
+	jz	ypr
+	neg	[pitch]         ; Restore pitch
+	test	[deltax],08000h
+	jnz	xnynr
+	jmp	xpynr 	        ; go do dy negative dx positive
+ypr:
+	test	[deltax],08000h ; ...no, check if dx also positive
+	jnz	xnypr 	        ; ...dx is negative and dy positive
+
+; Draw line where DX > 0 and DY > 0 and x is the major coordinate
+
+xpypr:
+        pop     esi             ; get save address
+nextr0:		        	; Loop over pixels to be set
+	mov	al,[esi]	; Fetch source color
+        inc     esi             ; next
+	and	al,bl		; Clear the 'other' nibble
+	and	[edi],bh 	; Clear nibble at destination
+	or	[edi],al 	; Combine source and destination
+	not	ebx		; Swap masks
+	or	bl,bl		; Check if need to move into next byte
+	jns	pager0	        ; if upper nibble clear skip update
+	add	di,1		; if upper nibble set get next byte
+	jnc	pager0
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	inc	ah		; Update page number
+	call	[segvid]  	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+pager0:
+	test	edx,8000h	; if d >= 0 then ...
+	jnz	dnegr0
+	add	edx,[d2]   	; ... d = d + d2
+	add	di,[pitch]	; update offset
+	jnc	fixr00
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	inc	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+        jmp     fixr00           ; go
+dnegr0:
+	add	edx,[d1]	; if d < 0 then d = d + d1
+fixr00:
+	loop	nextr0
+	jmp	linedoner
+
+; Draw line where DX < 0 and DY > 0 and X major
+
+xnypr:
+        pop     esi             ; get save address
+nextr3:			        ; Loop over pixels to be set
+	mov	al,[esi]	; Fetch source color
+        inc     esi             ; next
+	and	al,bl		; Clear the 'other' nibble
+	and	[edi],bh 	; Clear nibble at destination
+	or	[edi],al 	; Combine source and destination
+	not	ebx		; Swap masks
+	or	bl,bl		; Check if need to move into next byte
+	js	pager3	        ; if upper nibble set skip update
+	sub	di,1		; else must point to next byte
+	jnc	pager3
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	dec	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+pager3:
+	test	edx,8000h	; if d >= 0 then ...
+	jnz     dnegr3
+	add	edx,[d2]        ; ... d = d + d2
+	add	di,[pitch]	; update offset
+	jnc	fixr33
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	inc	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+        jmp     fixr33           ; go
+dnegr3:
+	add	edx,[d1]	; if d < 0 then d = d + d1
+fixr33:
+	loop	nextr3
+	jmp	linedoner
+
+; Draw line where DX > 0 and DY < 0 and x major
+
+xpynr:
+        pop     esi             ; get save address
+nextr7:			        ; Loop over pixels to be set
+	mov	al,[esi]	; Fetch source color
+        inc     esi             ; next
+	and	al,bl		; Clear the 'other' nibble
+	and	[edi],bh 	; Clear nibble at destination
+	or	[edi],al 	; Combine source and destination
+	not	ebx		; Swap masks
+	or	bl,bl		; Check if need to move into next byte
+	jns	pager7	        ; if upper nibble clear skip update
+	add	di,1		; if upper nibble set get next byte
+	jnc	pager7
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	inc	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+pager7:
+	test	edx,8000h	; if d >= 0 then ...
+	jnz	dnegr7
+	add     edx,[d2]	; ... d = d + d2
+	sub	di,[pitch]	; update offset
+	jnc	fixr77
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	dec	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+        jmp     fixr77           ; go
+dnegr7:
+	add	edx,[d1]	; if d < 0 then d = d + d1
+fixr77:
+	loop	nextr7
+	jmp	linedoner
+
+; Draw line where DX < 0 and DY < 0 and x major
+
+xnynr:
+        pop     esi             ; get save address
+nextr4:			        ; Loop over pixels to be set
+	mov	al,[esi]	; Fetch source color
+        inc     esi             ; next
+	and	al,bl		; Clear the 'other' nibble
+	and	[edi],bh 	; Clear nibble at destination
+	or	[edi],al 	; Combine source and destination
+	not	ebx		; Swap masks
+	or	bl,bl		; Check if need to move into next byte
+	js	pager4	        ; if upper nibble set skip update
+	sub	di,1		; if upper nibble clear get next byte
+	jnc     pager4
+	xchg	ah,[varseg]	; Preserve AL, and fetch page number
+	dec	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+pager4:
+	test	edx,8000h	; if d >= 0 then ...
+	jnz	dnegr4
+	add	edx,[d2]	; ... d = d + d2
+	sub	di,[pitch]	; update offset
+	jnc	fixr44
+	xchg	ah,[varseg]	; Preserve AL, and fetch page number
+	dec	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+        jmp     fixr44           ; go
+dnegr4:
+	add	edx,[d1]	; if d < 0 then d = d + d1
+fixr44:
+	loop	nextr4
+	jmp	linedoner
+
+; Compute constants for dx < dy
+
+ymajorr:
+	mov	ecx,edi		; set counter to dy+1
+	inc	ecx
+        mov     edx,[ebp+i]     ; index index
+        add     [edx],cx        ; offset
+	sal	esi,1		; d1 = dx * 2
+	mov	edx,esi		; d  = dx * 2 - dy
+	sub	edx,edi
+	neg	edi		; d2 = -dy + dx * 2 - dy
+	add	edi,edx
+	mov	[d2],edi 	; save d2
+	mov	[d1],esi 	; save d1
+	pop	edi		; Restore address of first pixel
+
+; Jump according to sign of dx and dy
+
+	test	[pitch],08000h ; Check if dy is positive
+	jz	pyr
+	neg	[pitch]
+	test	[deltax],08000h
+	jnz	nxnyr
+	jmp	pxnyr 	        ; go do dy negative dx positive
+pyr:
+	test	[deltax],08000h ; ...no, check if dx also positive
+	jnz	nxpyr 	        ; ...dx is negative and dy positive
+
+; Draw line where DX > 0 and DY > 0 and y major
+
+pxpyr:
+        pop     esi             ; get save address
+nextr1:
+	mov	al,[esi]	; Fetch source color
+        inc     esi             ; next
+	and	al,bl		; Clear the 'other' nibble
+	and	[edi],bh 	; Clear nibble at destination
+	or	[edi],al 	; Combine source and destination
+	add	di,[pitch]	; update offset
+	jnc	pager1
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	inc	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+pager1:
+	test	edx,08000h	; if d >= 0 then ...
+	jnz	dnegr1
+	add	edx,[d2]	; ... d = d + d2
+	not	ebx		; Swap masks
+	or	bl,bl		; Check if need to move into next byte
+	jns	loopr1   	; if upper nibble clear skip update
+	add	di,1		; if upper nibble set get next byte
+	jnc	loopr1
+	xchg	ah,[varseg]	; Preserve AL, and fetch page number
+	inc	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+        jmp     loopr1           ; go
+dnegr1:
+	add	edx,[d1]	; if d < 0 then d = d + d1
+loopr1:
+	loop	nextr1
+	jmp	linedoner
+
+; Draw line where DX < 0 and DY > 0 and y major
+
+nxpyr:
+        pop     esi             ; get save address
+nextr2:
+	mov	al,[esi]	; Fetch source color
+        inc     esi             ; next
+	and	al,bl		; Clear the 'other' nibble
+	and	[edi],bh 	; Clear nibble at destination
+	or	[edi],al 	; Combine source and destination
+	add	di,[pitch]	; update offset
+	jnc	pager2
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	inc	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+pager2:
+	test	edx,08000h	; if d >= 0 then ...
+	jnz	dnegr2
+	add	edx,[d2]	; ... d = d + d2
+	not	ebx		; Swap masks
+	or	bl,bl		; Check if need to move into next byte
+	js	loopr2	        ; if upper nibble set skip update
+	sub	di,1		; if upper nibble clear get next byte
+	jnc	loopr2
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	dec	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+        jmp     loopr2           ; go
+dnegr2:
+	add	edx,[d1]	; if d < 0 then d = d + d1
+loopr2:
+	loop	nextr2
+	jmp	linedoner
+
+; Draw line where DX > 0 and DY < 0 and y major
+
+pxnyr:
+        pop     esi             ; get save address
+nextr6:
+	mov	al,[esi]	; Fetch source color
+        inc     esi             ; next
+	and	al,bl		; Clear the 'other' nibble
+	and	[edi],bh 	; Clear nibble at destination
+	or	[edi],al 	; Combine source and destination
+	sub	di,[pitch]	; update offset
+	jnc	pager6
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	dec	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+pager6:
+	test	edx,08000h	; if d >= 0 then ...
+	jnz	dnegr6
+        add	edx,[d2]	; ... d = d + d2
+	not	ebx		; Swap masks
+	or	bl,bl		; Check if need to move into next byte
+	jns	loopr6	        ; if upper nibble clear skip update
+	add	di,1		; if upper nibble set get next byte
+	jnc	loopr6
+	xchg	ah,[varseg]	; Preserve AL, and fetch page number
+	inc	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+        jmp     loopr6          ; go
+dnegr6:
+	add	edx,[d1]	; if d < 0 then d = d + d1
+loopr6:
+	loop	nextr6
+	jmp	linedoner
+
+; Draw line where DX < 0 and DY < 0 and y major
+
+nxnyr:
+        pop     esi             ; get save address
+nextr5:
+	mov	al,[esi]	; Fetch source color
+        inc     esi             ; next
+	and	al,bl		; Clear the 'other' nibble
+	and	[edi],bh 	; Clear nibble at destination
+	or	[edi],al 	; Combine source and destination
+	sub	di,[pitch]	; update offset
+	jnc	pager5
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+	dec	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+pager5:
+	test	edx,08000h	; if d >= 0 then ...
+	jnz	dnegr5
+	add	edx,[d2]	; ... d = d + d2
+	not	ebx		; Swap masks
+	or	bl,bl		; Check if need to move into next byte
+	js	loopr5	        ; if upper nibble set skip update
+	sub	di,1		; if upper nibble clear get next byte
+	jnc	loopr5
+	xchg	ah,[varseg]	; Preserve ah, and fetch page number
+        dec	ah		; Update page number
+	call	[segvid]	; Select new page number
+	xchg	ah,[varseg]	; Save updated page, restore AL
+        jmp     loopr5          ; go
+dnegr5:
+	add	edx,[d1]	; if d < 0 then d = d + d1
+loopr5:
+	loop	nextr5
+	jmp	linedoner
+
+; Clean up and return to caller
+
+linedoner:
+        pop     edi             ; restore registers and return
+        pop     esi
+        pop     ebx
+        pop     ebp             ; unlink
+        ret
+linerpk endp
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;                                                             ;
+; PERFORM DOT PLACEMENT                                       ;
+;                                                             ;
+; Accepts a pair of index vectors, and draws the              ;
+; corresponding dot grid.                                     ;
+;                                                             ;
+; procedure dogrid(xl, yl: dotvec; c: color)                  ;
+;                                                             ;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+xl      =       8               ; x vector
+yl      =       12              ; y vector
+clr     =       16              ; color
+
+dogrid  proc    syscall
+        jmp     [dogridp]       ; goto proper routine
+dogrid  endp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;                                                             ;
+; DRAW GRID PLANAR                                            ;
+;                                                             ;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+dogridpl proc    syscall
+        push    ebp             ; link parameters
+        mov     ebp,esp
+        push    ebx             ; preserve caller registers
+        push    esi
+        push    edi
+        mov     dx,3ceh         ; index graphics controller
+        mov     ah,[ebp+clr]    ; ah := pixel value
+        xor     al,al           ; al := set/reset register number
+        out     dx,ax
+        mov     ax,00f01h       ; set bit plane mask
+        out     dx,ax
+        mov     ah,rmwbit
+        mov     al,3            ; set function and select
+        out     dx,ax
+        mov     esi,[ebp+xl]    ; get x vector
+        mov     edi,[ebp+yl]    ; get y vector
+
+; place rows
+
+plcg01:
+        mov     eax,[edi]       ; load y index
+        inc     eax             ; check done
+        jz      plcg04          ; yes, exit
+        dec     eax             ; restore
+        push    esi             ; save starting collumn
+        
+; place collumns
+
+plcg02:
+        push    eax             ; save y
+        mov     ebx,[esi]       ; load x index
+        inc     ebx             ; check done
+        jz      plcg03          ; yes, skip
+        dec     ebx             ; restore            
+
+; calculate and place single pixel
+           
+        call    pixadd          ; ah := bit mask
+                                ; ebx -> buffer
+                                ; cl := # bits to shift left
+        shl     ah,cl           ; ah := bit mask in proper position
+        mov     al,8            ; al := bit mask register number
+        out     dx,ax
+        or      [ebx],al        ; set pixel
+
+; next collumn
+
+        pop     eax             ; restore
+        add     esi,4           ; next index
+        jmp     plcg02          ; loop next collumn
+
+; next row
+
+plcg03:
+        pop     eax             ; restore
+        pop     esi
+        add     edi,4           ; next index
+        jmp     plcg01          ; loop next collumn
+
+; done
+
+plcg04: 
+        xor     ax,ax           ; ah := 0, al := 0
+        out     dx,ax           ; restore set/reset register
+        inc     ax              ; ah := 0, al := 1
+        out     dx,ax           ; restore enable set/reset register
+        mov     al,3            ; ah := 0, al := 3
+        out     dx,ax           ; al := data rotate/func select reg #
+        mov     ax,0ff08h       ; ah := 11111111b, al := 8
+        out     dx,ax           ; restore bit mask register
+        pop     edi             ; restore registers and return
+        pop     esi
+        pop     ebx
+        pop     ebp             ; unlink
+        ret
+dogridpl endp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;                                                             ;
+; DRAW GRID PACKED                                            ;
+;                                                             ;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+dogridpk proc    syscall
+        push    ebp             ; link parameters
+        mov     ebp,esp
+        push    ebx             ; preserve caller registers
+        push    esi
+        push    edi
+        mov     esi,[ebp+xl]    ; get x vector
+        mov     edi,[ebp+yl]    ; get y vector
+
+; place rows
+
+plcgpk01:
+        mov     eax,[edi]       ; load y index
+        inc     eax             ; check done
+        jz      plcgpk04          ; yes, exit
+        dec     eax             ; restore
+        push    esi             ; save starting collumn
+        
+; place collumns
+
+plcgpk02:
+        push    eax             ; save y
+        mov     ebx,[esi]       ; load x index
+        inc     ebx             ; check done
+        jz      plcgpk03          ; yes, skip
+        dec     ebx             ; restore            
+
+; calculate and place single pixel
+           
+        mov     cl,bl           ; save lower x 
+        mul     [linbyt]        ; find lines offset
+        shr     ebx,1           ; convert to byte offset w/
+                                ; nybble in carry
+        add     bx,ax           ; offset
+        add     ebx,vidbuf      ; offset to video buffer
+        shr     eax,8           ; place 64kb offset in ah
+        call    [segvid]        ; select segment
+        mov     al,[ebp+clr]    ; get color
+        mov     ah,00fh         ; set mask
+        test    cl,1            ; check if odd numbered adress
+        jnz     plcgpk020         ; and skip if so
+        shl     al,4            ; shift upper nybble down
+        not     ah              ; set mask for upper nybble
+plcgpk020:
+        and     al,ah           ; mask nybble
+        not     ah              ; set to keep mask
+        and     [ebx],ah        ; preserve existing pixel
+        or      [ebx],al        ; set new pixel
+
+; next collumn
+
+        pop     eax             ; restore
+        add     esi,4           ; next index
+        jmp     plcgpk02          ; loop next collumn
+
+; next row
+
+plcgpk03:
+        pop     eax             ; restore
+        pop     esi
+        add     edi,4           ; next index
+        jmp     plcgpk01          ; loop next collumn
+
+; done
+
+plcgpk04: 
+        pop     edi             ; restore registers and return
+        pop     esi
+        pop     ebx
+        pop     ebp             ; unlink
+        ret
+dogridpk endp
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;                                                             ;
+; DRAW BLOCK                                                  ;
+;                                                             ;
+; Draws a filled block with corners at the start and end      ;
+; points.                                                     ;
+;                                                             ;
+; procedure block(x1, y1, x2, y2: word; c: color)             ;
+;                                                             ;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+x1      =       8
+y1      =       12
+x2      =       16
+y2      =       20
+clr     =       24
+
+block   proc    syscall
+        jmp     [blockp]        ; goto proper routine
+block   endp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;                                                             ;
+; BLOCK DRAW PLANAR                                           ;
+;                                                             ;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+blockpl proc    syscall
+        push    ebp             ; link parameters
+        mov     ebp,esp
+        push    ebx             ; save registers
+        push    esi
+        push    edi        
+
+; Rearange corners so that x0 < x1 and y0 < y1
+
+        mov     eax,[ebp+x1]    ; Force x0 < x1
+        mov     ebx,[ebp+x2]
+        cmp     ebx,eax
+        jge     xinorder
+        mov     [ebp+x1],ebx
+        mov     [ebp+x2],eax
+xinorder:
+        mov     eax,[ebp+y1]    ; Force y0 < y1
+        mov     ebx,[ebp+y2]
+        cmp     ebx,eax
+        jge     yinorder
+        mov     [ebp+y1],ebx
+        mov     [ebp+y2],eax
+yinorder:
+
+; Compute address of first pixel, load set/reset (color) register
+
+; Compute page number and select the page
+
+
+        mov     eax,[ebp+y1]    ; get y
+        mul     [linbyt]        ; find lines offset
+        mov     ebx,[ebp+x1]    ; get x
+        shr     ebx,3           ; convert to byte offset
+        add     eax,ebx         ; offset
+        movzx   ebx,ax          ; set up offset
+        add     ebx,vidbuf      ; offset to video buffer
+        shr     eax,8           ; place 64kb offset in ah
+        mov     [varseg],ah     ; and save
+        mov     [fstpag],ah
+        call    [segvid]        ; select segment
+        mov     edi,ebx         ; save video address
+
+; Load set/reset registers with current color, select bit mask reg
+
+        mov     al,[ebp+clr]
+        mov     dx,03ceh        ;Use color for set/reset value
+        mov     ah,al
+        mov     al,0
+        out     dx,ax
+        mov     al,1
+        mov     ah,0fh
+        out     dx,ax
+        mov     al,8            ;Select bit mask register
+        out     dx,al
+        inc     dx
+        mov     ecx,[ebp+x2]    ; Compute number of pixels in a line
+        sub     ecx,[ebp+x1]
+        inc     ecx
+        mov     esi,[ebp+y2]    ; Compute number of lines to do
+        sub     esi,[ebp+y1]
+        inc     esi
+
+; Draw the rectangle (in three strips = lead, full middle, trail)
+
+; Draw pixels from the leading partial byte
+
+        mov     eax,[ebp+x1]    ; Fetch x coordinate
+        and     eax,7           ; Check for partial byte
+        jz      full01
+        xchg    bh,cl           ; Preserve counter (CL into BH)
+        mov     bl,0ffh         ; Compute the mask
+        mov     cl,al
+        shr     bl,cl
+        xchg    bh,cl           ; Restore counter
+        add     ecx,eax         ; Update counter
+        sub     ecx,8
+        jge     maskset         ; Modify mask if only one byte
+        neg     ecx
+        shr     bl,cl
+        shl     bl,cl
+        xor     ecx,ecx         ; Indicate no more bytes
+maskset:
+        mov     al,bl           ; Fetch mask
+        out     dx,al           ; Set mask register
+        push    ecx             ; Preserve counters
+        push    edi             ; Save first byte offset
+        mov     ecx,esi         ; Number of lines to do
+        mov     ebx,[linbyt]
+        mov     ah,[varseg]     ; get page
+leadloop:
+        mov     al,[edi]        ; Latch data
+        mov     [edi],al        ; Write new data
+        add     di,bx           ; Point to next raster
+        jnc     leadloop01      ; go no new page
+        inc     ah              ; Advance to next page
+        call    [segvid]
+leadloop01:
+        loop    leadloop
+        pop     edi
+        pop     ecx
+        mov     ah,[varseg]     ; get starting segment
+        call    [segvid]        ; select
+        add     di,1            ; Point to first full byte
+        jnc     full            ; go no new page
+        inc     ah              ; Advance to next page
+        call    [segvid]
+        jmp     full            ; skip
+
+; Draw pixels from the middle complete bytes
+
+full01:
+        mov     ah,[varseg]     ; get page
+full:
+        mov     [lstmsk],cl     ; Save count of bits in last byte
+        and     [lstmsk],7
+        mov     al,0ffh         ; Set mask
+        out     dx,al
+        shr     ecx,3           ; find whole bytes
+        or      ecx,ecx
+        jz      trail           ; skip if no full bytes
+        push    ax              ; save starting page number
+        mov     ebx,[linbyt]    ; Compute line to line increment
+        sub     ebx,ecx
+        inc     ebx
+        push    esi
+        push    edi
+outerloop:
+        push    ecx             ; save count
+        mov     edx,ecx         ; save count
+outerloop01:        
+        mov     cx,65535        ; find bytes left in page
+        sub     cx,di
+        movzx   ecx,cx          ; expand
+        inc     ecx             ; adjust
+        cmp     edx,ecx         ; check rem < left
+        jle     outerloop02     ; yes, go
+        sub     edx,ecx         ; find new total
+        cmp     ecx,4           ; check >= 4 bytes to make dword
+        jc      outerloop03     ; no, skip
+        push    ecx             ; save count
+        shr     ecx,2           ; find dword count
+        rep     stosd           ; place
+        pop     ecx             ; restore count
+        and     ecx,3           ; mask for remainder
+outerloop03:
+        rep     stosb           ; draw
+        movzx   edi,di          ; clear overflow
+        add     edi,vidbuf
+	inc	ah		; Advance page number
+	call	[segvid]
+        or      edx,edx         ; check end
+        jnz     outerloop01     ; no, loop
+        jmp     outerupdate     ; go
+outerloop02:
+        mov     ecx,edx         ; set remainder as count
+        cmp     ecx,4           ; check >= 4 bytes to make dwords
+        jc      outerloop04     ; no, skip
+        push    ecx             ; save count
+        shr     ecx,2           ; find dword count
+        rep     stosd           ; place
+        pop     ecx             ; restore count
+        and     ecx,3           ; mask for remainder
+outerloop04:
+        rep     stosb           ; draw
+        dec     edi             ; Point to last byte drawn
+        add     di,bx           ; Point to next line
+        jnc     outerupdate     ; go no new page
+	inc	ah		; Advance page number
+	call	[segvid]
+outerupdate:
+        pop     ecx             ; restore count
+        dec     esi             ; Update counter of lines
+        jg      outerloop       ; If not done, go do another line
+        pop     edi             ; Restore pointer
+        pop     esi             ; Restore line counter
+        pop     ax              ; restore starting page number
+        call    [segvid]        ; select
+        add     di,cx           ; Point to the trailing byte
+        jnc     trail           ; go no new page
+	inc	ah		; Advance page number
+	call	[segvid]
+
+; Draw pixels from the trailing partial byte
+
+trail:
+        mov     cl,[lstmsk]     ; Compute number of trailing bits
+        or      cl,cl
+        jz      endrect
+        mov     ebx,[linbyt]    ; Get line to line increment
+        mov     al,0ffh         ; Compute mask
+        shr     al,cl
+        not     al
+        mov     dx,03cfh        ; index mask
+        out     dx,al           ; Set the mask
+        mov     ecx,esi         ; Counter of bytes to do
+trailloop:
+        mov     al,[edi]        ; Latch data
+        mov     [edi],al        ; Set new data
+        add     di,bx           ; Point to next line
+        jnc     trailloop01     ; go no page
+        inc     ah              ; Advance to next page
+        call    [segvid]
+trailloop01:
+        loop    trailloop
+        jmp     endrect
+
+; Clean up and return to caller
+
+endrect:
+        pop     edi             ; restore registers and return
+        pop     esi
+        pop     ebx
+        pop     ebp             ; unlink
+        ret
+blockpl endp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;                                                             ;
+; BLOCK DRAW PACKED                                           ;
+;                                                             ;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+blockpk proc    syscall
+        push    ebp             ; link parameters
+        mov     ebp,esp
+        push    ebx             ; preserve caller registers
+        push    esi
+        push    edi
+
+; Rearange corners so that x1 < x2 and y1 < y2
+
+	mov	eax,[ebp+x1]	; Force x1 < x2
+	mov	ebx,[ebp+x2]
+	cmp	ebx,eax
+	jge	xinorder
+	mov	[ebp+x1],ebx
+	mov	[ebp+x2],eax
+xinorder:
+	mov	eax,[ebp+y1]	; Force y1 < y2
+	mov	ebx,[ebp+y2]
+	cmp	ebx,eax
+	jge	yinorder
+	mov	[ebp+y1],ebx
+	mov	[ebp+y2],eax
+yinorder:
+
+; Compute address of first pixel (upper left corner), and dimensions
+
+	mov	eax,[ebp+y1]	; Convert (x,y) to Page:Offset
+	mul	word ptr [linbyt] ; multiply y by pitch
+	mov	ecx,[ebp+x1]	; fetch x
+	shr	ecx,1		; convert pixel to byte number
+	add	eax,ecx		; add to previous product
+        add     eax,vidbuf      ; offset by video base
+        mov     edi,eax         ; place in edi
+	mov	ah,dl		; Copy page number into ah
+	mov	[fstpag],ah	; Save page number for later
+	mov	[varseg],ah
+	call	[segvid]	; Select proper page
+
+; Compute dimensions
+
+	mov	ecx,[ebp+x2]	; Set counter of bytes to do
+	sub	ecx,[ebp+x1]	; as (x2 - x1 + 1)
+	inc	ecx
+	mov	edx,[ebp+y2]	; Set counter of rasters to do
+	sub	edx,[ebp+y1]	; as (y2 - y1 + 1)
+	inc	edx
+
+; Load color into all four nibbles of ax
+
+	mov	al,[ebp+clr]	; Fetch color
+	mov	ah,al		; Duplicate color in both bytes
+	shl	ah,1
+	shl	ah,1
+	shl	ah,1
+	shl	ah,1
+	or	ah,al
+	mov	al,ah
+
+; Fill leading partial byte (low nibble for x odd) for each row
+
+	test	dword ptr [ebp+x1],1 ; Check if x is odd
+	jz	leaddone
+	dec	ecx		; Update couter
+	push	ecx		; Preserve counter for next two passes
+	push	edi		; Preserve address of first pixel
+	mov	bl,0f0h 	; Setup mask for destination
+	and	al,00fh		; Setup source color
+	mov	ecx,edx		; Fetch counter of rows
+leadloop:			; Loop over rows
+	and	[edi],bl 	; Clear destination bits
+	or	[edi],al 	; Set cleared bits to rectangle color
+	add	di,word ptr [linbyt] ; Point to next raster
+	jc	fixlead	        ; Fix page number if needed
+	loop	leadloop	; Check if all raster done
+	jmp	leadfilled
+fixlead:
+	xchg	ah,[varseg]	; Fetch page number, and preserve AL
+	inc	ah		; Adjust page number
+	call	[segvid]	; Select next page
+	xchg	ah,[varseg]	; Save updated page no., restore AL
+	loop	leadloop
+
+leadfilled:
+	pop	edi		; Restore initial point and counter
+	inc	di		; Advance past the lead byte
+	pop	ecx
+	xchg	ah,[fstpag]	; Select initial page
+	mov	[varseg],ah
+	call	[segvid]
+        xchg    ah,[fstpag]
+	mov	al,ah		; Restore color into both bytes
+leaddone:
+	xor	esi,esi		; Clear SI (to	use ADC later on)
+	shr	ecx,1		; Convert pixel count to byte count
+	adc	esi,esi		; Keep last bit of CX in SI
+
+; Fill middle strip of the rectangle (full bytes)
+
+	or      ecx,ecx		; Skip middle bytes fill if counter 0
+	jz	trail
+	push	edx		; Preserve row counter
+	mov	ebx,[linbyt]    ; Compute pitch increment
+	sub	ebx,ecx
+	mov	[pitch],bx
+scanloop:
+	push	ecx		; Preserve pixel counter
+
+; Fill first page if page boundary may be crossed
+
+	mov	ebx,ecx		; Check if within page
+	add	bx,di
+	jnc	scaninpage
+	sub	ecx,ebx		; Number of bytes to do in this page
+	shr	ecx,1		; Adjust for move of words
+	rep	stosw		; Write new data
+	adc	ecx,ecx
+	rep	stosb
+        and     edi,00000ffffh  ; keep address in video segment
+        or      edi,vidbuf
+	mov	ecx,ebx		; Number of bytes to do in next page
+	xchg	ah,[varseg]	; Fetch page number, and preserve AL
+	inc	ah		; Adjust page number
+	call	[segvid]	; Select next page
+	xchg	ah,[varseg]	; Save updated page no., restore AL
+	jcxz	scandone
+
+; Fill second (or only page)
+
+scaninpage:
+	shr	ecx,1		; Adjust for move of words
+	rep	stosw		; Write all words of data
+	adc	ecx,ecx		; Write the last odd byte of data
+	rep	stosb
+        and     edi,00000ffffh  ; keep address in video segment
+        or      edi,vidbuf
+scandone:
+
+	pop	ecx		; Restore counter of bytes in a raster
+	add	di,[pitch]	; Compute ptr to byte in next raster
+	jc	rectfixpage
+	dec	edx		; check if more rasters to do
+	jg	scanloop
+	jmp	middledone
+
+rectfixpage:
+	xchg	ah,[varseg]	; Fetch page number, and preserve AL
+	inc	ah		; Update page number
+	call	[segvid]	; Compute and select new page number
+	xchg	ah,[varseg]	; Save updated page no., restore AL
+	dec	edx		; check if more rasters to do
+	jg      scanloop
+
+middledone:
+	pop	edx		; Restore row counter
+
+; Fill trailing partial byte in each row
+
+trail:
+	or	esi,esi		; Check for trailing pixel
+	jz	endrect         ; no, exit
+	mov	bl,00fh		; Setup mask for destination
+	and	al,0f0h 	; Setup source color
+	mov	esi,edx		; Save counter of rows
+	mov	[ebp+clr],al	; Save color
+	mov	eax,[ebp+y1]	; Compute address of last pixel
+	mov	ecx,[ebp+x2]	; in the first row
+	mul	word ptr [linbyt]
+	shr	ecx,1
+	add	eax,ecx
+        add     eax,vidbuf      ; offset by video base
+        mov     edi,eax         ; place in edi
+	mov	ah,dl		; Select page
+	mov	[varseg],ah
+	call	[segvid]
+	mov	al,[ebp+clr]	; Fetch pixel color
+	mov	ecx,esi		; Fetch counter of rows
+trailloop:			; Loop over rows
+	and	[edi],bl 	; Clear destination bits
+	or	[edi],al 	; Set cleared bits to rectangle color
+	add	di,word ptr [linbyt] ; Point to next raster
+	jnc	fixtrail	; Fix page number if needed
+	mov	ah,[varseg]	; Fetch page number, and preserve AL
+	inc	ah		; Adjust page number
+	call	[segvid]	; Select next page
+	mov	[varseg],ah	; Save updated page no., restore AL
+fixtrail:
+	loop	trailloop	; Check if all raster done
+
+; Clean up and return to caller
+
+endrect:
+        pop     edi             ; restore registers and return
+        pop     esi
+        pop     ebx
+        pop     ebp             ; unlink
+        ret
+blockpk endp
+
+        .data
+
+vrtinc  dd      0
+varir1  dw      0
+varir2  dw      0
+varseg  db      0
+varrot  dd      0
+pixarr  dd      0               ; pixel address save
+
+d1	dd      0
+d2	dd      0
+pitch	dw      0               ; save for line pitch
+deltax 	dd      0
+fstpag  db      0
+fstmsk  db      0
+lstmsk  db      0
+
+        end

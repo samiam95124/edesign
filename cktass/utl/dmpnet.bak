@@ -1,0 +1,606 @@
+{******************************************************************************
+*                                                                             *
+*                              NET FILE DUMP UTILITY                          *
+*                                                                             *
+*                         Copyright (C) 2001 S. A. Moore                      *
+*                                                                             *
+* Dumps the contents of a net file for diagnostics purposes.                  *
+*                                                                             *
+******************************************************************************}
+
+program dmpnet(command, output);
+
+uses stddef, { standard definitions }
+     strlib, { strings }
+     extlib; { os extentions }
+
+label exit; { abort program }
+
+const linmax = 200; { maximum command line }
+      labmax = 200; { maximum characters per label }
+
+type bytfil  = file of byte; { byte file }
+     labinx  = 1..labmax; { index for label }
+     nodlab = packed array [labinx] of char; { label for node }
+     lininx   = 1..linmax; { command line index }
+     line     = packed array [lininx] of char;   { input line buffer }
+     errcod   = (eilovf,   { input line too long }
+                 ecfns,    { circuit file not specified }
+                 eivopt,   { invalid option }
+                 ecfnf,    { circuit file not found }
+                 einvnff,  { invalid input file format }
+                 elabtl,   { label too long }
+                 einvdff,  { invalid dictionary file format }
+                 esys);    { system error }
+
+var cmdlin:  line;    { input command buffer }
+    cmdptr:  lininx;  { current command line position }
+    netnam:  nodlab;  { net file name }
+    netfil:  bytfil;  { net file }
+    netopn:  boolean; { net file open }
+    p, n, e: nodlab; { path components }
+
+{*******************************************************************************
+
+Process error
+
+Prints an error message by the given error code and aborts.
+The procedure does not return.
+
+*******************************************************************************}
+
+procedure error(e: errcod);
+
+begin
+
+   write('*** '); { output header }
+   case e of { error }
+
+      eilovf:  writeln('Input line overflow');
+      ecfns:   writeln('Circuit file not specified');
+      eivopt:  writeln('Invalid option');
+      ecfnf:   writeln('Circuit file not found');
+      einvnff: writeln('Invalid input file format');
+      elabtl:  writeln('Filename too long');
+      einvdff: writeln('Invalid dictionary file format');
+      esys:    writeln('System error: contact Moore/CAD');
+
+   end;
+   goto exit
+
+end;
+
+{*******************************************************************************
+
+Read input line
+
+Reads a line of text from the given text file into the
+command buffer. No interactive processing is implemented.
+
+*******************************************************************************}
+
+procedure readline(var f: text); { input file }
+
+var ovf: boolean; { overflow }
+
+begin
+
+   readsp(f, cmdlin, ovf); { get line }
+   if ovf then error(eilovf); { process error }
+   readln(f); { skip line end }
+   cmdptr := 1 { set 1st character position }
+
+end;
+
+{*******************************************************************************
+
+Check character
+
+Returns the character at the current command line position.
+If the position is off the end of the line, a blank is returned
+instead.
+
+*******************************************************************************}
+
+function chkchr: char;
+
+var c : char;
+
+begin
+
+   { return contents of at line }
+   if cmdptr <= linmax then c := cmdlin[cmdptr]
+   else c := ' '; { off end, return zip }
+   chkchr := c { return result }
+
+end;
+
+{*******************************************************************************
+
+Get character
+
+Skips to the next command line character. This will only
+occur if we are not at the end of the line.
+
+*******************************************************************************}
+
+procedure getchr;
+
+begin
+
+   if cmdptr <= linmax then cmdptr := cmdptr + 1 { advance }
+
+end;
+
+{*******************************************************************************
+
+Skip spaces
+
+Skips spaces in the command line. If at line end, we stop.
+
+*******************************************************************************}
+
+procedure skpspc;
+
+begin
+
+   while (chkchr = ' ') and (cmdptr <= linmax) do
+      getchr
+
+end;
+
+{*******************************************************************************
+
+Get word
+
+Gets a word from the command line. This will be any sequence
+of non-space characters after any leading spaces, and
+terminated by a space.
+Generates an error on label overflow or no word found.
+
+*******************************************************************************}
+
+procedure getword(var n: nodlab);
+
+var i : labinx; { index for label }
+
+begin
+
+   clears(n); { clear word }
+   skpspc; { skip spaces }
+   i := 1; { initalize label pointer }
+   while (chkchr <> ' ') and (chkchr <> '!') do begin
+
+      if i > labmax then error(elabtl); { process error }
+      n[i] := chkchr; { place character }
+      i := i + 1; { next character }
+      getchr { next character }
+
+   end;
+   { convert to lower case }
+   for i := 1 to labmax do n[i] := lcase(n[i]);
+   if n[1] = ' ' then error(ecfns) { no word found }
+
+end;
+
+{*******************************************************************************
+
+Process caller line
+
+Read a line from the given file, and processes the circuit
+file there and any command line options.
+
+*******************************************************************************}
+
+procedure prcopt(var f: text);
+
+begin
+
+   readline(f); { load command line }
+   skpspc; { skip spaces }
+   if cmdptr > linmax then error(ecfns); { error }
+   getword(netnam) { get the circuit file name }
+
+end;
+
+{*******************************************************************************
+
+READ 32 BIT NUMBER FROM FILE
+
+Reads a number in 32 bit signed magnitude format. The highest
+order byte appears first, and the least order last. The high
+byte 7th bit contains the sign.
+
+*******************************************************************************}
+
+procedure read32(var f: bytfil; var i: integer); 
+
+var b: byte;    { read byte holder }
+    s: integer; { sign of result }
+    t: integer; { temp }
+
+begin
+
+   s := 1; { set no sign }
+   read(f, b);
+   if b >= 128 then begin { signed }
+
+      s := -1; { set sign }
+      b := b - 128 { remove sign }
+
+   end;
+   t := b; { place in large buffer }
+   i := t*16777216;
+   read(f, b);
+   t := b; { place in large buffer }
+   i := i + t*65536;
+   read(f, b);
+   t := b; { place in large buffer }
+   i := i + t*256;
+   read(f, b);
+   i := i + b;
+   i := i*s { set sign of result }
+
+end;
+
+{**************************************************************
+
+Read single real
+
+Reads the single precision IEEE format real from the given
+file, and converts that to our real.
+
+**************************************************************}
+
+procedure readsreal(var f: bytfil; var r: real);
+
+var fc:  record case boolean of { float convertion }
+
+            false: (r: sreal);
+            true:  (b: packed array [1..4] of byte)
+
+         end; 
+
+begin
+
+   read(f, fc.b[4]); { read bytes of single real }
+   read(f, fc.b[3]);
+   read(f, fc.b[2]);
+   read(f, fc.b[1]);
+   r := fc.r { place result }
+
+end;
+
+{**************************************************************
+
+Read 16 bit word
+
+Reads a 16 bit high/low number from the given file.
+
+**************************************************************}
+
+procedure read16(var f: bytfil; var w: integer);
+
+var h, l: byte;
+
+begin
+
+   read(f, h); { get middle byte }
+   read(f, l); { get low byte }
+   w := (256*h)+l { convert and place }
+
+end;
+
+{*******************************************************************************
+
+Dump network file
+
+Dumps the contents of a network file.
+
+*******************************************************************************}
+
+procedure dumpnet(var f: bytfil);
+
+var clk:        integer; { clock holder }
+    s, g, d, n: integer; { node numbers }
+    cell:       integer; { cell number }
+    wd, ln, r:  real;    { width and length }
+    b:          byte;
+    c:          byte;    { tolken code holder }
+    i:          integer;
+    celnum:    integer; { cell counter }
+
+begin
+
+   celnum := 1; { clear cell counter }
+   repeat { parse tolkens }
+
+      read(f, c); { get next tolken code }
+      case c div 16 of { type }
+
+         $00: writeln('Reset simulator');
+         $01: begin { transistor }
+
+            case c mod 4 of { type }
+            
+               $00: write('PMOS');
+               $01: write('Weak PMOS');
+               $02: write('NMOS');
+               $03: write('Weak NMOS')
+
+            end;
+            read32(f, s); { get source }
+            read32(f, g); { get gate }
+            read32(f, d); { get drain }
+            readsreal(f, wd); { get width }
+            readsreal(f, ln); { get length }
+            writeln(' transistor, source: ', s:1, ' gate: ', g:1, ' drain: ',
+                    d:1, ' width: ', wd, ' length: ', ln)
+
+         end;
+         $02: begin { resistor }
+
+            read32(f, s); { get source }
+            read32(f, d); { get drain }
+            writeln('Resistor, terminal A: ', s:1, ' terminal B: ', d:1)
+
+         end;
+         $03: begin { set node trace }
+
+            read32(f, n); { get node to trace }
+            writeln('Node trace, node: ', n:1)
+
+         end;
+         $04: begin { step count/structuring }
+
+            case c mod 4 of { subcommand }
+
+               0: begin { step count }
+
+                  read32(f, n); { get step count }
+                  writeln('Step, count: ', n:1)
+
+               end;
+               1: writeln('Cell ', celnum:1, ' begin');
+               2: begin { cell end }
+
+                  writeln('Cell ', celnum:1, ' end');
+                  celnum := celnum+1 { count cells }
+
+               end;
+               3: begin { cell reference }
+
+                  read16(f, cell); { get cell number }
+                  read(f, b); { get parameter count }
+                  write('Cell reference, cell no: ', cell:1, ' parameters: ',
+                          b:1, '(');
+                  for i := 1 to b do begin { get nodes }
+
+                     read32(f, n); { get node }
+                     write(i-1:1, ':', n:1);
+                     if i <> b then write(' ')
+
+                  end;
+                  writeln(')')
+
+               end
+
+            end
+
+         end;
+         $05: begin { set node value }
+
+            read32(f, clk); { get set time }
+            read32(f, n); { get node }
+            write('Set node value, time: ', clk:1, ' node: ', n:1, ' value: ');
+            case c mod 16 of { node set value }
+
+               0:  writeln('undefined');
+               1:  writeln('stored indetermine');
+               2:  writeln('indeterminate driven by high');
+               3:  writeln('indeterminate driven by low');
+               4:  writeln('weak indetermine driven by high');
+               5:  writeln('weak indetermine driven by low');
+               6:  writeln('conflicting drives');
+               7:  writeln('conflicting weak drives');
+               8:  writeln('driven high');
+               9:  writeln('driven low');
+               10: writeln('stored high');
+               11: writeln('stored low');
+               12: writeln('Weak driven high');
+               13: writeln('Weak driven low');
+               14: writeln('High supply rail');
+               15: writeln('Low supply rail');
+
+            end
+
+         end;
+         $06: writeln('Run simulation');
+         $07: writeln('Read trace memory');
+         $08: begin { set node capacitience }
+
+            read32(f, n); { get node }   
+            readsreal(f, r); { get farads }
+            writeln('Set node capacitience, node: ', n:1, ' farads: ', r)
+
+         end;
+         $09: begin { set analog node value }
+
+            read32(f, clk); { get time }
+            read32(f, n); { get node }
+            readsreal(f, r); { get voltage }
+            write('Set analog node value ');
+            case c mod 4 of { type }
+
+               0: write('driven replacement');
+               1: write('driven add');
+               2: write('remove drive');
+               3: write('remove drive')
+
+            end;
+            writeln(' time: ', clk:1, ' node: ', n:1, ' voltage: ', r)
+
+         end;
+         $0a: begin { set span }
+
+            readsreal(f, r); { get span }
+            writeln('Set span, time per step: ', r)
+
+         end;
+         $0b: begin { trace limit }
+
+            readsreal(f, r); { get trace limit }
+            writeln('Trace limit, voltage: ', r);
+
+         end;
+         $0c: begin { set process parameters }
+
+            write('Set process parameters,');
+            readsreal(f, r); { get p channel threshold }
+            writeln('P channel threshold: ', r);
+            readsreal(f, r); { get n channel threshold }
+            writeln('N channel threshold: ', r);
+            readsreal(f, r); { get p channel process constant K }
+            writeln('P channel process constant K: ', r);
+            readsreal(f, r); { get n channel process constant K }
+            writeln('N channel process constant K: ', r);
+
+         end;
+         $0d: error(einvnff); { invalid tolken }
+         $0e: error(einvnff); { invalid tolken }
+         $0f: error(einvnff) { invalid tolken }
+
+      end
+
+   until c = 0 { end of file }
+
+end;
+
+{**************************************************************
+
+Dump dictionary file
+
+Dumps the contents of a dictionary file.
+
+***************************************************************}
+
+procedure dumpdic(var dicfil: bytfil);
+
+var cc, cn: integer;
+    pc: byte;
+    b: byte;
+
+procedure prtlab;
+
+var b, c: byte;
+
+begin
+
+   read(dicfil, c); { get string length }
+   while c <> 0 do begin { read characters }
+
+      read(dicfil, b); { get character }
+      write(chr(b)); { print }
+      c := c-1 { count }
+
+   end
+
+end;
+
+begin
+
+   repeat { cells }
+
+      cc := 1; { set 1st cell }
+      read(dicfil, b); { get the code }
+      if b <> 0 then begin { not end }
+
+         if b <> 1 then error(einvdff); { flag error }
+         write('Cell ');
+         prtlab;  { read cell label }
+         writeln(': ', cc:1);
+         read(dicfil, pc); { read parameter count }
+         writeln('Parameters: ', pc:1);
+         repeat { nodes }
+
+            read(dicfil, b); { get the next code }
+            if b = 3 then begin { node }
+
+               write('Node: ');
+               prtlab; { get label }
+               writeln
+
+            end else if b = 4 then begin { subcell reference }
+
+               read16(dicfil, cn); { get the cell number }
+               writeln('Subcell call, cell: ', cn:1)
+
+            end else if b <> 2 then error(einvdff) { invalid code }
+
+         until b = 2; { end of cell }
+         writeln('End of cell');
+         cc := cc+1
+
+      end
+
+   until b = 0 { end of file }
+
+end;
+
+{*******************************************************************************
+
+Main program
+
+Initalizes global variables, processes the options, loads
+the circuit file and runs the simulation.
+
+*******************************************************************************}
+
+begin
+
+   writeln('Net file dumper Copyright (C) 2001 S. A. Moore');
+
+   netopn := false; { net file open }
+
+   { process options and open output file }
+
+   prcopt(command); { process options }
+   brknamp(netnam, p, n, e); { break name up }
+   if e[1] = ' ' then begin { no extention, try standards }
+
+      copyp(e, 'net'); { try hierarchal net }
+      maknamp(netnam, p, n, e);
+      if not exists(netnam) then begin { not found }
+
+         copyp(e, 'sim'); { try hierarchal net }
+         maknamp(netnam, p, n, e);
+         if not exists(netnam) then begin { not found }
+
+            copyp(e, 'set'); { try hierarchal net }
+            maknamp(netnam, p, n, e);
+            if not exists(netnam) then begin { not found }
+
+               copyp(e, 'dic'); { try hierarchal net }
+               maknamp(netnam, p, n, e);
+               if not exists(netnam) then error(ecfnf) { file not found }
+
+            end
+
+         end
+
+      end
+
+   end;
+   assign(netfil, netnam); { open net/set/dictionary file }
+   reset(netfil);
+   netopn := true;
+
+   if compp(e, 'dic') then dumpdic(netfil) { process dictionary dump }
+   else dumpnet(netfil); { process net dump }
+
+   exit: { abort program }
+
+   writeln('Function complete');
+   if netopn then close(netfil) { close file }
+
+end.

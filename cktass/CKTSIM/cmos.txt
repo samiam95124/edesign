@@ -1,0 +1,51 @@
+                        BASIC CMOS IDEALOLOGY
+
+The origins of cmos go back in one viewpoint to the origins of the
+contrast in electronics of voltage and current. The first, which
+represents "potential" or "the state of things", and the second, which
+represents "action" or "things accomplished". Early electric effects
+were almost entirely voltage oriented. The first effects were high
+voltage/low current as in nature itself. This is in part because voltage
+is the most easily observed and understood of the two.
+When transistors were introduced, current became of paramount importance.
+This is because these devices change their nature according to "work
+being performed", and work must be provided in the form of current flow
+even if no current flow is really required.
+The FET device changed this order. Once again, circuits could be constructed
+based on the "state" which was required, and the "work performed" could
+be adjusted dynamically.
+With logic circuits, the "state" of the circuit is the matter at hand,
+and the "work performed" may be viewed as a "parisitic" or useless byproduct
+of curcuit operation. This fits the current theories that hold that
+the work required to accomplish logical operations can be infinately
+reduced, and in fact eliminated entirely. This, however, is a goal
+not unlike the attainment of absolute 0 in temperature, perhaps never
+to be reached, but allways approached.
+Today's logic design technology breaks into two separate fields, each
+designed to attack a different side of the logic implementation problem.
+
+Approach 1: Allways work -
+
+If we give in to the idea that work is a required byproduct of logic,
+one approach is to simply perform the same amount of work allways,
+whether or not the logic operation actually dictates it. This acheives
+high logic speeds due to the fact that most delays are from starting
+and stopping current flow, ie. changing the amount of work done. The
+result is the performance of all posible work whether it is required
+or not. The power of such an approach can be reduced by reducing the
+overall work required.
+This approach is brought to it's ultimate in the ECL logic families.
+Although this type of logic is normally thought of as "high speed -
+high power", since there is no theoretical limit to the reduction of
+overall work required, this may yet prove to be the ultimate "best"
+technology by both power and speed standards.
+
+Approach 2: Never work -
+
+The other way is to minimize the work required by doing it only when
+absolutely required. This makes the power drawn depend on the logical
+requirement for it.
+This approach is brought to the ultimate in CMOS logic families.
+Again, although this type of logic is thought of as "low power -
+low speed", since there is no limit to the reduction of work, a
+"low power - high speed" version is still possible.

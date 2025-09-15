@@ -1,0 +1,179 @@
+Date:  15-Oct-91 19:02 PDT
+From:  The MOSIS System   >INTERNET:XMOSIS@CHEETA.ISI.EDU
+Subj:  Topic: tinychip
+
+Sender: mosisout@vlsif.isi.edu
+Received: from vlsif.isi.edu by ihc.compuserve.com (5.65/5.910516)
+	id AA00405; Tue, 15 Oct 91 21:50:54 -0400
+Posted-Date: 13 October 1991 10:09:03
+Message-Id: <9110160141.AA01298@vlsif.isi.edu>
+Received: by vlsif.isi.edu (5.61/5.61)
+	id AA01298; Tue, 15 Oct 91 18:41:23 -0700
+Date: 13 October 1991 10:09:03
+From: The MOSIS System <XMOSIS@CHEETA.ISI.EDU> (send requests to MOSIS@MOSIS.EDU)
+Subject: Topic: tinychip
+To: Scott A Moore <70461.3575@CompuServe.COM>
+
+Your-message-sent: 13 Oct 91 12:42:36 EDT
+Your-Message-ID: <911013164236_70461.3575_EHE28-1@CompuServe.COM>
+MOSIS-Message-ID: imlr-00074201-91101310015700
+MOSIS-Reply-Posted-for-Delivery: 13 October 1991 10:09:03
+
+
+
+			TINYCHIP PROJECTS
+
+			The MOSIS Service
+
+Contents:
+
+I.  Intro
+II. 2um TinyChip 
+	A. Specifications
+	B. Project Submission
+
+III.  1.6um TinyChip
+	A. Specifications
+	B. Project Submission
+*********
+I.  Introduction 
+
+TinyChip projects can be fabricated at 2um; four packaged parts cost only 
+$500. TinyChip projects are scheduled monthly in CMOS N-well and P-well.
+
+If you require packaged parts you may use either the standard frame option
+(40PC22X22) or you may specify the PADS and SIZE parameters.  MOSIS does
+a bonding check on projects that do NOT use a standard frame and checks
+for the following: 1) project size (see payload size), 2) the number of pads
+- either 28 or 40 and 3) to make sure that MOSIS can automatically generate
+a bonding map (i.e., in order to offer the TinyChip price break, bonding
+diagrams cannot be generated manually).
+
+Padframes which fix the die size and bonding pad locations for projects,
+have been defined for 2.0 and 1.6um TinyChip projects.  
+
+**NOTE:  Your TinyChip projects MUST be submitted with the required
+         TinyChip parameters to be fabricated and charged correctly
+         as TinyChips.   
+
+TinyChip spares are not shipped to customers because the low cost 
+of TinyChips does not allow us to have the packager sort the extra chips.
+
+
+	 	    COST FOR SINGLE PROJECT (PACKAGED)
+	========================================================
+		     MAXIMUM PROJECT
+	TECHNOLOGY     SIZE (mm) 	QUANTITIES	 PRICE
+	========================================================
+	CMOS 2um	2.22 x 2.25	      4           $500
+	TinyChip
+
+	CMOS 1.6um	2.22 x 2.25	      See Price Schedule
+	TinyChip			      (priced per sq. millimeters)
+	========================================================
+
+II. 2um TinyChip Projects
+
+IIA. 2um TinyChip Specifications
+
+Chuck Seitz' group at Caltech has designed a full set of 2um N-well pads
+that can be used in the TinyChip or bigger frames.  Chuck is making them
+available through MOSIS as MAGIC (.MAG) files.
+
+Seitz' pads can be obtained as follows:
+
+		REQUEST: LIBRARY
+		LIBRARY: CIT_SCN20_PADS
+		FILE: CIT_SCN20_PADS.DOC, GNDPAD.MAG, INPAD.MAG, 
+		       NULPAD.MAG, OUTPAD.MAG, SCHMITTPAD.MAG, TRIPAD.MAG,
+		       VDDPAD.MAG
+		REQUEST: END
+
+Designers may also use the MOSIS 40PC22X22 Standard Frame which is designed
+for a 40 pin package; MOSIS has developed a set of pads for this frame
+(SCN20_PADS and SCP20_PADS).
+
+MOSIS has defined a Stuffed 2um TinyChip padframe which has 40 pads. The 40
+pins include 3 VDD (#5, #15 and #30) and 3 GND pins (#10, #25 and #35) and
+34 I/O pads.   Available design area inside the pad ci9rcuitry is 1800 x 1830 
+microns.
+
+To obtain this frame, use the following syntax:
+
+		REQUEST: LIBRARY
+		LIBRARY: SCN20_PADS
+		FILE: SCN20_PADS.DOC, 40PC22X22_STUFFED.CIF
+		FILE: 40PC22X22_STUFFED_ANALOG.CIF
+		REQUEST: END
+
+Padframe information for P-well can be obtained in the same format, replacing
+"SCN" with "SCP" in your message, e.g., SCP20_PADS. To get a CIF plot and
+list of pad locations of the MOSIS 2um TinyChip Frame, send a message as
+follows:
+
+		REQUEST: LIBRARY
+			LIBRARY: STD_FRAMES
+		FILE: 40PC22X22.CIF, 40PC22X22.LIST
+		REQUEST: END
+
+TinyChips may be submitted for all the 2.0 micron MOSIS technologies - e.g., 
+the low noise analog process may be specified as TINY-SCEA or TINY-SCGA.
+
+IIB. 2um TinyChip Project Submission
+
+NEW-PROJECT submissions MUST contain the following parameters in order to be
+fabricated as TinyChips:
+
+		TECHNOLOGY: TINY-SCE  (or TINY-SCN or TINY-SCP)
+		LAMBDA: 1.0
+		STD-FRAME: 40PC22X22 (if packaged parts are desired)
+
+III.  1.6um and 1.2um TinyChip Projects
+
+IIIA.  Project Specification
+
+Stuffed TinyChip frames for 1.6 micron projects are now available.  The
+project size for this frame is 2.22 x 2.25 millimeters.  The internal design
+(excluding pads) is 1.8 x 1.83 millimeters. NOTE that all 1.6 micron projects,
+including projects that use this frame, are priced by the square millimeter.
+
+To get the geometry for this frame, send the following to MOSIS:
+
+		REQUEST: LIBRARY
+		LIBRARY: SCN16_PADS
+		FILE:  SCN16_PADS.DOC, 40PC22X22_STUFFED.CIF
+		REQUEST: END
+
+IIIB. Project Submission
+
+		TECHNOLOGY: SCE  (or SCN)
+		LAMBDA: 0.8 (or 0.6)
+		STD-FRAME: 40PC22X22 (if packaged parts are desired)
+
+
+1.6um and 1.2um TinyChip projects will be fabricated in on-demand runs.
+Please refer to the Fabrication Schedule for more details on project
+submission. The price break, however, is not the same as for 2.0um
+projects.  At 1.6 and 1.2um, projects are all priced per square millimeter.
+
+
+
+
+
+The MOSIS Service
+July, 1990
+-------
+-------
+
+	
+
+
+
+
+
+
+
+
+
+
+

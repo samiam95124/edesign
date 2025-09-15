@@ -1,0 +1,28 @@
+rem 
+rem Compile Summasketch II tablet driver
+rem 
+
+alias pascomp expr 'compiling !!1.pas...'; svs -c +d !!1.pas; endif
+alias asm expr 'Assembling !!1.asm...'; ml /c /Cx /Fl!!1.lst !!1.asm; endif
+
+rem Compile HLL modules
+
+pascomp tablet; if errorlevel # 0; expr '*** Error in summasii.pas'; goto term; endif
+
+rem Compile HLL version of DUAL routines.
+rem These are commented out to use the ASM version.
+
+rem pascomp auxio;  if errorlevel # 0; expr '*** Error in auxio.pas'; goto term; endif
+
+rem Assemble ASM version of DUAL routines.
+rem These are commented out to use the HLL version.
+
+asm auxio;  if errorlevel # 0; expr '*** Error in auxio.asm'; goto term; endif
+
+rem If any compiles have been performed, a link is required
+
+expr 'Linking position.obj'
+del position.lib
+lib32s position.lib < cpos.dat
+
+label term

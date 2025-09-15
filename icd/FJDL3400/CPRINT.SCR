@@ -1,0 +1,29 @@
+rem 
+rem Compile Fujitsu DL3400 printer module
+rem 
+
+alias pascomp expr 'compiling !!1.pas...'; svs -c +d !!1.pas; endif
+alias asm expr 'Assembling !!1.asm...'; ml /c /Cx /Fl!!1.lst !!1.asm; endif
+
+rem Compile HLL version of DUAL routines.
+rem These are commented out to use the ASM version.
+
+pascomp printer; if errorlevel # 0; expr '*** Error in printer.pas'; goto term; endif
+
+rem assemble modules
+rem NOTE: this module only required with the HLL version of
+rem version of printer.pas. It may be omitted with use
+rem of printer.asm
+
+asm prtout; if errorlevel # 0; expr '*** Error in prtout.asm'; goto term; endif
+
+rem Assemble ASM version of DUAL routines.
+rem These are commented out to use the HLL version.
+
+rem asm printer; if errorlevel # 0; expr '*** Error in printer.asm'; goto term; endif
+
+expr 'Linking print.lib'
+del print.lib
+lib32s print.lib < cprint.dat
+
+label term

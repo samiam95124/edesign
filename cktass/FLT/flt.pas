@@ -1,0 +1,972 @@
+{*******************************************************************************
+*                                                                              *
+*                              NET FLATTENER                                   *
+*                                                                              *
+*                             6/89 S. A. Moore                                 *
+*                                                                              *
+* Converts a tree structured netlist down to a flat structured netlist. the    *
+* circuit tree is loaded, then a tree walk performed to generate the flat net. *
+*                                                                              *
+* Format:                                                                      *
+*                                                                              *
+* flt <filename>                                                               *
+*                                                                              *
+* The flat program expects the input (heyarchal) netlist at file.net, and      *
+* outputs the flattened netlist into file.sim.                                 *
+*                                                                              *
+* Note: we very probally need to input and output a dictionary file.           *
+*                                                                              *
+*******************************************************************************}
+
+program flatten(command, output);
+
+uses stddef,
+     strlib;
+
+label 99; { abort program }
+
+const linmax = 80; { maximum command line }
+      labmax = 20; { maximum characters per label }
+
+type 
+     nodadr  = 0..maxint; { node address }
+     bytfil  = file of byte; { byte file }
+     labinx  = 1..labmax; { index for label }
+     nodlab  = packed array [labinx] of char; { label for node }
+     { transistor type }
+     trntyp  = (nmos,             { n-channel }
+                pmos,             { p-channel }
+                wnmos,            { weak n-channel }
+                wpmos,            { weak p-channel }
+                res,              { resistor }
+                cap,              { capacitor }
+                cellr);           { cell }
+     parptr  = ^par;              { parameter pointer }
+     par     = record             { parameter }
+
+                  num:  integer;  { correspondence number }
+                  next: parptr    { next entry }
+
+               end;
+     fetptr  = ^fet;              { pointer to fet }
+     fet     = record
+
+                  typet:     trntyp;  { transistor type }
+                  source:    integer; { source node connect }
+                  gate:      integer; { gate node connect }
+                  drain:     integer; { drain node connect }
+                  width:     real;    { width }
+                  length:    real;    { length }
+                  num:       integer; { cell number }
+                  par:       parptr;  { parameter list }
+                  next:      fetptr;  { next in list }
+
+               end;
+    celptr   = ^cell; { pointer to cell }
+    cell     = record
+
+                  dev: fetptr; { device list }
+                  next: celptr { next in list }
+
+               end;
+    lininx   = 1..linmax; { command line index }
+    errcod   = (eilovf,   { input line too long }
+                ecfns,    { circuit file not specified }
+                eivopt,   { invalid option }
+                ecfnf,    { circuit file not found }
+                einvnff,  { invalid input file format }
+                elabtl,   { label too long }
+                eivlor,   { input value out of range }
+                esys);    { system error }
+    line     = packed array [lininx] of char;   { input line buffer }
+
+var
+
+    celtbl: celptr;  { cell list }
+    celnum: integer; { cell count }
+    cmdlin: line;    { input command buffer }
+    cmdptr: lininx;  { current command line position }
+    netnam: nodlab;  { net file name }
+    netfil: bytfil;  { net file }
+    netopn: boolean; { net file open }
+    simnam: nodlab;  { sim file name }
+    simfil: bytfil;  { sim file }
+    simopn: boolean; { sim file open }
+    frepar: parptr;  { free parameter entry root }
+    fdump:  boolean; { dump contents of circuit file }
+
+{*******************************************************************************
+
+Process error
+
+Prints an error message by the given error code and aborts.
+The procedure does not return.
+
+*******************************************************************************}
+
+procedure error(e: errcod);
+
+begin
+
+   write('*** '); { output header }
+   case e of { error }
+
+      eilovf:  writeln('Input line overflow');
+      ecfns:   writeln('Circuit file not specified');
+      eivopt:  writeln('Invalid option');
+      ecfnf:   writeln('Circuit file not found');
+      einvnff: writeln('Invalid input file format');
+      elabtl:  writeln('Filename too long');
+      eivlor:  writeln('Input value out of range');
+      esys:    writeln('System error - contact S. A. Moore software');
+
+   end;
+   goto 99
+
+end;
+
+{*******************************************************************************
+
+Get parameter entry
+
+Returns either a new or old parameter entry
+
+*******************************************************************************}
+
+procedure getpar(var p: parptr);
+
+begin
+
+   if frepar <> nil then begin { recycle old }
+
+      p := frepar; { index top entry }
+      frepar := frepar^.next { gap list }
+
+   end else new(p) { get a new entry }
+
+end;
+
+{*******************************************************************************
+
+Put parameter entry
+
+Returns a used parameter entry to free
+
+*******************************************************************************}
+
+procedure putpar(p: parptr);
+
+begin
+
+   p^.next := frepar; { place next }
+   frepar := p { place top }
+
+end;
+
+{*******************************************************************************
+
+Add extention
+
+Adds the extention to the filename. If an extention is already
+present, this is left alone.
+
+*******************************************************************************}
+
+procedure addext(var w: nodlab;  { filename }
+                     e: nodlab); { extention }
+                
+var i1, i2: labinx; { indexes for labels }
+
+begin
+
+   i1 := 1; { index start of filename }
+   { skip to first '.' or space }
+   while (i1 < labmax) and (w[i1] <> '.') and
+         (w[i1] <> ' ') do i1 := i1 + 1;
+   if w[i1] <> '.' then begin { no extention present }
+
+      if w[i1] = ' ' then begin { plant extention }
+
+         i2 := 1; { set 1st extention }
+         while i1 <= labmax do begin
+
+            w[i1] := e[i2]; { place character }
+            i1 := i1 + 1; { next characters }
+            i2 := i2 + 1
+
+         end;
+         if i2 < labmax then
+            if e[i2] <> ' ' then error(elabtl) { error }
+
+      end
+
+   end
+
+end;
+
+{*******************************************************************************
+
+Read input line
+
+Reads a line of text from the given text file into the
+command buffer. No interactive processing is implemented.
+
+*******************************************************************************}
+
+procedure readline(var f: text); { input file }
+
+var i : lininx; { index for line }
+
+begin
+
+   for i := 1 to linmax do cmdlin[i] := ' '; { clear command line }
+   i := 1; { set 1st character position }
+   while not eoln(f) do begin { read characters }
+
+      if i > linmax then error(eilovf); { process error }
+      read(f, cmdlin[i]); { get a character }
+      i := i + 1 { next character position }
+
+   end;
+   readln(f); { skip line end }
+   cmdptr := 1 { set 1st character position }
+
+end;
+
+{*******************************************************************************
+
+Check character
+
+Returns the character at the current command line position.
+If the position is off the end of the line, a blank is returned
+instead.
+
+*******************************************************************************}
+
+function chkchr: char;
+
+var c : char;
+
+begin
+
+   { return contents of at line }
+   if cmdptr <= linmax then c := cmdlin[cmdptr]
+   else c := ' '; { off end, return zip }
+   chkchr := c { return result }
+
+end;
+
+{*******************************************************************************
+
+Get character
+
+Skips to the next command line character. This will only
+occur if we are not at the end of the line.
+
+*******************************************************************************}
+
+procedure getchr;
+
+begin
+
+   if cmdptr <= linmax then cmdptr := cmdptr + 1 { advance }
+
+end;
+
+{*******************************************************************************
+
+Skip spaces
+
+Skips spaces in the command line. If at line end, we stop.
+
+*******************************************************************************}
+
+procedure skpspc;
+
+begin
+
+   while (chkchr = ' ') and (cmdptr <= linmax) do
+      getchr
+
+end;
+
+{*******************************************************************************
+
+Get word
+
+Gets a word from the command line. This will be any sequence
+of non-space characters after any leading spaces, and
+terminated by a space.
+Generates an error on label overflow or no word found.
+
+*******************************************************************************}
+
+procedure getword(var n: nodlab);
+
+var i : labinx; { index for label }
+
+begin
+
+   n := '                    ';
+   skpspc; { skip spaces }
+   i := 1; { initalize label pointer }
+   while (chkchr <> ' ') and (chkchr <> '!') do begin
+
+      if i > labmax then error(elabtl); { process error }
+      n[i] := chkchr; { place character }
+      i := i + 1; { next character }
+      getchr { next character }
+
+   end;
+   { convert to lower case }
+   for i := 1 to labmax do n[i] := lcase(n[i]);
+   if n = '                    ' then error(ecfns) { no word found }
+
+end;
+
+{*******************************************************************************
+
+Process caller line
+
+Read a line from the given file, and processes the circuit
+file there and any command line options.
+
+*******************************************************************************}
+
+procedure prcopt;
+
+begin
+
+   readline(command); { load command line }
+   skpspc; { skip spaces }
+   if cmdptr > linmax then error(ecfns); { error }
+   getword(netnam); { get the circuit file name }
+   skpspc; { skip spaces }
+   while cmdptr <= linmax do begin { process options }
+
+      if chkchr <> '#' then error(eivopt); { error }
+      getchr;
+      if not (lcase(chkchr) in ['d']) then
+         error(eivopt); { error }
+      case lcase(chkchr) of { option }
+
+         'd': begin { set dump mode }
+
+                 fdump := true; { set }
+                 getchr { skip }
+
+              end
+
+      end;
+      skpspc { skip spaces }
+
+   end
+
+end;
+
+{*******************************************************************************
+
+Read 16 bit word
+
+Reads a 16 bit high/low number from the given file.
+
+*******************************************************************************}
+
+procedure read16(var f: bytfil; var w: integer);
+
+var h, l: byte;
+
+begin
+
+   read(f, h); { get middle byte }
+   read(f, l); { get low byte }
+   w := (256*h)+l { convert and place }
+
+end;
+
+{*******************************************************************************
+
+READ 32 BIT NUMBER FROM FILE
+
+Reads a number in 32 bit signed magnitude format. The highest
+order byte appears first, and the least order last. The high
+byte 7th bit contains the sign.
+
+*******************************************************************************}
+
+procedure read32(var f: bytfil; var i: integer); 
+
+var b: byte;    { read byte holder }
+    s: integer; { sign of result }
+    t: integer; { temp }
+
+begin
+
+   s := 1; { set no sign }
+   read(f, b);
+   if b >= 128 then begin { signed }
+
+      s := -1; { set sign }
+      b := b - 128 { remove sign }
+
+   end;
+   t := b; { place in large buffer }
+   i := t*16777216;
+   read(f, b);
+   t := b; { place in large buffer }
+   i := i + t*65536;
+   read(f, b);
+   t := b; { place in large buffer }
+   i := i + t*256;
+   read(f, b);
+   i := i + b;
+   i := i*s { set sign of result }
+
+end;
+
+{*******************************************************************************
+
+WRITE 32 BIT NUMBER TO FILE
+
+Writes a 32 bit number to the given file. The highest order
+byte appears first, and the least order last.
+The high byte 7th bit contains the sign.
+
+*******************************************************************************}
+
+procedure write32(var f: bytfil; i: integer); 
+
+var t, s: integer;
+
+begin
+
+   { set sign }
+   if i < 0 then s := 128 else s := 0;
+   i := abs(i); { remove sign }
+   t := i div 16777216; { high byte }
+   write(f, t+s); { with sign }
+   i := i - (t * 16777216); { high middle }
+   t := i div 65536;
+   write(f, t);
+   i := i - (t * 65536); { low middle }
+   t := i div 256;
+   write(f, t);
+   i := i - (t * 256); { low }
+   write(f, i)
+
+end;
+
+{*******************************************************************************
+
+Read single real
+
+Reads the single precision IEEE format real from the given
+file, and converts that to our real.
+
+*******************************************************************************}
+
+procedure readsreal(var f: bytfil; var r: real);
+
+var fc:  record case boolean of { float convertion }
+
+            false: (r: sreal);
+            true:  (b: packed array [1..4] of byte)
+
+         end; 
+
+begin
+
+   read(f, fc.b[4]); { read bytes of single real }
+   read(f, fc.b[3]);
+   read(f, fc.b[2]);
+   read(f, fc.b[1]);
+   r := fc.r { place result }
+
+end;
+
+{*******************************************************************************
+
+Write real
+
+Writes the given real out to a byte file, high order to low
+order.
+
+*******************************************************************************}
+
+procedure writesreal(var f: bytfil; { file to write }
+                         r: sreal);  { real to be written }
+                    
+var fc: record case boolean of { float convertion }
+
+           false: (r: sreal);
+           true:  (b: packed array [1..4] of byte)
+
+        end; 
+
+begin
+
+   fc.r := r; { place for conversion }
+   write(f, fc.b[4]); { output }
+   write(f, fc.b[3]);
+   write(f, fc.b[2]);
+   write(f, fc.b[1])
+
+end;
+
+{*******************************************************************************
+
+Load circuit file
+
+A heyarchal file consists of a series of cells that reference
+each other. We turn this data into a linked database.
+
+*******************************************************************************}
+
+procedure loadckt;
+
+var cp:     celptr; { pointer for cells }
+    dp, ld: fetptr; { pointers for devices }
+    b:      byte;   { byte buffer }
+    pc:     byte;   { parameter count }
+    pp, lp: parptr; { parameter pointer }
+
+procedure getdev(var dp: fetptr);
+
+begin
+
+   new(dp); { get a new entry }
+   dp^.next := nil; { clear }
+   dp^.source := 0;
+   dp^.gate := 0;
+   dp^.drain := 0;
+   dp^.par := nil;
+   if ld = nil then cp^.dev := dp { link to root }
+   else ld^.next := dp; { link to last }
+   ld := dp { set last }
+
+end;
+
+begin
+
+   repeat { cells }
+
+      read(netfil, b); { get cell code }
+      if b <> $00 then begin { not end }
+
+         if b <> $41 then error(einvnff); { error }
+         new(cp); { get a new cell }
+         cp^.next := celtbl; { link in }
+         celtbl := cp;
+         celnum := celnum + 1; { count cells }
+         cp^.dev := nil; { clear device list }
+         ld := nil; { clear last device }
+         repeat { devices }
+
+            read(netfil, b); { get device code }
+            if b in [$10, $11, $12, $13] then begin { fet }
+
+               getdev(dp); { get a new device entry }
+               case b of { fet }
+
+                  $10: dp^.typet := pmos; { set type }
+                  $11: dp^.typet := wpmos;
+                  $12: dp^.typet := nmos;
+                  $13: dp^.typet := wnmos
+
+               end;
+               read32(netfil, dp^.source);    { get source }
+               read32(netfil, dp^.gate);      { get gate }
+               read32(netfil, dp^.drain);     { get drain }
+               readsreal(netfil, dp^.width);  { get width }
+               readsreal(netfil, dp^.length)  { get length }
+
+            end else if b = $20 then begin { resistor }
+
+               getdev(dp); { get a new device entry }
+               dp^.typet := res;
+               read32(netfil, dp^.source);   { get a terminal }
+               read32(netfil, dp^.drain);    { get b terminal }
+               readsreal(netfil, dp^.width)  { get resistance }
+
+            end else if b = $80 then begin { capacitor }
+
+               getdev(dp); { get a new device entry }
+               dp^.typet := cap;
+               read32(netfil, dp^.source);   { get a terminal }
+               readsreal(netfil, dp^.width)  { get resistance }
+
+            end else if b = $43 then begin { cell }
+
+               getdev(dp); { get a new device entry }
+               dp^.typet := cellr; { set type }
+               read16(netfil, dp^.num); { get cell number }
+               read(netfil, pc); { get the parameter count }
+               lp := nil; { clear last }
+               while pc <> 0 do begin { read parameters }
+
+                  getpar(pp); { get a parameter entry }
+                  pp^.next := nil; { clear next }
+                  if lp = nil then dp^.par := pp { link to root }
+                  else lp^.next := pp; { link in line }
+                  lp := pp; { copy last }
+                  read32(netfil, pp^.num); { get node number }
+                  pc := pc - 1 { count }
+
+               end
+
+            end else if b <> $42 then error(einvnff) { error }
+
+         until b = $42 { end of cell }
+
+      end
+
+   until b = $00 { end of file }
+
+end;
+
+{*******************************************************************************
+
+Dump internal form
+
+Dumps the internal form in ASCII. Used for diagnostics.
+
+*******************************************************************************}
+
+procedure dmpint;
+
+var cp: celptr;  { pointer to cells }
+    dp: fetptr;  { pointer to devices }
+    cn: integer; { cell number }
+    pp: parptr;  { parameter pointer }
+    pc: integer; { parameter count }
+
+begin
+
+   cp := celtbl; { index top of table }
+   cn := celnum; { set top cell number }
+   while cp <> nil do begin { traverse }
+
+      writeln('Cell ', cn:1, ':');
+      dp := cp^.dev; { index 1st device }
+      while dp <> nil do begin { traverse devices in cell }
+
+         case dp^.typet of { device type }
+
+            nmos, pmos, wnmos, wpmos: begin
+
+               case dp^.typet of { transistor type }
+        
+                  nmos: write('NMOS');
+                  pmos: write('PMOS');
+                  wnmos: write('Weak NMOS');
+                  wpmos: write('Weak PMOS')
+
+               end;
+               writeln(', source: ', dp^.source:1, ' gate: ', dp^.gate:1,
+                       ' drain: ', dp^.drain:1, ' width: ', dp^.width,
+                       ' length: ', dp^.width)
+
+            end;
+            res: writeln('Resistor, terminal A: ', dp^.source:1,
+                         ' terminal b: ', dp^.drain);
+            cap: writeln('Capacitor, node: ', dp^.source:1);
+            cellr: begin { subcell reference }
+
+               write('Cell reference, number: ', dp^.num:1, ' (');
+               pp := dp^.par; { index top parameter }
+               pc := 0; { clear parameter count }
+               while pp <> nil do begin
+
+                  write(pc:1, ':', pp^.num:1); { output reference number }
+                  if pp^.next <> nil then write(' '); { separate }
+                  pp := pp^.next { next parameter }
+
+               end;
+               writeln(')')
+               
+            end
+
+         end;
+         dp := dp^.next { next device }
+
+      end;
+      writeln('Cell end');
+      cp := cp^.next; { next cell }
+      cn := cn-1 { count down }
+
+   end
+
+end;
+
+{*******************************************************************************
+
+Output simulator file
+
+*******************************************************************************}
+
+procedure outsim;
+
+var nodnum: nodadr; { node output address }
+
+procedure max(dp: fetptr); { find maximum node number }
+
+var t: nodadr; { top }
+    pp: parptr;
+
+procedure top(w: nodadr);
+
+begin
+
+   if w > t then t := w
+
+end;
+
+begin
+
+   t := 0; { clear top }
+   while dp <> nil do begin { traverse }
+
+      if dp^.typet in [nmos, pmos, wnmos, wpmos] then begin { xstr }
+
+         top(dp^.source); { do all terminals }
+         top(dp^.gate);
+         top(dp^.drain)
+
+      end else if dp^.typet = res then begin { resistor }
+
+         top(dp^.source); { do all terminals }
+         top(dp^.gate);
+         top(dp^.drain)
+
+      end else if dp^.typet = res then { capacitor }
+
+         top(dp^.source) { do all terminals }
+
+      else if dp^.typet = cellr then begin
+
+         pp := dp^.par; { index parameter list }
+         while pp <> nil do begin { traverse }
+
+            top(pp^.num);
+            pp := pp^.next
+
+         end
+
+      end;
+      dp := dp^.next { next }
+
+   end;
+   nodnum := nodnum+t+1 { find new top }
+
+end;
+
+procedure outcell(cp: celptr;  { cell that is to be output }
+                  pp: parptr); { list of parameter nodes }
+
+var base: nodadr; { base of current cell node addresses }
+    dp: fetptr; { device pointer }
+    pc: byte; { parameter count }
+    pi, pi2, lp: parptr; { parameter list index }
+    tp: parptr; { parameter list start }
+    cc: nodadr;
+    nc: celptr;
+
+function xlate(n: nodadr): nodadr; { find proper node address }
+
+var pi: parptr; { parameter list pointer }
+
+begin
+
+   if n < pc then begin { is a parameter node, remap }
+
+      pi := pp; { index top }
+      { find position of node in parameter list }
+      while (pi <> nil) and (n <> 0) do
+         begin n := n - 1; pi := pi^.next end;
+      if pi = nil then error(esys);
+      xlate := pi^.num { place }
+
+   end else xlate := n+base-pc { place offset address }
+
+end;
+
+procedure outnode(n: nodadr); { output node address }
+
+begin
+
+   write32(simfil, xlate(n)) { output translated node }
+
+end;
+
+begin
+
+   pc := 0; { clear parameter count }
+   pi := pp; { count parameters }
+   while pi <> nil do begin pc := pc + 1; pi := pi^.next end;
+   base := nodnum; { set base of addresses }
+   max(cp^.dev); { find next top }
+   nodnum := nodnum-pc; { eliminate parameters }
+   dp := cp^.dev; { index device list }
+   while dp <> nil do begin { traverse }
+
+      case dp^.typet of
+
+         pmos:  begin { p chan }
+
+                   write(simfil, $10);     { output device code }
+                   outnode(dp^.source);    { source }
+                   outnode(dp^.gate);      { gate }
+                   outnode(dp^.drain);     { drain }
+                   writesreal(simfil, dp^.width);  { width }
+                   writesreal(simfil, dp^.length)  { length }
+
+                end;
+
+         wpmos: begin { weak p chan }
+
+                   write(simfil, $11); { output device code }
+                   outnode(dp^.source); { source }
+                   outnode(dp^.gate);   { gate }
+                   outnode(dp^.drain);   { drain }
+                   writesreal(simfil, dp^.width);  { width }
+                   writesreal(simfil, dp^.length)  { length }
+
+                end;
+
+         nmos:  begin { n chan }
+
+                   write(simfil, $12); { output device code }
+                   outnode(dp^.source); { source }
+                   outnode(dp^.gate);   { gate }
+                   outnode(dp^.drain);   { drain }
+                   writesreal(simfil, dp^.width);  { width }
+                   writesreal(simfil, dp^.length)  { length }
+
+                end;
+
+         wnmos: begin { weak n chan }
+
+                   write(simfil, $13); { output device code }
+                   outnode(dp^.source); { source }
+                   outnode(dp^.gate);   { gate }
+                   outnode(dp^.drain);   { drain }
+                   writesreal(simfil, dp^.width);  { width }
+                   writesreal(simfil, dp^.length)  { length }
+
+                end;
+
+         res:   begin { resistor }
+
+                   write(simfil, $20);    { output device code }
+                   outnode(dp^.source);   { a terminal }
+                   outnode(dp^.drain);    { b terminal }
+                   writesreal(simfil, dp^.width)  { resistance }
+
+                end;
+
+         cap:   begin { capacitor }
+
+                   write(simfil, $80);    { output device code }
+                   outnode(dp^.source);   { a terminal }
+                   writesreal(simfil, dp^.width)  { capacitience }
+
+                end;
+
+         cellr:  begin { cell }
+
+                   { find corresponding cell }
+                   cc := celnum; { get max cell }
+                   nc := celtbl; { index top cell }
+                   while (cc <> dp^.num) and (nc <> nil) do
+                      begin cc := cc - 1; nc := nc^.next end; { search }
+                   if nc = nil then error(esys);
+                   { form translated parameter list to pass on }
+                   tp := nil; { clear list }
+                   lp := nil; { clear last }
+                   pi := dp^.par; { index top of source list }
+                   while pi <> nil do begin { traverse }
+
+                      getpar(pi2); { get a new parameter entry }
+                      pi2^.next := nil; { clear next }
+                      if lp = nil then tp := pi2 { link to root }
+                      else lp^.next := pi2; { link in line }
+                      lp := pi2; { copy last }
+                      pi2^.num := xlate(pi^.num); { place translated node }
+                      pi := pi^.next { link next }
+
+                   end;
+                   outcell(nc, tp); { output that cell }
+                   while tp <> nil do begin { dispose of list }
+
+                      pi := tp^.next; { save next }
+                      putpar(tp); { dispose of top entry }
+                      tp := pi { set next }
+
+                   end
+
+                end
+
+      end;
+      dp := dp^.next { next device }
+
+   end
+
+end;
+
+begin  { outsim }
+
+   nodnum := 0; { initalize node address count }
+   outcell(celtbl, nil); { output top cell }
+   write(simfil, 0) { output file end }
+
+end;
+
+{*******************************************************************************
+
+Main program
+
+Initalizes global variables, processes the options, loads
+the circuit file and runs the simulation.
+
+*******************************************************************************}
+
+begin
+
+   writeln('Circuit flattener 0.1 Copyright (C) 1989 S. A. Moore');
+
+   { initalize tables }
+
+   celtbl := nil;
+   celnum := 0;
+   frepar := nil;
+   netopn := false; { set files closed }
+   simopn := false;
+   fdump := false; { no dump }
+
+   { process options and open output file }
+
+   prcopt; { process options }
+   simnam := netnam; { copy names }
+   addext(netnam, '.net                '); { place extentions }
+   addext(simnam, '.sim                ');
+   { check circuit file exist }
+   if not exists(netnam) then error(ecfnf);
+   assign(netfil, netnam); { open net file }
+   reset(netfil);
+   netopn := true;
+   assign(simfil, simnam); { open sim file }
+   rewrite(simfil);
+   simopn := true;
+
+   { load files }
+
+   loadckt;
+   if fdump then dmpint; { process optional dump }
+   outsim; { output final }
+
+   99: { abort program }
+
+   if netopn then close(netfil); { close files }
+   if simopn then close(simfil)
+
+end.

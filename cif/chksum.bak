@@ -1,0 +1,98 @@
+{ Calculates the CIF-Checksum.}
+{ Prompts user for name of a CIF file. Writes the CIF-Checksum on output.}
+{ Written in a portable pascal by Jeff Deifik 8/11/86 jdeifik@isi.edu }
+{ Note: this program only accepts cif files named 'data', }
+{ as standard pascal does not allow the user to determine the file name }
+{ at run time. This is brain-damaged, but typical of pascal's lossage.}
+{ It is suggested that the user modify this program to prompt for file name,}
+{ or get the file name from the command line.}
+{ Examples are provided for berkeley pascal, and vms pascal below.}
+
+{ This program was written in very portable Pascal,}
+{ and tested under VMS 4.2 & 5.0 and 4.3 bsd UNIX.}
+
+program checksum({input,}output,data);
+
+type	pstring	=	packed array [1..128] of char;
+
+var name:	pstring;
+	 chksum:	integer;	{ Checksum accumulates here.}
+	 nbyte:	integer;	{ Byte count accumulates here.}
+	 sepflg:	boolean;	{ Boolean for prevdataus separator.}
+	 c:	   char;	   { Gets a character from the file, or EOF.}
+    data:	text;
+
+{ Compute checksum 1 char at a time.}
+
+procedure sum(ch:char);
+
+begin
+
+   { Get rid of unwanted bits.}
+   if (ch >= chr(128)) then ch := chr(ord(ch) - 128);
+   if (ch > ' ') then begin { Is this a printing character? }
+
+      chksum := chksum + ord(ch);
+      nbyte := nbyte + 1;
+      sepflg := false
+
+   end else if ((ch <> chr(0)) and (sepflg = false)) then begin
+
+      chksum := chksum + 32; { Process the first }
+      nbyte := nbyte + 1;		{ separator in a row.}
+      sepflg := true
+
+   end
+
+end;
+
+begin { Main Program.}
+
+   writeln('MOSIS CIF checksum program');
+
+   sepflg := true; { Set the separator flag.}
+   chksum := 32;   { Initial checksum value.}
+   nbyte := 1;     { Initial byte count.}
+
+   {assign(data, 'test.cif');
+   reset(data);}
+
+   { print and discard checksum line }
+
+   while not eoln(data) do begin 
+
+      write(data^);
+      get(data)
+
+   end;
+   readln(data);
+   writeln;
+
+   while not eof(data) do begin { Compute checksum.}
+
+      while not eoln(data) do	begin
+
+         read(data,c);
+	      sum(c)
+
+	   end;
+	   readln(data);
+	   sum(' '); { Treat new-line as a space.}
+
+   end;
+
+   { Process the implied trailing separator.}
+
+   if (sepflg = false) then begin
+
+      chksum := chksum + 32;
+      nbyte := nbyte + 1
+
+   end;
+
+   write('CIF-checksum = ',chksum); writeln;
+   write('Byte-count   = ',nbyte); writeln;
+
+end.
+
+

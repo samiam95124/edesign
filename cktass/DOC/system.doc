@@ -1,0 +1,44 @@
+                    OVERVIEW OF MOORE/CAD IC DESIGN SYSTEM
+
+Schematic entry:
+
+Two levels of binary encoded net formats are avalible. ".net" provides
+a herarchal format, and ".sim" provides the flat net. The formats are
+designed to represent a network of N and P mosfets, resistors, and
+single terminal capacitors. The length and width of the mosfets is included.
+This information provides the basis for switch level and circuit level
+simulation (limited to the case of digital CMOS), and layout systems
+interface.
+We provide an ascii text format language which contains these elements,
+and provides cell, vector constructs and other convieninces. Alternately,
+the output of a schematic editor (or even a grapics editor) can be converted
+to the binary transport format at any given level.
+When the convertion to flat net is made, library cell processing is done.
+The input format may include essental analog components, or all components
+including parasitics.
+
+Simulation:
+
+Two distinct levels of simulation can be performed, switch and circuit. Each
+level consists of both a software and hardware module whose function is
+almost directly identical.
+Switch level simulation strips off the length and width information, the
+capacitors, and emulates resistors with weak fets tied "on". It proofs the
+logical function of the circuit, at very high speed.
+Circuit level simulation uses all given information, along with provided
+process parameters. It gives a full analog simulation, and good accuracy,
+with speeds typically only 100 times slower than the switch simulator.
+Using the hardware accelerator, this makes possible the delay calculation
+phase of an IC project do be done with a SPICE like simulator, even for
+a large IC. The parisitic inclusion level can be ramped up as the project
+reaches term, resulting in increasing levels of accuracy.
+
+Layout:
+
+We provide a symbolic system known as "microcells", with a software and
+hardware module to generate them. Using a limited geometery system, a cell
+specified in the ".net" format can be automatically laid out in resonable
+time. To do this, it strips all analog components off the cell, then
+accepts a "skeletal" layout (which contains manual sections), then generates
+a layout. A "real" net consisting of the cell with all proper parisitics
+can be generated, and back fed into the simulations.

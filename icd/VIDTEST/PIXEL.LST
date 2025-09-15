@@ -1,0 +1,370 @@
+Microsoft (R) Macro Assembler Version 6.00     		    12/13/91 20:21:51
+'Pixel routines'					     Page 1 - 1
+
+
+				                title   'Pixel routines'
+				                name    pixel
+				                page    55,132
+
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				;                                                             ;
+				; PIXEL ACCESS ROUTINES                                       ;
+				;                                                             ;
+				; This package is a base for access to a high res graphics    ;
+				; mode. The following routines are implemented:               ;
+				;                                                             ;
+				;    iniscn          - initialize screen graphics mode        ;
+				;    resscn          - reset screen to former mode            ;
+				;    clear           - clear screen to all white              ;
+				;    getpix(x, y)    - get a single pixel                     ;
+				;    setpix(x, y, c) - set a single pixel                     ;
+				;                                                             ;
+				; These will allow virtually screen function to be performed. ;
+				; Other functions are required because of speed.              ;
+				;                                                             ;
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ = 0018				rmwbits         equ     18h             ; read-modify-write bits
+ = 0080				hline           equ     128             ; bytes in one horizontal line
+ = 0000				originoffset    equ     0               ; byte offset of (0,0)
+ = 000A0000			videobuffer     equ     0a0000h         ; address of video buffer
+ = 0410				equflg          equ     410h            ; equipment flag in BIOS
+
+				                .386
+				                .model  small,c
+
+ 0000				                .code
+
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				;                                                             ;
+				; INITIALIZE GRAPHIC SCREEN                                   ;
+				;                                                             ;
+				; Sets the graphics screen to the 1024*768 16 color mode.     ;
+				; If the current screen type is a MDA, we assume that we are  ;
+				; running in a dual monitor system. In this case, the adapter ;
+				; is switched to the VGA, that is initalized, and the         ;
+				; original monitor restored. This allows dual monitor         ;
+				; debugging. In a non-debug situation, it just means that we  ;
+				; automatically hunt for the VGA card.                        ;
+				; Note: should check what cards are actually installed.       ;
+				;                                                             ;
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ 0000				iniscn  proc    c
+ 0000  66| B8 0F00		        mov     ax,00f00h       ; get current mode
+ 0004  CD 10			        int     10h
+ 0006  A2 00000000 R		        mov     [modsav],al     ; save
+ 000B  BA 00000410		        mov     edx,equflg
+ 0010  8A 02			        mov     al,[edx]        ; get EQUIP_FLAG
+ 0012  A2 00000001 R		        mov     [equsav],al     ; save
+ 0017  8A C8			        mov     cl,al
+
+Microsoft (R) Macro Assembler Version 6.00     		    12/13/91 20:21:51
+'Pixel routines'					     Page 2 - 1
+
+
+				; Check if running on an MDA
+
+ 0019  24 30			        and     al,00110000b    ; mask adapter type
+ 001B  3C 30			        cmp     al,00110000b    ; check monocrome
+ 001D  75 18			        jnz     iniscn01        ; no, skip
+
+				; on MDA, switch displays and initalize VGA
+
+ 001F  8A C1			        mov     al,cl           ; get EQUIP_FLAG
+ 0021  24 CF			        and     al,11001111b    ; mask off select bits
+ 0023  0C 20			        or      al,00100000b    ; set color (vga)
+ 0025  88 02			        mov     [edx],al        ; update
+ 0027  66| B8 005D		        mov     ax,0005dh       ; set 1024x768 mode for wd            
+ 002B  CD 10			        int     10h             
+ 002D  88 0A			        mov     [edx],cl        ; replace old select
+ 002F  66| B8 0007		        mov     ax,00007h       ; set MDA mode
+ 0033  CD 10			        int     10h
+ 0035  EB 06			        jmp     iniscn02        ; exit
+
+				; on VGA, just initalize
+
+ 0037				iniscn01:        
+ 0037  66| B8 005D		        mov     ax,0005dh       ; set 1024x768 mode for wd
+ 003B  CD 10			        int     10h
+ 003D				iniscn02:
+ 003D  66| BA 03CE		        mov     dx,3ceh         ; get controller address
+ 0041  66| B8 050F		        mov     ax,0050fh       ; unlock extended registers
+ 0045  66| EF			        out     dx,ax
+ 0047  C3			        ret
+ 0048				iniscn  endp
+
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				;                                                             ;
+				; RESET SCREEN MODE                                           ;
+				;                                                             ;
+				; Resets the screen mode to normal.                           ;
+				;                                                             ;
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ 0048				resscn  proc    c
+ 0048  A0 00000001 R		        mov     al,[equsav]     ; get old equipment flag
+ 004D  BA 00000410		        mov     edx,equflg
+ 0052  88 02			        mov     [edx],al        ; replace
+ 0054  A0 00000000 R		        mov     al,[modsav]     ; get old mode
+ 0059  B4 00			        mov     ah,000h         ; set mode
+ 005B  CD 10			        int     10h
+ 005D  66| BA 03CE		        mov     dx,3ceh         ; get controller address
+ 0061  66| B8 000F		        mov     ax,0000fh       ; relock extended registers
+ 0065  66| EF			        out     dx,ax
+ 0067  C3			        ret
+ 0068				resscn  endp
+Microsoft (R) Macro Assembler Version 6.00     		    12/13/91 20:21:51
+'Pixel routines'					     Page 3 - 1
+
+
+
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				;                                                             ;
+				; FIND PIXEL ADDRESS                                          ;
+				;                                                             ;
+				; Finds the address and mask of the given pixel.              ;
+				;                                                             ;
+				; In parameters: eax = y coordinate                           ;
+				;                ebx = x coordinate                           ;
+				;                                                             ;
+				; Out parameters: ah = bit mask                               ;
+				;                 ebx = address of byte in video memory       ;
+				;                 cl = number of bits to shift left           ;
+				;                                                             ;
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ 0068				pixadd  proc    c
+ 0068  52			        push    edx             ; save registers
+ 0069  8A CB			        mov     cl,bl           ; cl := low-order byte of x
+ 006B  BA 00000080		        mov     edx,hline       ; eax := y * bytes per line
+ 0070  F7 E2			        mul     edx
+ 0072  C1 EB 03			        shr     ebx,3           ; ebx := x/8
+ 0075  66| 03 D8		        add     bx,ax           ; bx := y*bytesperline + x/8
+ 0078  81 C3 000A0000		        add     ebx,videobuffer
+ 007E  66| BA 03CE		        mov     dx,03ceh        ; index grapics controller
+ 0082  C1 E8 04			        shr     eax,4           ; place 64kb offset in ah
+ 0085  66| 25 F000		        and     ax,0f000h       ; mask
+ 0089  B0 09			        mov     al,09h          ; proa index value
+ 008B  66| EF			        out     dx,ax           ; set proa
+ 008D  80 E1 07			        and     cl,7            ; cl := x & 7
+ 0090  80 F1 07			        xor     cl,7            ; cl := number of bits to shift left
+ 0093  B4 01			        mov     ah,1            ; ah := unshifted bit mask
+ 0095  5A			        pop     edx             ; restore registers
+ 0096  C3			        ret
+ 0097				pixadd  endp
+
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				;                                                             ;
+				; CLEAR SCREEN                                                ;
+				;                                                             ;
+				; Clears the screen to all white.                             ;
+				;                                                             ;
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ 0097				clear   proc    c
+ 0097  57			        push    edi             ; save registers
+ 0098  66| BA 03CE		        mov     dx,03ceh        ; index grapics controller
+ 009C  B0 09			        mov     al,9h           ; index for pr0a
+ 009E  B4 00			        mov     ah,0h           ; hi_offset
+ 00A0  66| EF			        out     dx,ax           ; set it
+ 00A2  FC			        cld
+Microsoft (R) Macro Assembler Version 6.00     		    12/13/91 20:21:51
+'Pixel routines'					     Page 4 - 1
+
+
+ 00A3  BF 000A0000		        mov     edi,videobuffer ; index video buffer
+ 00A8  B0 FF			        mov     al,0ffh         ; data value
+ 00AA  B9 00010000		        mov     ecx,10000h      ; 64k bytes
+ 00AF  F3/ AA			        rep     stosb           ; fill 32k with zero
+ 00B1  B0 09			        mov     al,9h           ; index for pr0a
+ 00B3  B4 10			        mov     ah,010h         ; hi_offset
+ 00B5  66| EF			        out     dx,ax           ; set it
+ 00B7  FC			        cld
+ 00B8  BF 000A0000		        mov     edi,videobuffer ; index video buffer
+ 00BD  B0 FF			        mov     al,0ffh         ; data value
+ 00BF  B9 00008000		        mov     ecx,8000h       ; 32k bytes
+ 00C4  F3/ AA			        rep     stosb           ; fill 32k with zero
+ 00C6  B0 0F			        mov     al,0fh          ; pr5 index value
+ 00C8  5F			        pop     edi             ; restore registers
+ 00C9  C3			        ret
+ 00CA				clear   endp
+
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				;                                                             ;
+				; GET PIXEL                                                   ;
+				;                                                             ;
+				; Gets a pixel from the screen. Designed to                   ;
+				; be called by pascal, the format is:                         ;
+				;                                                             ;
+				;    getpix(x,  { x coordinate }                              ;
+				;           y)  { y coordinate }                              ;
+				;           :c; { color }                                     ;
+				;                                                             ;
+				; The x coordinate is from 0 to 1023, and the y coordinate is ;
+				; from 0 to 767. The color is from 0 to 15.                   ;
+				;                                                             ;
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+				getpix  proto   c x: dword, y: dword
+
+ 00CA				getpix  proc    c x: dword, y: dword
+ 00CD  53			        push    ebx             ; save registers used
+ 00CE  8B 45 0C			        mov     eax,y           ; get coordinates
+ 00D1  8B 5D 08			        mov     ebx,x
+ 00D4  E8 FFFFFF8F		        call    pixadd          ; ah := bit mask
+ 00D9  8A EC			        mov     ch,ah
+ 00DB  D2 E5			        shl     ch,cl           ; ch := bit mask in proper position
+ 00DD  32 DB			        xor     bl,bl           ; bl is used to accumulate the pixel 
+				                                ; value
+ 00DF  66| B8 0304		        mov     ax,304h         ; ah := initial bit plane number
+				                                ; al := read map select register
+				                                ; number
+ 00E3  66| BA 03CE		        mov     dx,3ceh         ; dx := graphics controller port
+ 00E7				getpix01:
+ 00E7  66| EF			        out     dx,ax           ; select bit plane
+ 00E9  8A 3B			        mov     bh,[ebx]        ; bh := byte from current bit plane
+Microsoft (R) Macro Assembler Version 6.00     		    12/13/91 20:21:51
+'Pixel routines'					     Page 5 - 1
+
+
+ 00EB  22 FD			        and     bh,ch           ; mask one bit
+ 00ED  F6 DF			        neg     bh              ; bit 7 of bh := 1 
+				                                ; (if masked bit = 1)
+				                                ; bit 7 of bh := 0
+				                                ; (if masked bit = 0)
+ 00EF  66| D1 C3		        rol     bx,1            ; bit 0 of bl := next bit from pixel
+				                                ; value
+ 00F2  FE CC			        dec     ah              ; ah := next bit plane number
+ 00F4  7D F1			        jge     getpix01        
+ 00F6  8A C3			        mov     al,bl           ; al := pixel value
+ 00F8  32 E4			        xor     ah,ah           ; ax := pixel value
+ 00FA  5B			        pop     ebx             ; restore used registers
+				        ret
+ 00FD				getpix  endp
+
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				;                                                             ;
+				; SET PIXEL                                                   ;
+				;                                                             ;
+				; Sets a pixel on the screen to a given color. Designed to    ;
+				; be called by pascal, the format is:                         ;
+				;                                                             ;
+				;    setpix(x,    { x coordinate }                            ;
+				;           y,    { y coordinate }                            ;
+				;           clr); { color }                                   ;
+				;                                                             ;
+				; The x coordinate is from 0 to 1023, and the y coordinate is ;
+				; from 0 to 767. The color is from 0 to 15.                   ;
+				;                                                             ;
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+				setpix  proto   c x: dword, y: dword, clr: byte
+
+ 00FD				setpix  proc    c x: dword, y: dword, clr: byte
+ 0100  53			        push    ebx             ; save registers used
+ 0101  66| BA 03CE		        mov     dx,3ceh         ; get controller address
+ 0105  8A 65 10			        mov     ah,clr          ; set color
+ 0108  32 C0			        xor     al,al
+ 010A  66| EF			        out     dx,ax
+ 010C  66| B8 0F01		        mov     ax,00f01h       ; set bit plane mask
+ 0110  66| EF			        out     dx,ax
+ 0112  B4 00			        mov     ah,0
+ 0114  B0 03			        mov     al,3            ; set function and select
+ 0116  66| EF			        out     dx,ax
+ 0118  8B 45 0C			        mov     eax,y           ; get coordinates
+ 011B  8B 5D 08			        mov     ebx,x
+ 011E  E8 FFFFFF45		        call    pixadd          ; ah := bit mask
+ 0123  D2 E4			        shl     ah,cl           ; ah := bit mask in proper position
+ 0125  B0 08			        mov     al,8            ; al := bit mask register number
+ 0127  66| EF			        out     dx,ax
+ 0129  08 03			        or      [ebx],al        ; set pixel
+Microsoft (R) Macro Assembler Version 6.00     		    12/13/91 20:21:51
+'Pixel routines'					     Page 6 - 1
+
+
+ 012B  66| 33 C0		        xor     ax,ax           ; ah := 0, al := 0
+ 012E  66| EF			        out     dx,ax           ; restore set/reset register
+ 0130  66| 40			        inc     ax              ; ah := 0, al := 1
+ 0132  66| EF			        out     dx,ax           ; restore enable set/reset register
+ 0134  B0 03			        mov     al,3            ; ah := 0, al := 3
+ 0136  66| EF			        out     dx,ax           ; al := data rotate/func select reg #
+ 0138  66| B8 FF08		        mov     ax,0ff08h       ; ah := 11111111b, al := 8
+ 013C  66| EF			        out     dx,ax           ; restore bit mask register
+ 013E  5B			        pop     ebx             ; restore registers used
+				        ret
+
+ 0141				setpix  endp
+
+ 0000				        .data
+
+ 0000 00			modsav  db      0               ; save for video mode
+ 0001 00			equsav  db      0               ; save for equipment flags
+
+				        end
+Microsoft (R) Macro Assembler Version 6.00     		    12/13/91 20:21:51
+'Pixel routines'					     Symbols 7 - 1
+
+
+
+
+Segments and Groups:
+
+                N a m e                 Size     Length   Align   Combine Class
+
+DGROUP . . . . . . . . . . . . .	GROUP
+_DATA  . . . . . . . . . . . . .	32 Bit	 0002	  DWord	  Public  'DATA'	
+_TEXT  . . . . . . . . . . . . .	32 Bit	 0141	  DWord	  Public  'CODE'	
+Microsoft (R) Macro Assembler Version 6.00     		    12/13/91 20:21:51
+'Pixel routines'					     Symbols 8 - 1
+
+
+
+
+Procedures,  parameters and locals:
+
+                N a m e                 Type     Value    Attr
+
+clear  . . . . . . . . . . . . .	P Near	 0097	  _TEXT	Length= 0033 Public C
+getpix . . . . . . . . . . . . .	P Near	 00CA	  _TEXT	Length= 0033 Public C
+  x  . . . . . . . . . . . . . .	DWord	 bp + 0008
+  y  . . . . . . . . . . . . . .	DWord	 bp + 000C
+  getpix01 . . . . . . . . . . .	L Near	 00E7	  _TEXT	
+iniscn . . . . . . . . . . . . .	P Near	 0000	  _TEXT	Length= 0048 Public C
+  iniscn01 . . . . . . . . . . .	L Near	 0037	  _TEXT	
+  iniscn02 . . . . . . . . . . .	L Near	 003D	  _TEXT	
+pixadd . . . . . . . . . . . . .	P Near	 0068	  _TEXT	Length= 002F Public C
+resscn . . . . . . . . . . . . .	P Near	 0048	  _TEXT	Length= 0020 Public C
+setpix . . . . . . . . . . . . .	P Near	 00FD	  _TEXT	Length= 0044 Public C
+  x  . . . . . . . . . . . . . .	DWord	 bp + 0008
+  y  . . . . . . . . . . . . . .	DWord	 bp + 000C
+  clr  . . . . . . . . . . . . .	Byte	 bp + 0010
+Microsoft (R) Macro Assembler Version 6.00     		    12/13/91 20:21:51
+'Pixel routines'					     Symbols 9 - 1
+
+
+
+
+Symbols:
+
+                N a m e                 Type     Value    Attr
+
+@CodeSize  . . . . . . . . . . .	Number	 0000h	 
+@DataSize  . . . . . . . . . . .	Number	 0000h	 
+@Interface . . . . . . . . . . .	Number	 0001h	 
+@Model . . . . . . . . . . . . .	Number	 0002h	 
+@code  . . . . . . . . . . . . .	Text   	 _TEXT
+@data  . . . . . . . . . . . . .	Text   	 DGROUP
+@fardata?  . . . . . . . . . . .	Text   	 FAR_BSS
+@fardata . . . . . . . . . . . .	Text   	 FAR_DATA
+@stack . . . . . . . . . . . . .	Text   	 DGROUP
+equflg . . . . . . . . . . . . .	Number	 0410h	 
+equsav . . . . . . . . . . . . .	Byte	 0001	  _DATA	
+hline  . . . . . . . . . . . . .	Number	 0080h	 
+modsav . . . . . . . . . . . . .	Byte	 0000	  _DATA	
+originoffset . . . . . . . . . .	Number	 0000h	 
+rmwbits  . . . . . . . . . . . .	Number	 0018h	 
+videobuffer  . . . . . . . . . .	Number	 000A0000h   
+
+	   0 Warnings
+	   0 Errors

@@ -1,0 +1,855 @@
+***************************************************************
+*                                                             *
+*     Dual JK flip-flop with reset and negative edge          *
+*     trigger.                                                *
+*                                                             *
+***************************************************************
+
+cell p74107: j1, q1_, q1, k1, q2, q2_, vss, j2, cp2_, r2_,
+             k2, cp1_, r1_, vdd;
+
+begin
+
+   { since the part is functionally identical to the '73,
+     we just change the pinout on the same cell }
+   p7473: cp1_, r1_, k1, vdd, cp2_, r2_, j2, q2_, q2,
+             k2, vss, q1, q1_, j1;
+
+end;
+
+***************************************************************
+*                                                             *
+*     Dual JK flip-flop with set, reset and positive edge     *
+*     trigger.                                                *
+*                                                             *
+***************************************************************
+
+cell p74109: r1_, j1, k1_, cp1, s1_, q1, q1_, vss, q2_, q2,
+             s2_, cp2, k2_, j2, r2_, vdd;
+
+begin
+
+   inv:   vss, vdd, r1_, r1; { form negative resets }
+   inv:   vss, vdd, r2_, r2;
+   inv:   vss, vdd, s1_, s1; { form negative sets }
+   inv:   vss, vdd, s2_, s2;
+   inv:   vss, vdd, k1_, k1; { form negative k's }
+   inv:   vss, vdd, k2_, k2;
+   jkbrs: vss, vdd, j1, k1, q1, q1_, cp1, s1, r1; { unit 1 }
+   jkbrs: vss, vdd, j2, k2, q2, q2_, cp2, s2, r2  { unit 2 }
+
+end;
+
+***************************************************************
+*                                                             *
+*     Dual JK flip-flop with set, reset and negative edge     *
+*     trigger.                                                *
+*                                                             *
+***************************************************************
+
+cell p74112: cp1_, k1, j1, s1_, q11, q1_, q2_, vss, q2, s2_,
+             j2, k2, cp2_, r2_, r1_, vdd;
+
+begin
+
+   inv:   vss, vdd, r1_, r1; { form negative resets }
+   inv:   vss, vdd, r2_, r2;
+   inv:   vss, vdd, s1_, s1; { form negative sets }
+   inv:   vss, vdd, s2_, s2;
+   inv:   vss, vdd, cp1_, cp1; { form negative clocks }
+   inv:   vss, vdd, cp2_, cp2;
+   jkbrs: vss, vdd, j1, k1, q1, q1_, cp1, s1, r1; { unit 1 }
+   jkbrs: vss, vdd, j2, k2, q2, q2_, cp2, s2, r2  { unit 2 }
+
+end;
+
+{**************************************************************
+*                                                             *
+*     Dual retiggerable monostable multivibrator              *
+*                                                             *
+*     Since controlable monostables are not a typical         *
+*     of ASIC designs, we may assume use mainly to emulate    *
+*     the package. Since we cannot simulate the analog RC     *
+*     ramp circuit, the proper thing to do is to feed a "1"   *
+*     into the RC center terminal (pin 15) when we need the   *
+*     output pulse to stop.                                   *
+*                                                             *
+**************************************************************}
+
+{ single monostable }
+
+cell mno123: vss, vdd, r_, a_, b, q, q_, c, rc;
+
+begin
+
+   buf: vss, vdd, r_, rb_; { buffer reset }
+   inv: vss, vdd, a_, a;  { right A }
+   srln: vss, vdd, rb_, n1, n16, nc100;
+   nor: vss, vdd, n16, n2, n4;
+   inv: vss, vdd, n1, n2;
+   nand: vss, vdd, n3, n15, n1;
+   nor: vss, vdd, n3, n9, n5;
+   peif: vdd, n4, rc;
+   neif: rc, n5, vss;
+   sct: vss, vdd, rc, n14;
+   sct: vss, vdd, rc, n13;
+   inv: vss, vdd, n14, n15;
+   inv: vss, vdd, n15, q;
+   buf: vss, vdd, n15, q_;
+   inv: vss, vdd, n13, n12;
+   nand: vss, vdd, a, b, n6;
+   srln: vss, vdd, n6, n7, nc101, n3;
+   inv: vss, vdd, n9, n7;
+   inv: vss, vdd, n6, n8;
+   nand3: vss, vdd, rb_, n11, n10, n9;
+   nand: vss, vdd, n9, n8, n10;
+   or: vss, vdd, n3, n12, n11
+
+end;
+
+cell 74123: a1_, b1, r1_, q1_, q2, c2, rc2, vss, a2_, b2,
+            r2_, q2_, q1, c1, rc1, vdd;
+
+begin
+
+   mno123: vss, vdd, r1_, a1_, b1, q1, q1_, c1, rc1;
+   mno123: vss, vdd, r2_, a2_, b2, q2, q2_, c2, rc2
+
+end;
+
+{**************************************************************
+*                                                             *
+*     Quad three-state buffer                                 *
+*                                                             *
+**************************************************************}
+
+cell p74125: oe1_, a1, y1, oe2_, a2, y2, vss, y3, a3, oe3_,
+             y4, a4, oe4_, vdd;
+
+begin
+
+   tribn: vss, vdd, a1, y1, oe1_;
+   tribn: vss, vdd, a2, y2, oe2_;
+   tribn: vss, vdd, a3, y3, oe3_;
+   tribn: vss, vdd, a4, y4, oe4_
+
+end;
+
+{**************************************************************
+*                                                             *
+*     Quad three-state buffer                                 *
+*                                                             *
+**************************************************************}
+
+cell p74126: oe1, a1, y1, oe2, a2, y2, vss, y3, a3, oe3,
+             y4, a4, oe4, vdd;
+
+begin
+
+   trib: vss, vdd, a1, y1, oe1;
+   trib: vss, vdd, a2, y2, oe2;
+   trib: vss, vdd, a3, y3, oe3;
+   trib: vss, vdd, a4, y4, oe4
+
+end;
+
+{**************************************************************
+*                                                             *
+*     Quad 2 input nand schmidt trigger                       *
+*                                                             *
+**************************************************************}
+
+cell stn132: vss, vdd, a, b, y;
+
+begin
+
+   sct: vss, vdd, a, a_;
+   sct: vss. vdd, b, b_;
+   or:  vss, vdd, a_, b_, y
+
+end;
+
+cell p74132: a1, b1, y1, a2, b2, y2, vss, y3, a3, b3,
+             y4, a4, b4, vdd;
+
+begin
+
+   stn132: vss, vdd, a1, b1, y1;
+   stn132: vss, vdd, a2, b2, y2;
+   stn132: vss, vdd, a3, b3, y3;
+   stn132: vss, vdd, a4, b4, y4
+
+end;
+
+{**************************************************************
+*                                                             *
+*     3 to 8 line decoder                                     *
+*                                                             *
+**************************************************************}
+
+cell p74138: a0, a1, a2, e1_, e2_, e3, y7_, vss, y6_, y5_,
+             y4_, y3_, y2_, y1_, y0_, vdd;
+
+begin
+
+   bufnp: vss, vdd, a0, a0b, a0b_; { buffer selects }
+   bufnp: vss, vdd, a1, a1b, a1b_;
+   bufnp: vss, vdd, a2, a2b, a2b_;
+   inv:   vss, vdd, e3, e3_; { find negative enable }
+   or:    vss, vdd, e1, e2, e3, enable_; { find enable sig }
+   { decode all terms }
+   nand3: vss, vdd, a2b_, a1b_, a0b_, dcd0_; { 0 }
+   nand3: vss, vdd, a2b_, a1b_, a0b,  dcd1_; { 1 }
+   nand3: vss, vdd, a2b_, a1b,  a0b_, dcd2_; { 2 }
+   nand3: vss, vdd, a2b_, a1b,  a0b,  dcd3_; { 3 }
+   nand3: vss, vdd, a2b,  a1b_, a0b_, dcd4_; { 4 }
+   nand3: vss, vdd, a2b,  a1b_, a0b,  dcd5_; { 5 }
+   nand3: vss, vdd, a2b,  a1b,  a0b_, dcd6_; { 6 }
+   nand3: vss, vdd, a2b,  a1b,  a0b,  dcd7_; { 7 }
+   or:    vss, vdd, dcd0_, enable_, y0_; { enable for outputs }
+   or:    vss, vdd, dcd1_, enable_, y1_;
+   or:    vss, vdd, dcd2_, enable_, y2_;
+   or:    vss, vdd, dcd3_, enable_, y3_;
+   or:    vss, vdd, dcd4_, enable_, y4_;
+   or:    vss, vdd, dcd5_, enable_, y5_;
+   or:    vss, vdd, dcd6_, enable_, y6_;
+   or:    vss, vdd, dcd7_, enable_, y7_
+
+end;
+
+{**************************************************************
+*                                                             *
+*     Dual 2 to 4 line decoder                                *
+*                                                             *
+**************************************************************}
+
+cell dcd139: vss, vdd, a0, a1, e_, y0_, y1_, y2_, y3_;
+
+begin
+
+   bufnp: vss, vdd, a0, a0b, a0b_; { buffer address lines }
+   bufnp: vss, vdd, a1, a1b, a1b_;
+   inv: vss, vdd, e_, e; { find positive enable }
+   { decode each term }
+   nand3: vss, vdd, a1b_, a0b_, e, y0_; { 0 }
+   nand3: vss, vdd, a1b_, a0b,  e, y1_; { 1 }
+   nand3: vss, vdd, a1b,  a0b_, e, y2_; { 2 }
+   nand3: vss, vdd, a1b, a0b,   e, y3_  { 3 }
+
+end;
+
+cell p74139: ae_, as0, as1, ay0_, ay1_, ay2_, ay3_, vss,
+             by3_, by2_, by1_, by0_, bs1, bs0, be_, vdd;
+
+begin
+
+   { define each section }
+   dcd139: vss, vdd, as0, as1, ae_, ay0_, ay1_, ay2_, ay3_; { A }
+   dcd139: vss, vdd, as0, as1, ae_, ay0_, ay1_, ay2_, ay3_  { B }
+
+end;
+
+{**************************************************************
+*                                                             *
+*     10 to 4 line priority encoder                           *
+*                                                             *
+**************************************************************}
+
+cell p74147: i4_, i5_, i6_, i7_, i8_, y2_, y1_, vss,
+             y0_, i9_, i1_, i2_, i3_, y3_, nc15, vdd;
+
+begin
+
+   bufnp: vss, vdd, i1_, i1_, i1; { buffer all inputs }
+   bufnp: vss, vdd, i2_, i2_, i2;
+   bufnp: vss, vdd, i3_, i3_, i3;
+   bufnp: vss, vdd, i4_, i4_, i4;
+   bufnp: vss, vdd, i5_, i5_, i5;
+   bufnp: vss, vdd, i6_, i6_, i6;
+   bufnp: vss, vdd, i7_, i7_, i7;
+   bufnp: vss, vdd, i8_, i8_, i8;
+   bufnp: vss, vdd, i9_, i9_, i9;
+   or:    vss, vdd, i1_, i2, n1; { do combinatorial }
+   nand:  vss, vdd, n1, i3_, n2;
+   nor:   vss, vdd, i6, n17, n3;
+   nand3: vss, vdd, n2, i4_, n3, n4;
+   and:   vss, vdd, n4, n7, y0_;
+   nor:   vss, vdd, i7_, n17, n5;
+   nor3:  vss, vdd, n17, i6, i5_, n6;
+   nor3:  vss, vdd, i9, n5, n6, n7;
+   or:    vss, vdd, i6, i7, n8;
+   nand:  vss, vdd, n8, n18, n9;
+   and:   vss, vdd, n9, n10, y1_;
+   or:    vss, vdd, i2, i3, n11;
+   nand:  vss, vdd, n11, n12, n10;
+   nor3:  vss, vdd, i4, i5, n17, n12;
+   or:    vss, vdd, i6, i7, n13;
+   nand:  vss, vdd, n13, n18, n14;
+   and:   vss, vdd, n14, n15, y2_;
+   or:    vss, vdd, i4, i5, n16;
+   nand:  vss, vdd, n16, n18, n15;
+   andn:  vss, vdd, i8_, i9_, n18, n17;
+   and:   vss, vdd, i8_, i9_, y3_
+
+end;
+
+{**************************************************************
+*                                                             *
+*     8 input multiplexer                                     *
+*                                                             *
+**************************************************************}
+
+cell p74151: i3, i2, i1, i0, y, y_, e_, vss, s2, s1, s0,
+             i7, i6, i5, i4, vdd;
+
+begin
+
+   bufnp: vss, vdd, s0, s0, s0_; { buffer selects }
+   bufnp: vss, vdd, s1, s1, s1_;
+   bufnp: vss, vdd, s2, s2, s2_;
+   buf:   vss, vdd, e_, e_; { buffer enable }
+   { select each input by decode }
+   nand5: vss, vdd, i0, s2_, s1_, s0_, e, mux0_; { 0 }
+   nand5: vss, vdd, i1, s2_, s1_, s0 , e, mux1_; { 1 }
+   nand5: vss, vdd, i2, s2_, s1 , s0_, e, mux2_; { 2 }
+   nand5: vss, vdd, i3, s2_, s1 , s0 , e, mux3_; { 3 }
+   nand5: vss, vdd, i4, s2 , s1_, s0_, e, mux4_; { 4 }
+   nand5: vss, vdd, i5, s2 , s1_, s0 , e, mux5_; { 5 }
+   nand5: vss, vdd, i6, s2 , s1 , s0_, e, mux6_; { 6 }
+   nand5: vss, vdd, i7, s2 , s1 , s0 , e, mux7_  { 7 }
+   { combine }
+   nand4: vss, vdd, mux0_, mux1_, mux2_, mux3_, muxl;
+   nand4: vss, vdd, mux4_, mux5_, mux6_, mux7_, muxh;
+   orn:   vss, vdd, muxl, muxh, y, y_
+
+end;
+
+{**************************************************************
+*                                                             *
+*     Dual 4 input multiplexer                                *
+*                                                             *
+**************************************************************}
+
+cell dcd153: e_, s0, s0_, s1, s1_, i0, i1, i2, i3, y;
+
+begin
+
+   inv:   vss, vdd, e_, e; { find positive enable }
+   { decode inputs }
+   nand4: vss, vdd, i0, s1_, s0_, e, mux0_; { 0 }
+   nand4: vss, vdd, i1, s1_, s0 , e, mux1_; { 1 }
+   nand4: vss, vdd, i2, s1 , s0_, e, mux2_; { 2 }
+   nand4: vss, vdd, i3, s1 , s0 , e, mux3_; { 3 }
+   { combine }
+   nand4: vss, vdd, mux0_, mux1_, mux2_, mux3_, y
+
+end;
+
+cell p74153: ae_, s1, ai3, ai2, ai1, ai0, ay, vss,
+             by, bi0, bi1, bi2, bi3, s0, be_, vdd;
+
+begin
+
+   bufnp: vss, vdd, s0, s0b, s0b_; { buffer selects }
+   bufnp: vss, vdd, s1, s1b, s1b_;
+   { implement sections }
+   dcd153: vss, vdd, ae_, s0b, s0b_, s1b, s1b_, ai0,
+           ai1, ai2, ai3, ay;
+   dcd153: vss, vdd, be_, s0b, s0b_, s1b, s1b_, bi0,
+           bi1, bi2, bi3, by
+
+end;
+
+{**************************************************************
+*                                                             *
+*     4 to 16 line decoder                                    *
+*                                                             *
+**************************************************************}
+
+cell p74154: y0_, y1_, y2_, y3_, y4_, y5_, y6_, y7_, y8_,
+             y9_, y10_, vss, y11_, y12_, y13_, y14_, y15_,
+             e1_, e2_, a3, a2, a1, a0, vdd;
+
+begin
+
+   bufnp: vss, vdd, a0, a0, a0_; { buffer selects }
+   bufnp: vss, vdd, a1, a1, a1_;
+   bufnp: vss, vdd, a2, a2, a2_;
+   bufnp: vss, vdd, a3, a3, a3_;
+   nand:  vss, vdd, e1_, e2_, enable; { find enable }
+   { decode for outputs }
+   nand5: vss, vdd, a3_, a2_, a1_, a0_, enable, y0_;  { 0 }
+   nand5: vss, vdd, a3_, a2_, a1_, a0 , enable, y1_;  { 1 }
+   nand5: vss, vdd, a3_, a2_, a1 , a0_, enable, y2_;  { 2 }
+   nand5: vss, vdd, a3_, a2_, a1 , a0 , enable, y3_;  { 3 }
+   nand5: vss, vdd, a3_, a2 , a1_, a0_, enable, y4_;  { 4 }
+   nand5: vss, vdd, a3_, a2 , a1_, a0 , enable, y5_;  { 5 }
+   nand5: vss, vdd, a3_, a2 , a1 , a0_, enable, y6_;  { 6 }
+   nand5: vss, vdd, a3_, a2 , a1 , a0 , enable, y7_;  { 7 }
+   nand5: vss, vdd, a3 , a2_, a1_, a0_, enable, y8_;  { 8 }
+   nand5: vss, vdd, a3 , a2_, a1_, a0 , enable, y9_;  { 9 }
+   nand5: vss, vdd, a3 , a2_, a1 , a0_, enable, y10_; { 10 }
+   nand5: vss, vdd, a3 , a2_, a1 , a0 , enable, y11_; { 11 }
+   nand5: vss, vdd, a3 , a2 , a1_, a0_, enable, y12_; { 12 }
+   nand5: vss, vdd, a3 , a2 , a1_, a0 , enable, y13_; { 13 }
+   nand5: vss, vdd, a3 , a2 , a1 , a0_, enable, y14_; { 14 }
+   nand5: vss, vdd, a3 , a2 , a1 , a0 , enable, y15_  { 15 }
+
+end;
+
+{**************************************************************
+*                                                             *
+*     Quad 2-input multiplexers                               *
+*                                                             *
+**************************************************************}
+
+cell mux157: vss, vdd, a, b, s, s_, y;
+
+begin
+
+   muxb: vss, vdd, a, b, o_, s, s_;
+   nor: o_, e_, y { process enable }
+
+end;
+
+cell p74157: s, ai0, ai1, ay, bi0, bi1, by, vss, cy, ci1,
+             ci0, dy, di1, di0, e_, vdd;
+
+begin
+
+   bufnp: vss, vdd, s, sb, sb_; { buffer select }
+   { repeat units }
+   mux157: vss, vdd, ai0, ai1, sb, sb_, ay; { A }
+   mux157: vss, vdd, bi0, bi1, sb, sb_, by; { A }
+   mux157: vss, vdd, ci0, ci1, sb, sb_, cy; { A }
+   mux157: vss, vdd, di0, di1, sb, sb_, dy  { A }
+
+end;
+
+{**************************************************************
+*                                                             *
+*     Quad 2-input multiplexers                               *
+*                                                             *
+**************************************************************}
+
+cell mux158: vss, vdd, a, b, s, s_, y_;
+
+begin
+
+   muxb: vss, vdd, a, b, o_, s, s_;
+   or: o_, e_, y_ { process enable }
+
+end;
+
+cell p74158: s, ai0, ai1, ay_, bi0, bi1, by_, vss, cy_, ci1,
+             ci0, dy_, di1, di0, e_, vdd;
+
+begin
+
+   bufnp: vss, vdd, s, sb, sb_; { buffer select }
+   { repeat units }
+   mux158: vss, vdd, ai0, ai1, sb, sb_, ay_; { A }
+   mux158: vss, vdd, bi0, bi1, sb, sb_, by_; { A }
+   mux158: vss, vdd, ci0, ci1, sb, sb_, cy_; { A }
+   mux158: vss, vdd, di0, di1, sb, sb_, dy_  { A }
+
+end;
+
+{**************************************************************
+*                                                             *
+*     Emulation for 74161 IC                                  *
+*     A four bit binary counter with preset.                  *
+*     Copied more or less from the RCA HC data book.          *
+*                                                             *
+**************************************************************}
+
+{ single FF. Includes selects for load, hold and toggle }
+
+cell ff161: vss, vdd, input, load, load_, enable_, bit_,
+            clock, clock_, reset;
+
+begin
+
+  tgb:  vss, vdd, bit, next, enable_; { stay select }
+  tgbn: vss, vdd, bit_, next, enable_; { toggle select }
+  muxb: vss, vdd, next, input, nextn, load_, load;
+  cltr: vss, vdd, nextn, bit, bit_, clock, clock_, reset
+
+end;
+
+cell p74161: clr_, cp, i0, i1, i2, i3, pe, vss, ld_, te,
+             q3, q2, q1, q0, tc, vdd;
+
+begin
+
+  bufnp: vss, vdd, cp, clock, clock_; { buffer clock }
+  bufnp: vss, vdd, ld_, load_, load; { buffer load }
+  buf:   vss, vdd, clr_, reset; { buffer reset }
+  and:   vss, vdd, pe, te, enable; { form general enable }
+  { form enables. Each enable is based on all bits before it
+    being high }
+  inv:   vss, vdd, enable, enable0_;
+  nand:  vss, vdd, bit0, enable, enable1_;
+  nand3: vss, vdd, bit0, bit1, enable, enable2_;
+  nand4: vss, vdd, bit0, bit1, bit2, enable, enable3_;
+  { provide all ff's }
+  ff161: vss, vdd, i0, load, load_, enable0_, bit0, bit0_,
+         clock, clock_, reset; { 0 }
+  ff161: vss, vdd, i1, load, load_, enable1_, bit1, bit1_,
+         clock, clock_, reset; { 1 }
+  ff161: vss, vdd, i2, load, load_, enable2_, bit2, bit2_,
+         clock, clock_, reset; { 2 }
+  ff161: vss, vdd, i3, load, load_, enable3_, bit3, bit3_,
+         clock, clock_, reset; { 3 }
+  inv:   vss, vdd, bit0_, q0; { buffer outputs }
+  inv:   vss, vdd, bit1_, q1;
+  inv:   vss, vdd, bit2_, q2;
+  inv:   vss, vdd, bit3_, q3;
+  and5:  vss, vdd, q0, q1, q2, q3, te, tc { provide lookahead carry }
+
+end;
+
+{**************************************************************
+*                                                             *
+*     Emulation for 74163 IC                                  *
+*     A four bit binary counter with preset.                  *
+*     Copied more or less from the RCA HC data book.          *
+*                                                             *
+**************************************************************}
+
+{ single FF. Includes selects for load, hold and toggle }
+
+cell ff163: vss, vdd, input, load, load_, enable_, bit_,
+            clock, clock_, reset, reset_;
+
+begin
+
+  tgb:  vss, vdd, bit, next, enable_; { stay select }
+  tgbn: vss, vdd, bit_, next, enable_; { toggle select }
+  muxb: vss, vdd, next, input, nextn, load_, load;
+  muxb: vss, vdd, nextn, vss, nextnn, reset_, reset;
+  clt: vss, vdd, nextn, bit, bit_, clock, clock_
+
+end;
+
+cell p74163: clr_, cp, i0, i1, i2, i3, pe, vss, ld_, te,
+             q3, q2, q1, q0, tc, vdd;
+
+begin
+
+  bufnp: vss, vdd, cp, clock, clock_; { buffer clock }
+  bufnp: vss, vdd, ld_, load_, load; { buffer load }
+  buf:   vss, vdd, clr_, reset; { buffer reset }
+  and:   vss, vdd, pe, te, enable; { form general enable }
+  { form enables. Each enable is based on all bits before it
+    being high }
+  inv:   vss, vdd, enable, enable0_;
+  nand:  vss, vdd, bit0, enable, enable1_;
+  nand3: vss, vdd, bit0, bit1, enable, enable2_;
+  nand4: vss, vdd, bit0, bit1, bit2, enable, enable3_;
+  { provide all ff's }
+  ff163: vss, vdd, i0, load, load_, enable0_, bit0, bit0_,
+         clock, clock_, reset; { 0 }
+  ff163: vss, vdd, i1, load, load_, enable1_, bit1, bit1_,
+         clock, clock_, reset; { 1 }
+  ff163: vss, vdd, i2, load, load_, enable2_, bit2, bit2_,
+         clock, clock_, reset; { 2 }
+  ff163: vss, vdd, i3, load, load_, enable3_, bit3, bit3_,
+         clock, clock_, reset; { 3 }
+  inv:   vss, vdd, bit0_, q0; { buffer outputs }
+  inv:   vss, vdd, bit1_, q1;
+  inv:   vss, vdd, bit2_, q2;
+  inv:   vss, vdd, bit3_, q3;
+  and5:  vss, vdd, q0, q1, q2, q3, te, tc { provide lookahead carry }
+
+end;
+
+{**************************************************************
+*                                                             *
+*     8 bit shift register                                    *
+*                                                             *
+**************************************************************}
+
+cell p74164: ds1, ds2, q0, q1, q2, q3, vss, cp, mr_, q4, q5,
+             q6, q7, vdd;
+
+begin
+
+   bufnp: vss, vdd, cp, cpb, cpb_; { buffer clock }
+   inv:   vss, vdd, mr_, mr; { form positive reset }
+   and:   vss, vdd, ds1, ds2, ds; { find serial input }
+   { repeat each ff }
+   cltr:  vss, vdd, ds,  q0i, q0i_, cpb, cpb_, mr; { 0 }
+   cltr:  vss, vdd, q0i, q1i, q1i_, cpb, cpb_, mr; { 1 }
+   cltr:  vss, vdd, q1i, q2i, q2i_, cpb, cpb_, mr; { 2 }
+   cltr:  vss, vdd, q2i, q3i, q3i_, cpb, cpb_, mr; { 3 }
+   cltr:  vss, vdd, q3i, q4i, q4i_, cpb, cpb_, mr; { 4 }
+   cltr:  vss, vdd, q4i, q5i, q5i_, cpb, cpb_, mr; { 5 }
+   cltr:  vss, vdd, q5i, q6i, q6i_, cpb, cpb_, mr; { 6 }
+   cltr:  vss, vdd, q6i, q7i, q7i_, cpb, cpb_, mr; { 7 }
+   { buffer oututs }
+   inv:   vss, q0i_, q0; { 0 }
+   inv:   vss, q1i_, q1; { 1 }
+   inv:   vss, q2i_, q2; { 2 }
+   inv:   vss, q3i_, q3; { 3 }
+   inv:   vss, q4i_, q4; { 4 }
+   inv:   vss, q5i_, q5; { 5 }
+   inv:   vss, q6i_, q6; { 6 }
+   inv:   vss, q7i_, q7  { 7 }
+
+end;
+
+{**************************************************************
+*                                                             *
+*     8 bit shift register                                    *
+*                                                             *
+**************************************************************}
+
+cell ff165:  vss, vdd, i, d, q, l, l_, c, c_;
+
+begin
+
+   and: vss, vdd, i, l, set; { find set }
+   nor: vss, vdd, i, l_, reset; { find reset }
+   cltrs: vss, vdd, d, q, q_, c, c_, set, reset { latch }
+
+end;
+
+cell p74165: pl_, cp, d4, d5, d6, d7, q7_, vss, q7, ds, d0,
+             d1, d2, d3, ce_, vdd;
+
+begin
+
+   bufnp: vss, vdd, pl_, plb_, plb; { buffer load }
+   and:   vss, vdd, plb_, cp, n1; { form clock }
+   and:   vss, vdd, plb_, ce_, n2;
+   orn:   vss, vdd, n1, n2, c, c_;
+   { repeat each ff }
+   ff165: vss, vdd, d0, ds, q0i, plb, plb_, c, c_; { 0 }
+   ff165: vss, vdd, d1, q0, q1i, plb, plb_, c, c_; { 1 }
+   ff165: vss, vdd, d2, q1, q2i, plb, plb_, c, c_; { 2 }
+   ff165: vss, vdd, d3, q2, q3i, plb, plb_, c, c_; { 3 }
+   ff165: vss, vdd, d4, q3, q4i, plb, plb_, c, c_; { 4 }
+   ff165: vss, vdd, d5, q4, q5i, plb, plb_, c, c_; { 5 }
+   ff165: vss, vdd, d6, q5, q6i, plb, plb_, c, c_; { 6 }
+   ff165: vss, vdd, d7, q6, q7i, plb, plb_, c, c_; { 7 }
+   bufnp: vss, vdd, q7i, q7, q7_ { buffer serial output }
+
+end;
+
+{**************************************************************
+*                                                             *
+*     8 bit shift register                                    *
+*                                                             *
+**************************************************************}
+
+cell ff166:  vss, vdd, i, d, q, l, l_, c, c_, r_;
+
+begin
+
+   muxb:  vss, vdd, i, d, next_, l, l_;
+   clts: vss, vdd, next_, q_, q, c, c_, r_ { latch }
+
+end;
+
+cell p74166: ds, d0, d1, d2, d3, ce_, cp, vss, mr_, d4,
+             d5, d6, q7, d7, pl_, vdd;
+
+begin
+
+   bufnp: vss, vdd, pl_, plb_, plb; { buffer load }
+   buf:   vss, vdd, mr_, r_; { buffer reset }
+   orn:   vss, vdd, ce_, cp, c, c_; { form clock }
+   { repeat each ff }
+   ff166: vss, vdd, d0, ds, q0i, pl, pl_, c, c_, r_; { 0 }
+   ff166: vss, vdd, d1, q0, q1i, pl, pl_, c, c_, r_; { 1 }
+   ff166: vss, vdd, d2, q1, q2i, pl, pl_, c, c_, r_; { 2 }
+   ff166: vss, vdd, d3, q2, q3i, pl, pl_, c, c_, r_; { 3 }
+   ff166: vss, vdd, d4, q3, q4i, pl, pl_, c, c_, r_; { 4 }
+   ff166: vss, vdd, d5, q4, q5i, pl, pl_, c, c_, r_; { 5 }
+   ff166: vss, vdd, d6, q5, q6i, pl, pl_, c, c_, r_; { 6 }
+   ff166: vss, vdd, d7, q6, q7i, pl, pl_, c, c_, r_; { 7 }
+   buf:   vss, vdd, q7i, q7 { buffer serial output }
+
+end;
+
+{**************************************************************
+*                                                             *
+*     Quad three state d flip flop                            *
+*                                                             *
+**************************************************************}`
+
+cell ff173: vss, vdd, d, c, c_, ce, ce_, r_, oe, oe_, q;
+
+begin
+
+   muxb: vss, vdd, d, q, next_, ce_, ce; { select load or hold }
+   clts: vss, vdd, next_, qi_, qi, c, c_, r_; { ff }
+   trin: vss, vdd, qi_, q, oe, oe_ { tristate }
+
+end;
+
+cell p74173: oe1_, oe2_, q0, q1, q2, q3, cp, vss, e1_, e2_,
+             d3, d2, d1, d0, mr, vdd;
+
+begin
+
+   bufnp: vss, vdd, cp, cpb, cpb_; { buffer clock }
+   orn:   vss, vdd, e1_, e2_, ce, ce_; { find clock enable }
+   orn:   vss, vdd, oe1_, oe2_, oe, oe_; { find output enable }
+   inv:   vss, vdd, mr, mr_; { invert reset }
+   { repeat ff's }
+   ff173: vss, vdd, d0, cpb, cpb_, ce, ce_, mr_, oe, oe_, q0; { 0 }
+   ff173: vss, vdd, d1, cpb, cpb_, ce, ce_, mr_, oe, oe_, q1; { 1 }
+   ff173: vss, vdd, d2, cpb, cpb_, ce, ce_, mr_, oe, oe_, q2; { 2 }
+   ff173: vss, vdd, d3, cpb, cpb_, ce, ce_, mr_, oe, oe_, q3  { 3 }
+
+end;
+
+{**************************************************************
+*                                                             *
+*     Hex d flip flop with reset                              *
+*                                                             *
+**************************************************************}
+
+cell p74174: mr_, q0, d0, d1, q1, d2, q2, vss, cp, q3, d3,
+             q4, d4, d5, q5, vdd;
+
+begin
+
+   bufnp: vss, vdd, cp, cpb, cpb_; { buffer clock }
+   inv: mr_, mr; { form positive reset }
+   { repeat ff's }
+   cltr: vss, vdd, d0, q0i, q0i_, cpb, cpb_, mr; { 0 }
+   cltr: vss, vdd, d1, q1i, q1i_, cpb, cpb_, mr; { 1 }
+   cltr: vss, vdd, d2, q2i, q2i_, cpb, cpb_, mr; { 2 }
+   cltr: vss, vdd, d3, q3i, q3i_, cpb, cpb_, mr; { 3 }
+   cltr: vss, vdd, d4, q4i, q4i_, cpb, cpb_, mr; { 4 }
+   cltr: vss, vdd, d5, q5i, q5i_, cpb, cpb_, mr; { 5 }
+   { buffer outputs }
+   inv:  vss, vdd, q0i_, q0; { 0 }
+   inv:  vss, vdd, q1i_, q1; { 1 }
+   inv:  vss, vdd, q2i_, q2; { 2 }
+   inv:  vss, vdd, q3i_, q3; { 3 }
+   inv:  vss, vdd, q4i_, q4; { 4 }
+   inv:  vss, vdd, q5i_, q5  { 5 }
+
+end;
+
+{**************************************************************
+*                                                             *
+*     Quad d flip flop with reset                             *
+*                                                             *
+**************************************************************}
+
+cell p7175: mr_, q0, q0_, d0, d1, q1_, q1, vss, cp, q2, q2_,
+            d2, d3, q3_, q3, vdd;
+
+begin
+
+   bufnp: vss, vdd, cp, cpb, cpb_; { buffer clock }
+   inv:   vss, vdd, mr_, mr; { form positive reset }
+   { repeat ff's }
+   cltr:  vss, vdd, d0, q0i, q0i_, cpb, cpb_, mr; { 0 }
+   cltr:  vss, vdd, d1, q1i, q1i_, cpb, cpb_, mr; { 1 }
+   cltr:  vss, vdd, d2, q2i, q2i_, cpb, cpb_, mr; { 2 }
+   cltr:  vss, vdd, d3, q3i, q3i_, cpb, cpb_, mr; { 3 }
+   { buffer outputs }
+   inv:   vss, vdd, q0i_, q0; { 0 }
+   inv:   vss, vdd, q0i, q0_;
+   inv:   vss, vdd, q1i_, q1; { 1 }
+   inv:   vss, vdd, q1i, q1_;
+   inv:   vss, vdd, q2i_, q2; { 2 }
+   inv:   vss, vdd, q2i, q2_;
+   inv:   vss, vdd, q3i_, q3; { 3 }
+   inv:   vss, vdd, q3i, q3_
+
+end;
+
+{**************************************************************
+*                                                             *
+*     4 bit ALU                                               *
+*                                                             *
+**************************************************************}
+
+cell p74181: b0, a0, s3, s2, s1, s0, cn, m, f0, f1, f2, vss,
+             f3, aeqb, p, cnp4, g, b3, a3, b2, a2, b1, a1, vdd;
+
+begin
+
+   inv:   vss, vdd, s3, s3b_; { buffer inputs }
+   inv:   vss, vdd, s2, s2b_;
+   inv:   vss, vdd, s1, s1b_;
+   inv:   vss, vdd, s0, s0b_;
+   inv:   vss, vdd, a3, a3b_;
+   bufnp: vss, vdd, b3, b3b, b3b_;
+   inv:   vss, vdd, a2, a2b_;
+   bufnp: vss, vdd, b2, b2b, b2b_;
+   inv:   vss, vdd, a1, a1b_;
+   bufnp: vss, vdd, b1, b1b, b1b_;
+   inv:   vss, vdd, a0, a0b_;
+   bufnp: vss, vdd, b0, b0b, b0b_;
+   inv:   vss, vdd, m, mb_;
+   buf:   vss, vdd, cn, cnb;
+   nor3:  vss, vdd, s3b_, a3b_, b3b, n1; { 1st rank }
+   nor3:  vss, vdd, s2b_, a3b_, b3b_, n2;
+   or:    vss, vdd, s1b_, b3b, n3;
+   or:    vss, vdd, s0b_, b3b_, n4;
+   nor3:  vss, vdd, s3b_, a2b_, b2b, n5;
+   nor3:  vss, vdd, s2b_, a2b_, b2b_, n6;
+   or:    vss, vdd, b2b, s1b_, n7;
+   or:    vss, vdd, b2b_, s0b_, n8;
+   nor3:  vss, vdd, s3b_, a1b_, b1b, n9;
+   nor3:  vss, vdd, s2b_, a1b_, b1b_, n10;
+   or:    vss, vdd, b1b, s1b_, n11;
+   or:    vss, vdd, b1b_, s0b_, n12;
+   nor3:  vss, vdd, s3b_, a0b_, b0b, n13;
+   nor3:  vss, vdd, a0b_, b0b_, s2b_, n14;
+   or:    vss, vdd, b0b, s1b_, n15;
+   or:    vss, vdd, b0b_, s0b_, n16;
+   and:   vss, vdd, n1, n2, n17; { 2nd rank }
+   and3:  vss, vdd, a3b_, n3, n4, n18;
+   and:   vss, vdd, n5, n6, n19;
+   and3:  vss, vdd, a2b_, n7, n8, n20;
+   and:   vss, vdd, n9, n10, n21;
+   and3:  vss, vdd, a1b_, n11, n12, n22;
+   and:   vss, vdd, n13, n14, n23;
+   and3:  vss, vdd, a0b_, n15, n16, n24;
+   and:   vss, vdd, n20, n17, n25; { 3rd rank }
+   and3:  vss, vdd, n22, n19, n17, n26;
+   and4:  vss, vdd, n24, n21, n19, n17, n27;
+   nand5: vss, vdd, cnb, n23, n21, n19, n17, n28;
+   nand4: vss, vdd, n23, n21, n19, n17, p;
+   xor1:  vss, vdd, n18, n17, n30;
+   and5:  vss, vdd, n19, n21, n23, mb_, cnb, n31;
+   and4:  vss, vdd, n19, n21, n24, mb_, n32;
+   and3:  vss, vdd, n19, n22, mb_, n33;
+   and:   vss, vdd, n20, mb_, 34;
+   xor1:  vss, vdd, n19, n20, n35;
+   and4:  vss, vdd, n21, n23, mb_, cnb, n36;
+   and3:  vss, vdd, n21, n24, mb_, n37;
+   and:   vss, vdd, n22, mb_, n38;
+   xor1:  vss, vdd, n21, n22, n39;
+   and3:  vss, vdd, n23, mb_, cnb, n40;
+   and:   vss, vdd, n24, mb_, n41;
+   xor1:  vss, vdd, n23, n24, n42;
+   nand:  vss, vdd, mb_, cnb, n43;
+   nor4:  vss, vdd, n18, n25, n26, n27, gi; { 4th and output }
+   nor4:  vss, vdd, n31, n32, n33, n34, n44;
+   nor3:  vss, vdd, n36, n37, n38, n45;
+   nor:   vss, vdd, n40, n41, n46;
+   nand:  vss, vdd, gi, n28, cnp4;
+   xor1:  vss, vdd, n30, n44, f3i;
+   xor1:  vss, vdd, n35, n45, f2i;
+   xor1:  vss, vdd, n39, n46, f1i;
+   xor1:  vss, vdd, n42, n43, f0i;
+   nand4: vss, vdd, f3i, f2i, f1i, f0i, n47;
+   neif:  aeqb, n47, vss;
+   buf:   vss, vdd, gi, g;
+   buf:   vss, vdd, f3i, f3;
+   buf:   vss, vdd, f2i, f2;
+   buf:   vss, vdd, f1i, f1;
+   buf:   vss, vdd, f0i, f0
+
+end;
+

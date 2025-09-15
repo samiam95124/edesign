@@ -1,0 +1,383 @@
+{**************************************************************
+*                                                             *
+* PRINTER INTERFACE ROUTINES FOR FUJITSU DL-3400 PRINTER      *
+*                                                             *
+* Contains the printer specific routines to drive a Fujitsu   *
+* DL-3400 printer.                                            *
+* The standard intalization and matinence routines are        *
+* implemented, plus a universal output routine.               *
+* The output communication is done via a two-dementional      *
+* buffer of pixels, which represent all the pixels the        *
+* printer may output in a single "line". The pixels are in    *
+* VGA standard 16 color codes. Utilizing the X and Y          *
+* dementions, ICD sizes the printout in Y to fit the printer, *
+* then successively "walks" the buffer across the printout,   *
+* from top to bottom.                                         *
+* Creating the (perhaps limited) output colors from the       *
+* VGA colors is the job of this module, which we do by        *
+* dithering different printer colors together.                *
+* The side effect of this is that a colored object must have  *
+* a certain minimum size to be presented correctly (two       *
+* pixels).                                                    *
+* This does not apply to black lines.                         *
+* ICD obeys this rule, and does not attempt to output single  *
+* line objects other than black.                              *
+*                                                             *
+**************************************************************}
+
+module ptrout;
+
+uses {$U ..\common.j} common;
+
+var clrbuf: array [color, { color to be translated }
+                  1..4,  { layer, yellow, magenta, 
+                           cyan, black }
+                  1..2]  { odd/even word }
+                  of integer;
+
+{ output printer byte }
+procedure putprt(b: byte); external;
+{}
+{**************************************************************
+
+INITALIZE PRINTER
+
+Sets up the basic printer parameters.
+
+**************************************************************}
+
+procedure iniprt(var ptrmax: rpoint; { printer maximum (meters) } 
+                 var ptrdpm:  real;   { printer dots per meter }
+                 var pmax:    point;  { printer buffer maximums }
+                 var ptrdl:   byte);  { dither limit }
+
+begin
+
+   { set dementions of Fujisu DL3400 printer buffer (13.6in) }
+
+   ptrmax.x := (13.6*2.54)*0.01; { width of printer path (inches/meters) }
+   ptrmax.y := (11.0*2.54)*0.01; { length of printer path (inch/meter) }
+   ptrdpm := (180.0/2.54)*100.0; { dots per inch/centimeter }
+   { total dots x, actually recalculated at the start of print }
+   pmax.x := round(ptrmax.x*ptrdpm)-1; 
+   pmax.y := 23; { length of 24 wire print swath }
+
+   { define color equivalences }
+
+   clrbuf[black, 1, 1]    := $0000000; { black }
+   clrbuf[black, 1, 2]    := $0000000;
+   clrbuf[black, 2, 1]    := $0000000;
+   clrbuf[black, 2, 2]    := $0000000;
+   clrbuf[black, 3, 1]    := $0000000;
+   clrbuf[black, 3, 2]    := $0000000;
+   clrbuf[black, 4, 1]    := $0ffffff;
+   clrbuf[black, 4, 2]    := $0ffffff;
+
+   clrbuf[blue, 1, 1]     := $0000000; { blue }
+   clrbuf[blue, 1, 2]     := $0000000;
+   clrbuf[blue, 2, 1]     := $0000000;
+   clrbuf[blue, 2, 2]     := $0aaaaaa;
+   clrbuf[blue, 3, 1]     := $0555555;
+   clrbuf[blue, 3, 2]     := $0000000;
+   clrbuf[blue, 4, 1]     := $0aaaaaa;
+   clrbuf[blue, 4, 2]     := $0555555;
+
+   clrbuf[green, 1, 1]    := $0555555; { green }
+   clrbuf[green, 1, 2]    := $0000000;
+   clrbuf[green, 2, 1]    := $0000000;
+   clrbuf[green, 2, 2]    := $0000000;
+   clrbuf[green, 3, 1]    := $0000000;
+   clrbuf[green, 3, 2]    := $0aaaaaa;
+   clrbuf[green, 4, 1]    := $0aaaaaa;
+   clrbuf[green, 4, 2]    := $0555555;
+
+   clrbuf[cyan, 1, 1]     := $0000000; { cyan }
+   clrbuf[cyan, 1, 2]     := $0000000;
+   clrbuf[cyan, 2, 1]     := $0000000;
+   clrbuf[cyan, 2, 2]     := $0000000;
+   clrbuf[cyan, 3, 1]     := $0555555;
+   clrbuf[cyan, 3, 2]     := $0aaaaaa;
+   clrbuf[cyan, 4, 1]     := $0aaaaaa;
+   clrbuf[cyan, 4, 2]     := $0555555;
+
+   clrbuf[red, 1, 1]      := $0555555; { red }
+   clrbuf[red, 1, 2]      := $0000000;
+   clrbuf[red, 2, 1]      := $0000000;
+   clrbuf[red, 2, 2]      := $0aaaaaa;
+   clrbuf[red, 3, 1]      := $0000000;
+   clrbuf[red, 3, 2]      := $0000000;
+   clrbuf[red, 4, 1]      := $0aaaaaa;
+   clrbuf[red, 4, 2]      := $0555555;
+
+   clrbuf[magenta, 1, 1]  := $0000000; { magenta }
+   clrbuf[magenta, 1, 2]  := $0000000;
+   clrbuf[magenta, 2, 1]  := $0555555;
+   clrbuf[magenta, 2, 2]  := $0aaaaaa;
+   clrbuf[magenta, 3, 1]  := $0000000;
+   clrbuf[magenta, 3, 2]  := $0000000;
+   clrbuf[magenta, 4, 1]  := $0aaaaaa;
+   clrbuf[magenta, 4, 2]  := $0555555;
+
+   clrbuf[brown, 1, 1]    := $0555555; { brown }
+   clrbuf[brown, 1, 2]    := $0aaaaaa;
+   clrbuf[brown, 2, 1]    := $0000000;
+   clrbuf[brown, 2, 2]    := $0000000;
+   clrbuf[brown, 3, 1]    := $0000000;
+   clrbuf[brown, 3, 2]    := $0000000;
+   clrbuf[brown, 4, 1]    := $0aaaaaa;
+   clrbuf[brown, 4, 2]    := $0555555;
+
+   clrbuf[dwhite, 1, 1]   := $0000000; { dwhite }
+   clrbuf[dwhite, 1, 2]   := $0000000;
+   clrbuf[dwhite, 2, 1]   := $0000000;
+   clrbuf[dwhite, 2, 2]   := $0000000;
+   clrbuf[dwhite, 3, 1]   := $0000000;
+   clrbuf[dwhite, 3, 2]   := $0000000;
+   clrbuf[dwhite, 4, 1]   := $0aaaaaa;
+   clrbuf[dwhite, 4, 2]   := $0000000;
+
+   clrbuf[gray, 1, 1]     := $0000000; { gray }
+   clrbuf[gray, 1, 2]     := $0000000;
+   clrbuf[gray, 2, 1]     := $0000000;
+   clrbuf[gray, 2, 2]     := $0000000;
+   clrbuf[gray, 3, 1]     := $0000000;
+   clrbuf[gray, 3, 2]     := $0000000;
+   clrbuf[gray, 4, 1]     := $0aaaaaa;
+   clrbuf[gray, 4, 2]     := $0555555;
+
+   clrbuf[lblue, 1, 1]    := $0000000; { lblue }
+   clrbuf[lblue, 1, 2]    := $0000000;
+   clrbuf[lblue, 2, 1]    := $0aaaaaa;
+   clrbuf[lblue, 2, 2]    := $0555555;
+   clrbuf[lblue, 3, 1]    := $0555555;
+   clrbuf[lblue, 3, 2]    := $0aaaaaa;
+   clrbuf[lblue, 4, 1]    := $0000000;
+   clrbuf[lblue, 4, 2]    := $0000000;
+
+   clrbuf[lgreen, 1, 1]   := $0aaaaaa; { lgreen }
+   clrbuf[lgreen, 1, 2]   := $0555555;
+   clrbuf[lgreen, 2, 1]   := $0000000;
+   clrbuf[lgreen, 2, 2]   := $0000000;
+   clrbuf[lgreen, 3, 1]   := $0555555;
+   clrbuf[lgreen, 3, 2]   := $0aaaaaa;
+   clrbuf[lgreen, 4, 1]   := $0000000;
+   clrbuf[lgreen, 4, 2]   := $0000000;
+
+   clrbuf[lcyan, 1, 1]    := $0000000; { lcyan }
+   clrbuf[lcyan, 1, 2]    := $0000000;
+   clrbuf[lcyan, 2, 1]    := $0000000;
+   clrbuf[lcyan, 2, 2]    := $0000000;
+   clrbuf[lcyan, 3, 1]    := $0ffffff;
+   clrbuf[lcyan, 3, 2]    := $0ffffff;
+   clrbuf[lcyan, 4, 1]    := $0000000;
+   clrbuf[lcyan, 4, 2]    := $0000000;
+
+   clrbuf[lred, 1, 1]     := $0aaaaaa; { lred }
+   clrbuf[lred, 1, 2]     := $0555555;
+   clrbuf[lred, 2, 1]     := $0555555;
+   clrbuf[lred, 2, 2]     := $0aaaaaa;
+   clrbuf[lred, 3, 1]     := $0000000;
+   clrbuf[lred, 3, 2]     := $0000000;
+   clrbuf[lred, 4, 1]     := $0000000;
+   clrbuf[lred, 4, 2]     := $0000000;
+
+   clrbuf[lmagenta, 1, 1] := $0000000; { lmagenta }
+   clrbuf[lmagenta, 1, 2] := $0000000;
+   clrbuf[lmagenta, 2, 1] := $0ffffff;
+   clrbuf[lmagenta, 2, 2] := $0ffffff;
+   clrbuf[lmagenta, 3, 1] := $0000000;
+   clrbuf[lmagenta, 3, 2] := $0000000;
+   clrbuf[lmagenta, 4, 1] := $0000000;
+   clrbuf[lmagenta, 4, 2] := $0000000;
+
+   clrbuf[yellow, 1, 1]   := $0ffffff; { yellow }
+   clrbuf[yellow, 1, 2]   := $0ffffff;
+   clrbuf[yellow, 2, 1]   := $0000000;
+   clrbuf[yellow, 2, 2]   := $0000000;
+   clrbuf[yellow, 3, 1]   := $0000000;
+   clrbuf[yellow, 3, 2]   := $0000000;
+   clrbuf[yellow, 4, 1]   := $0000000;
+   clrbuf[yellow, 4, 2]   := $0000000;
+
+   clrbuf[white, 1, 1]    := $0000000; { white }
+   clrbuf[white, 1, 2]    := $0000000;
+   clrbuf[white, 2, 1]    := $0000000;
+   clrbuf[white, 2, 2]    := $0000000;
+   clrbuf[white, 3, 1]    := $0000000;
+   clrbuf[white, 3, 2]    := $0000000;
+   clrbuf[white, 4, 1]    := $0000000;
+   clrbuf[white, 4, 2]    := $0000000
+
+end;
+{}
+{**************************************************************
+
+PREPARE PRINTER FOR OUTPUT
+
+Resets and initalizes the printer for output. This is done
+before printout to insure that the printer has not just
+been turned on.
+
+**************************************************************}
+
+procedure strprt;
+
+begin
+
+   putprt(27); { reset printer }
+   putprt(26);
+   putprt(73);
+ 
+   putprt(27); { set print direction unidirectional }
+   putprt(85);
+   putprt(01)
+
+end;
+{}
+{**************************************************************
+
+OUTPUT PRINTER BUFFER
+
+Load the printer assembly buffer into the printer output
+buffer, then outputs the buffer.
+Dependant on the fujisu DL3400 printer.
+Presently only black and white are supported (any color but
+white is printed as black).
+
+**************************************************************}
+
+procedure outbuf(var prtbuf: prtarr; pmaxx: integer);
+
+type clr = 1..4; { printer ribbon color, yellow, magenta,
+                   cyan and black }
+
+var linbuf: array [1..2520] of integer; { graphic line buffer }
+    blank: boolean; { blank line flag }
+
+{ output printer graphics line }
+
+procedure outlin(l: integer; c: clr);
+
+var i: 1..2048;
+
+begin
+
+   putprt(27); { set color of line }
+   putprt(114);
+   case c of { color }
+
+      1: putprt(4); { yellow }
+      2: putprt(1); { magenta }
+      3: putprt(2); { cyan }
+      4: putprt(0)  { black }
+
+   end;
+   putprt(13); { return to line start }
+   putprt(27); { output line preamble }
+   putprt(42);
+   putprt(39);
+   putprt(l mod 256); { number of 24 bit words }
+   putprt(l div 256);
+   for i := 1 to l do begin { output graphic line }
+
+      { output screen data }
+      putprt(linbuf[i] div 65536);
+      putprt((linbuf[i] div 256) mod 256); 
+      putprt(linbuf[i] mod 256); 
+
+   end;
+   putprt(13); { return to line start }
+
+end;
+
+procedure plclin(c: clr; var blank: boolean);
+
+var i: 1..2048;
+    p: integer;
+    b: integer;
+    x, y: integer;
+
+begin
+
+   blank := true; { set line blank }
+   i := 1; { initalize index }
+   { translate buffer }
+   for x := 0 to pmaxx do begin
+
+      p := 0; { clear output pattern }
+      b := $0800000; { set bit mask }
+      for y := 0 to 23 { pmax.y } do begin 
+
+         p := p+(clrbuf[prtbuf[x, y], c, ord(odd(x))+1] and b);
+         b := b div 2 { next bit }
+
+      end;   
+      linbuf[i] := p; { place data }
+      i := i + 1; { next }
+      if p <> 0 then blank := false { set line not blank }
+
+   end
+
+end;
+
+begin
+
+   { do each of the 4 primaries as a separate pass }
+
+   { yellow }
+   plclin(1, blank); { place line into buffer }
+   if not blank then outlin(pmaxx+1, 1); { output graphic line }
+   { magenta }
+   plclin(2, blank);
+   if not blank then outlin(pmaxx+1, 2); 
+   { cyan }
+   plclin(3, blank); 
+   if not blank then outlin(pmaxx+1, 3); 
+   { black }
+   plclin(4, blank); 
+   if not blank then outlin(pmaxx+1, 4);
+   { move to next line }
+   putprt(27); putprt(74); putprt(24)
+
+end;
+{}
+{**************************************************************
+
+INCREMENT IN Y DIRECTION
+
+Spaces N*180/in in Y for the Fujisu DL3400 printer.
+Note: uses single increment mode, that is rather slow.
+Problems were found with arbitrary values in the increment
+command.
+
+**************************************************************}
+
+procedure offy(c: integer);
+
+var i: integer;
+
+begin
+
+   { move to next line }
+   for i := 1 to c do 
+      begin putprt(27); putprt(74); putprt(1) end
+
+end;
+{}
+{**************************************************************
+
+OUTPUT PRINTER PAGE
+
+Brings the printer to the next page position.
+
+**************************************************************}
+
+procedure pagprt;
+
+begin
+
+   putprt(12) { next page }
+
+end;
+{}
+end. { module }

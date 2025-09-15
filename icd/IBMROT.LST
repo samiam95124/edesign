@@ -1,0 +1,194 @@
+Microsoft (R) Macro Assembler Version 6.00     		    02/02/94 10:15:29
+'IBM PC system routines'				     Page 1 - 1
+
+
+				                title   'IBM PC system routines'
+				                name    pixel
+				                page    55,132
+
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				;                                                             ;
+				; IBM PC SPECIFIC SYSTEM ROUTINES                             ;
+				;                                                             ;
+				; Contains various system routines.                           ;
+				; To avoid various DOS oddities, the lowest level             ;
+				; implementation as possible is used.                         ;
+				;                                                             ;
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+				                .386
+				                .model  small, c
+
+ 0000				                .code
+
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				;                                                             ;
+				; GET KEYBOARD STATUS                                         ;
+				;                                                             ;
+				; Gets the current status of keyboard character waiting.      ;
+				;                                                             ;
+				; function kbdrdy: byte;                                      ;
+				;                                                             ;
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ 0000				kbdrdy  proc    syscall
+ 0000  B4 01			        mov     ah,001h         ; get keyboard status
+ 0002  CD 16			        int     16h
+ 0004  66| B8 00FF		        mov     ax,0ffh         ; set ready status
+ 0008  75 04			        jnz     kbdrdy01        ; yes, go
+ 000A  66| B8 0000		        mov     ax,000h         ; set not ready status
+ 000E				kbdrdy01:
+ 000E  C3			        ret                     ; exit
+ 000F				kbdrdy  endp
+
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				;                                                             ;
+				; GET KEYBOARD CHARACTER                                      ;
+				;                                                             ;
+				; Gets the next keyboard character.                           ;
+				;                                                             ;
+				; function kbdinp: byte;                                      ;
+				;                                                             ;
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ 000F				kbdinp  proc    syscall
+ 000F  B4 07			        mov     ah,007h         ; get keyboard character
+ 0011  CD 21			        int     21h
+ 0013  66| 0F B6 C0		        movzx   ax,al           ; extend to word
+ 0017  C3			        ret                     ; exit
+ 0018				kbdinp  endp
+
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+Microsoft (R) Macro Assembler Version 6.00     		    02/02/94 10:15:29
+'IBM PC system routines'				     Page 2 - 1
+
+
+				;                                                             ;
+				; GET CURRENT TIME                                            ;
+				;                                                             ;
+				; Loads the number of hundreth seconds since midnight.        ;
+				;                                                             ;
+				; function gettim: integer                                    ;
+				;                                                             ;
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ 0018				gettim  proc    syscall
+ 0018  53			        push    ebx             ; save registers used
+ 0019  B4 2C			        mov     ah,02ch         ; get system time
+ 001B  CD 21			        int     21h
+ 001D  0F B6 DA			        movzx   ebx,dl          ; place hundreths
+ 0020  0F B6 C6			        movzx   eax,dh          ; place seconds
+ 0023  BA 00000064		        mov     edx,100         ; find hundreths
+ 0028  F7 E2			        mul     edx
+ 002A  03 D8			        add     ebx,eax         ; add in
+ 002C  0F B6 C1			        movzx   eax,cl          ; place minutes
+ 002F  BA 00001770		        mov     edx,60*100      ; find hundreths
+ 0034  F7 E2			        mul     edx
+ 0036  03 D8			        add     ebx,eax         ; add in
+ 0038  0F B6 C5			        movzx   eax,ch          ; place hours
+ 003B  BA 00057E40		        mov     edx,60*(60*100) ; find hundreths
+ 0040  F7 E2			        mul     edx
+ 0042  03 C3			        add     eax,ebx         ; add and place
+ 0044  5B			        pop     ebx             ; restore registers
+ 0045  C3			        ret                     ; exit
+ 0046				gettim  endp
+
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				;                                                             ;
+				; CONVERT WORD                                                ;
+				;                                                             ;
+				; Converts one word to another. Simply for type convertion.   ;
+				;                                                             ;
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ 0046				convert proc    syscall x: word
+ 0049  66| 8B 45 08		        mov     ax,x            ; get the word
+				        ret                     ; exit
+ 004F				convert endp
+
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				;                                                             ;
+				; CLEAR INTERRUPT FLAG                                        ;
+				;                                                             ;
+				; Clears the interrupt enable flag. Used to disable           ;
+				; interrupts.                                                 ;
+				;                                                             ;
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+Microsoft (R) Macro Assembler Version 6.00     		    02/02/94 10:15:29
+'IBM PC system routines'				     Page 3 - 1
+
+
+
+ 004F				clrint  proc    syscall
+ 004F  FA			        cli                     ; clear interupt flag
+ 0050  C3			        ret                     ; exit
+ 0051				clrint  endp
+
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				;                                                             ;
+				; CLEAR INTERRUPT FLAG                                        ;
+				;                                                             ;
+				; Clears the interrupt enable flag. Used to disable           ;
+				; interrupts.                                                 ;
+				;                                                             ;
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ 0051				setint  proc    syscall
+ 0051  FB			        sti                     ; set interupt flag
+ 0052  C3			        ret                     ; exit
+ 0053				setint  endp
+
+				        end
+Microsoft (R) Macro Assembler Version 6.00     		    02/02/94 10:15:29
+'IBM PC system routines'				     Symbols 4 - 1
+
+
+
+
+Segments and Groups:
+
+                N a m e                 Size     Length   Align   Combine Class
+
+DGROUP . . . . . . . . . . . . .	GROUP
+_DATA  . . . . . . . . . . . . .	32 Bit	 0000	  DWord	  Public  'DATA'	
+_TEXT  . . . . . . . . . . . . .	32 Bit	 0053	  DWord	  Public  'CODE'	
+Microsoft (R) Macro Assembler Version 6.00     		    02/02/94 10:15:29
+'IBM PC system routines'				     Symbols 5 - 1
+
+
+
+
+Procedures,  parameters and locals:
+
+                N a m e                 Type     Value    Attr
+
+clrint . . . . . . . . . . . . .	P Near	 004F	  _TEXT	Length= 0002 Public SYSCALL
+convert  . . . . . . . . . . . .	P Near	 0046	  _TEXT	Length= 0009 Public SYSCALL
+  x  . . . . . . . . . . . . . .	Word	 bp + 0008
+gettim . . . . . . . . . . . . .	P Near	 0018	  _TEXT	Length= 002E Public SYSCALL
+kbdinp . . . . . . . . . . . . .	P Near	 000F	  _TEXT	Length= 0009 Public SYSCALL
+kbdrdy . . . . . . . . . . . . .	P Near	 0000	  _TEXT	Length= 000F Public SYSCALL
+  kbdrdy01 . . . . . . . . . . .	L Near	 000E	  _TEXT	
+setint . . . . . . . . . . . . .	P Near	 0051	  _TEXT	Length= 0002 Public SYSCALL
+Microsoft (R) Macro Assembler Version 6.00     		    02/02/94 10:15:29
+'IBM PC system routines'				     Symbols 6 - 1
+
+
+
+
+Symbols:
+
+                N a m e                 Type     Value    Attr
+
+@CodeSize  . . . . . . . . . . .	Number	 0000h	 
+@DataSize  . . . . . . . . . . .	Number	 0000h	 
+@Interface . . . . . . . . . . .	Number	 0001h	 
+@Model . . . . . . . . . . . . .	Number	 0002h	 
+@code  . . . . . . . . . . . . .	Text   	 _TEXT
+@data  . . . . . . . . . . . . .	Text   	 DGROUP
+@fardata?  . . . . . . . . . . .	Text   	 FAR_BSS
+@fardata . . . . . . . . . . . .	Text   	 FAR_DATA
+@stack . . . . . . . . . . . . .	Text   	 DGROUP
+
+	   0 Warnings
+	   0 Errors

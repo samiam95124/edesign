@@ -1,0 +1,5 @@
+rem
+rem ICD run script
+rem forces swap out to enable ICD to get the most memory.
+rem
+reserve 640*1024;icd.exe;reserve 50*1024

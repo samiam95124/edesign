@@ -1,0 +1,105 @@
+Net file dumper Copyright (C) 2001 S. A. Moore
+Cell inv: 1
+Parameters: 4
+Node: vss
+Node: vdd
+Node: input
+Node: output_
+End of cell
+Cell nor: 2
+Parameters: 5
+Node: vss
+Node: vdd
+Node: input1
+Node: input2
+Node: output_
+Node: n1
+End of cell
+Cell trin: 3
+Parameters: 6
+Node: vss
+Node: vdd
+Node: input
+Node: output_
+Node: enable
+Node: enable_
+Node: n1
+Node: n2
+End of cell
+Cell mux: 4
+Parameters: 7
+Subcell call, cell: 3
+Subcell call, cell: 3
+Node: vss
+Node: vdd
+Node: a
+Node: b
+Node: output_
+Node: select
+Node: select_
+End of cell
+Cell ftlr: 5
+Parameters: 8
+Subcell call, cell: 4
+Subcell call, cell: 2
+Node: vss
+Node: vdd
+Node: input
+Node: output
+Node: output_
+Node: enable
+Node: enable_
+Node: reset
+End of cell
+Cell clt: 6
+Parameters: 8
+Subcell call, cell: 5
+Subcell call, cell: 5
+Node: vss
+Node: vdd
+Node: input
+Node: output
+Node: output_
+Node: clock
+Node: clock_
+Node: reset
+Node: n1
+Node: n2
+End of cell
+Cell tog: 7
+Parameters: 7
+Subcell call, cell: 6
+Node: vss
+Node: vdd
+Node: clock
+Node: clock_
+Node: output
+Node: output_
+Node: reset
+End of cell
+Cell div: 8
+Parameters: 8
+Subcell call, cell: 1
+Subcell call, cell: 7
+Subcell call, cell: 7
+Subcell call, cell: 7
+Subcell call, cell: 7
+Subcell call, cell: 7
+Subcell call, cell: 7
+Subcell call, cell: 7
+Subcell call, cell: 7
+Node: vss
+Node: vdd
+Node: clock
+Node: reset
+Node: q0
+Node: q1
+Node: q2
+Node: q3
+Node: clock_
+Node: q0_
+Node: q1_
+Node: q2_
+Node: q3_
+End of cell
+Function complete

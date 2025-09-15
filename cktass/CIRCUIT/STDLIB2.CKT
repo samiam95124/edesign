@@ -1,0 +1,1219 @@
+{**************************************************************
+
+Noninverting buffer
+
+Simply delivers a non-inverted version of the input.
+
+**************************************************************}
+
+cell buf: vss, vdd, input, output;
+
+begin
+
+   inv: vss, vdd, input, n1;
+   inv: vss, vdd, n1, output
+
+end;
+
+{**************************************************************
+
+Dual output buffer
+
+As a buffer, but both the inverted and non-inverted signals
+are brought out.
+
+**************************************************************}
+
+cell bufnp: vss, vdd, input, output, output_;
+
+begin
+
+   inv: vss, vdd, input, output_;
+   inv: vss, vdd, output_, output
+
+end;
+
+{**************************************************************
+
+Equalized dual output buffer
+
+As in the dual output buffer, except that it attempts to
+equalize the delay between negative and positive signals.
+Whether or not this is successfull will depend on ratios and
+loading. Note that this will not work under simulation !
+This is because there is no delay across the source/drain
+of a device.
+
+**************************************************************}
+
+cell bufnpe: vss, vdd, input, output, output_;
+
+begin
+
+   inv: vss, vdd, input, n1;
+   inv: vss, vdd, n1, output;
+   tg:  n1, output_, vdd, vss { with a tg tied "on" }
+
+end;
+
+{**************************************************************
+
+Weak inverter
+
+Same as a standard inverter, except that it is flagged so that
+the output can be overcome by any other strong drive.
+
+**************************************************************}
+
+cell winv: vss, vdd, input, output_;
+
+begin
+
+   wpeif: vdd, input, output_;
+   wneif: vss, input, output_
+
+end;
+
+{**************************************************************
+
+Tristate inverter
+
+This is the simplest version, which is said to have
+a few problems.
+This circuit is the equivalent of an inverter followed by
+a transmission gate, but with the (uneeded) connection between
+the top and bottom eliminated.
+
+Transistors: 4
+
+**************************************************************}
+
+cell trin: vss, vdd, input, output_, enable, enable_;
+
+begin
+
+   peif: vdd, input, n1; { outside transistors are the inverter }
+   peif: n1, enable_, output_; { inside transistors are the tg }
+   neif: output_, enable, n2;
+   neif: n2, input, vss
+
+end;
+
+{**************************************************************
+
+Tristate inverter
+
+As above, but with the control on the outside. Normally,
+having the controls in the middle is best to avoid noise
+coupling from changes on the input, but there are exceptions.
+
+Transistors: 4
+
+**************************************************************}
+
+cell trin1: vss, vdd, input, output_, enable, enable_;
+
+begin
+
+   peif: vdd, enable_, n1; { outside transistors are the tg }
+   peif: n1, input, output_; { inside transistors are the inverter }
+   neif: output_, input, n2;
+   neif: n2, enable, vss
+
+end;
+
+{**************************************************************
+
+Tristate buffer
+
+As above, but does not invert data.
+
+Transistors: 6
+
+**************************************************************}
+
+cell tri: vss, vdd, input, output, enable, enable_;
+
+begin
+
+   inv:  vss, vdd, input, n1;
+   trin: vss, vdd, n1, output, enable, enable_
+
+end;
+
+{**************************************************************
+
+Tristate inverter with buffered single positive enable
+
+Transistors: 4
+
+**************************************************************}
+
+cell trinb: vss, vdd, input, output_, enable;
+
+begin
+
+   inv:  vss, vdd, enable, n1;
+   trin: vss, vdd, input, output_, enable, n1
+
+end;
+
+{**************************************************************
+
+Tristate inverter with buffered single negative enable
+
+Transistors: 4
+
+**************************************************************}
+
+cell trinbn: vss, vdd, input, output_, enable_;
+
+begin
+
+   inv:  vss, vdd, enable_, n1;
+   trin: vss, vdd, input, output_, n1, enable_
+
+end;
+
+{**************************************************************
+
+Tristate buffer with buffered single positive enable
+
+Transistors: 6
+
+**************************************************************}
+
+cell trib: vss, vdd, input, output, enable;
+
+begin
+
+   inv: vss, vdd, enable, enable_;
+   tri: vss, vdd, input, output, enable, enable_
+
+end;
+
+{**************************************************************
+
+Tristate buffer with buffered single negative enable
+
+Transistors: 6
+
+**************************************************************}
+
+cell tribn: vss, vdd, input, output, enable_;
+
+begin
+
+   inv: vss, vdd, enable_, enable;
+   trin: vss, vdd, input, output, enable_, enable
+
+end;
+
+{**************************************************************
+
+Unbuffered multiplexer
+
+Choses a or b input. Uses tg's, and so has no drive capabillity
+of it's own.
+
+*************************************************************}
+
+cell mux: input1, input2, output, select, select_;
+
+begin
+
+   tg: input1, output, select_, select; { select 1 on 0 }
+   tg: input2, output, select,  select_ { select 2 on 1 }
+
+end;
+
+{**************************************************************
+
+Buffered multiplexer
+
+Choses a or b input for inverted result.
+
+**************************************************************}
+
+cell muxb: vss, vdd, input1, input2, output_, select, select_;
+
+begin
+
+   trin: vss, vdd, input1, output_, select_, select; { select 1 on 0 }
+   trin: vss, vdd, input2, output_, select,  select_ { select 2 on 1 }
+
+end;
+
+{**************************************************************
+
+Buffered multiplexer
+
+Choses a or b input for inverted result.
+As above, but with "trin1" as a building block.
+
+**************************************************************}
+
+cell muxb1: vss, vdd, input1, input2, output_, select, select_;
+
+begin
+
+   trin1: vss, vdd, input1, output_, select_, select; { select 1 on 0 }
+   trin1: vss, vdd, input2, output_, select,  select_ { select 2 on 1 }
+
+end;
+
+{**************************************************************
+
+Muxtiplexer with positive and negative outputs
+
+Choses a or b and delivers both polarity outputs.
+
+**************************************************************}
+
+cell muxbpn: vss, vdd, input1, input2, output, output_, select, select_;
+
+begin
+
+   muxb: vss, vdd, input1, input2, output_, select, select_;
+   inv:  vss, vdd, output_, output
+
+end;
+
+{**************************************************************
+
+Fully buffered multiplexer
+
+Choses a or b and delivers both polarity outputs. Uses only a
+single select.
+
+**************************************************************}
+
+cell muxbpnb: vss, vdd, input1, input2, output, output_, select;
+
+begin
+
+   inv:  vss, vdd, select, select_;
+   muxb: vss, vdd, input1, input2, output_, select, select_;
+   inv:  vss, vdd, output_, output
+
+end;
+
+{**************************************************************
+
+Line holder
+
+This element will keep it's single input/output line at the
+same level as was last driven there (by STRONG drive).
+In other words, it will disallow high impedance on the input
+by driving it with the last state.
+It has many uses:
+
+   1. As a bus line repeater. Keeps a bus line from floating,
+      and generating excess current (which means it is a trade
+      off for the extra current needed to overcome the repeater
+      drive).
+
+   2. As the smallest possible static memmory unit, and such
+      as a building block for rams, etc.
+
+   3. To simulate a capacitive node. Since it will overcome
+      stored charges, the hold can be used to simulate a situation
+      where two charges are mixed (shared), and the outcome can
+      be garanteed by the amount of capacitence of the respective
+      nodes.
+
+**************************************************************}
+
+cell hold: vss, vdd, line;
+
+begin
+
+   inv:  vss, vdd, line,  line_;
+   winv: vss, vdd, line_, line
+
+end;
+
+{**************************************************************
+
+Ram bit
+
+A single bit of a minimum static ram. It consists of a holding
+cell with a pass transistor. The bit is both read an written
+through the pass transistor. The circuit has many bad properties,
+and must be carefully ratio'ed, but represents the minimum
+static ram cell.
+
+Writing:
+
+The cell is written by driving the logic value on the access
+line and enabling the pass transistor. This may happen in any order,
+but the enable on the pass transistor MUST be removed BEFORE the
+logic value is removed, with a hold time determined by transistor
+sizing and line parisitics.
+The time and current taken to fight the weak return inverter must
+be taken into account.
+Also, the N pass transistor is incapable of properly passing a
+"1" value. This will correct itself, as the loop will cause the low
+"1" level to rise by feedback. The extra time to allow the "1" value
+to settle must be taken into account.
+
+Reading:
+
+The cell is read by placing the access line in high-z, and enabling
+the pass gate. Since a "1" value cannot be properly read from the
+cell, the access line must have been precharged to "1" before access.
+
+Transistors: 5
+
+**************************************************************}
+
+cell bit: vss, vdd, line, select;
+
+begin
+
+   neif: line, select, store; { pass to internal store }
+   hold: vss, vdd, store { hold for that }
+
+end;
+
+{**************************************************************
+
+Dual port bit
+
+As "bit", but with two ports. Used to build dual port memories.
+
+**************************************************************}
+
+cell dbit: vss, vdd, linea, lineb, selecta, selectb;
+
+begin
+
+   neif: linea, selecta, store; { port a }
+   neif: lineb, selectb, store; { port b }
+   hold: vss, vdd, store { hold for that }
+
+end;
+
+{**************************************************************
+
+Flowthrough latch
+
+The simplest possible flowthough latch. The same circuit as
+used for a ram bit, but with complementary outputs.
+Using the complement output, and obeying the write conditions
+listed under "bit", this latch can be passable. Note that
+the noninverting output is both weak and "soft". Immediate buffering
+is Recommended.
+
+Transistors: 5
+
+**************************************************************}
+
+cell ftl1: vss, vdd, input, output, output_, select;
+
+begin
+
+   neif: input, select, output;
+   inv:  vss, vdd, output, output_;
+   winv: vss, vdd, output_, output
+
+end;
+
+{**************************************************************
+
+Flowthrough latch
+
+The next simplest flowthrough latch after the "ftl1", this
+latch gives relitively problem free true and complement outputs
+at low transistor cost. The penalty is an input "kickback" effect
+that happens at clock time. This is because both the feed through and
+feed back paths will open partially, and breifly drive back at the
+input. All and all, if you are that desparate on transistor count,
+"ftl1" offers a lower transistor count and does not need a complement
+select.
+
+Transistors: 8
+
+**************************************************************}
+
+cell ftl2: vss, vdd, input, output, output_, select, select_;
+
+begin
+
+   mux: input, output, store, select_, select; { select write or feedback }
+   inv: vss, vdd, store, output_;
+   inv: vss, vdd, output_, output
+
+end;
+
+{**************************************************************
+
+Flowthrough latch
+
+This is the best basic latch, works on a tristate multiplexer.
+Features no input kickback (or indeed any low impedance input
+coupling). As with the above unbuffered latches, no kickback can
+be tolerated on either output.
+
+**************************************************************}
+
+cell ftl: vss, vdd, input, output, output_, enable, enable_;
+
+begin
+
+   muxb1: vss, vdd, input, output, output_, enable_, enable;
+   inv:  vss, vdd, output_, output
+
+end;
+
+{**************************************************************
+
+Flowthrough latch with clear
+
+As "ftl", but with positive asyncronous clear.
+
+**************************************************************}
+
+cell ftlr: vss, vdd, input, output, output_, enable, enable_, reset;
+
+begin
+
+   muxb1: vss, vdd, input, output, output_, enable_, enable;
+   nor:  vss, vdd, output_, reset, output
+
+end;
+
+{**************************************************************
+
+Flowthrough latch with set
+
+As "ftl", but with negative set.
+
+**************************************************************}
+
+cell ftls: vss, vdd, input, output, output_, enable, enable_, set_;
+
+begin
+
+   muxb1: vss, vdd, input, output, output_, enable_, enable;
+   nand: vss, vdd, output_, set_, output
+
+end;
+
+{**************************************************************
+
+Flowthrough latch with clear and set
+
+As "ftl", but with positive asyncronous clear and set.
+
+**************************************************************}
+
+cell ftlrs: vss, vdd, input, output, output_, enable, enable_,
+           set, reset;
+
+begin
+
+   muxb1: vss, vdd, input, output, output_, enable_, enable;
+   nor:   vss, vdd, output_, reset, n1;
+   or:    vss, vdd, n1, set, output
+
+end;
+
+{**************************************************************
+
+Flowthrough latch with full buffering
+
+As "ftl", but features buffered single clock, and buffered
+outputs. The outputs and inputs have no constrants.
+
+**************************************************************}
+
+cell ftlb: vss, vdd, input, output, output_, enable;
+
+begin
+
+   inv: vss, vdd, enable, enable_; { form negative enable }
+   ftl: vss, vdd, input, store, store_, enable, enable_; { latch }
+   inv: vss, vdd, store, output_; { form outputs }
+   inv: vss, vdd, store_, output
+
+end;
+
+{**************************************************************
+
+Flowthrough latch with full buffering and positive clear
+
+As "ftl", but features buffered single clock, buffered
+outputs, and positive clear.
+The outputs and inputs have no constrants.
+
+**************************************************************}
+
+cell ftlbr: vss, vdd, input, output, output_, enable, reset;
+
+begin
+
+   inv:  vss, vdd, enable, enable_; { form negative enable }
+   ftlr: vss, vdd, input, store, store_, enable, enable_, reset; { latch }
+   inv:  vss, vdd, store, output_; { form outputs }
+   inv:  vss, vdd, store_, output
+
+end;
+
+{**************************************************************
+
+Flowthrough latch with full buffering and negative set
+
+As "ftl", but features buffered single clock, buffered
+outputs, and negative set.
+The outputs and inputs have no constrants.
+
+**************************************************************}
+
+cell ftlbs: vss, vdd, input, output, output_, enable, set_;
+
+begin
+
+   inv:  vss, vdd, enable, enable_; { form negative enable }
+   ftls: vss, vdd, input, store, store_, enable, enable_, set_; { latch }
+   inv:  vss, vdd, store, output_; { form outputs }
+   inv:  vss, vdd, store_, output
+
+end;
+
+{**************************************************************
+
+Flowthrough latch with full buffering, positive clear and set
+
+As "ftl", but features buffered single clock, buffered
+outputs, positive clear and set.
+The outputs and inputs have no constrants.
+
+**************************************************************}
+
+cell ftlbrs: vss, vdd, input, output, output_, enable, set, reset;
+
+begin
+
+   inv:  vss, vdd, enable, enable_; { form negative enable }
+   ftlrs: vss, vdd, input, store, store_, enable, enable_, set,
+          reset; { latch }
+   inv:  vss, vdd, store, output_; { form outputs }
+   inv:  vss, vdd, store_, output
+
+end;
+
+{**************************************************************
+
+Clocked latch
+
+Made up of master and slave flow latches connected to opposite
+clocks.
+
+**************************************************************}
+
+cell clt: vss, vdd, input, output, output_, clock, clock_;
+
+begin
+
+   { master enters clock low }
+   ftl: vss, vdd, input, master, master_, clock_, clock;
+   { slave enters clock high }
+   ftl: vss, vdd, master, output, output_, clock, clock_
+
+end;
+
+{**************************************************************
+
+Clocked latch with positive clear
+
+Made up of master and slave flow latches connected to opposite
+clocks. The reset is asyncronous.
+
+**************************************************************}
+
+cell cltr: vss, vdd, input, output, output_, clock, clock_, reset;
+
+begin
+
+   ftlr: vss, vdd, input, master, master_, clock_, clock, reset;
+   ftlr: vss, vdd, master, output, output_, clock, clock_, reset
+
+end;
+
+{**************************************************************
+
+Clocked latch with negative set.
+
+Made up of master and slave flow latches connected to opposite
+clocks. The set is asyncronous.
+
+**************************************************************}
+
+cell clts: vss, vdd, input, output, output_, clock, clock_, set_;
+
+begin
+
+   ftls: vss, vdd, input, master, master_, clock_, clock, set_;
+   ftls: vss, vdd, master, output, output_, clock, clock_, set_
+
+end;
+
+{**************************************************************
+
+Clocked latch with positive clear and set
+
+Made up of master and slave flow latches connected to opposite
+clocks. The reset and set are asyncronous.
+
+**************************************************************}
+
+cell cltrs: vss, vdd, input, output, output_, clock, clock_, set,
+            reset;
+
+begin
+
+   ftlrs: vss, vdd, input, master, master_, clock_, clock, set, reset;
+   ftlrs: vss, vdd, master, output, output_, clock, clock_, set, reset
+
+end;
+
+{**************************************************************
+
+Buffered clocked latch
+
+Made up of master and slave flow latches connected to opposite
+clocks.
+
+**************************************************************}
+
+cell cltb: vss, vdd, input, output, output_, clock;
+
+begin
+
+   inv: vss, vdd, clock, clock_; { form clock }
+   { master enters clock low }
+   ftl: vss, vdd, input, master, master_, clock_, clock;
+   { slave enters clock high }
+   ftl: vss, vdd, master, slave, slave_, clock, clock_;
+   inv: vss, vdd, slave_, output; { form outputs }
+   inv: vss, vdd, slave,  output_
+
+end;
+
+{**************************************************************
+
+Buffered clocked latch with positive clear
+
+Made up of master and slave flow latches connected to opposite
+clocks. The reset is asyncronous.
+
+**************************************************************}
+
+cell cltbr: vss, vdd, input, output, output_, clock, reset;
+
+begin
+
+   inv:  vss, vdd, clock, clock_;
+   ftlr: vss, vdd, input, master, master_, clock_, clock, reset;
+   ftlr: vss, vdd, master, slave, slave_, clock, clock_, reset;
+   inv:  vss, vdd, slave_, output;
+   inv:  vss, vdd, slave, output_
+
+end;
+
+{**************************************************************
+
+Buffered clocked latch with negative set.
+
+Made up of master and slave flow latches connected to opposite
+clocks. The set is asyncronous.
+
+**************************************************************}
+
+cell cltbs: vss, vdd, input, output, output_, clock, set_;
+
+begin
+
+   inv:  vss, vdd, clock, clock_;
+   ftls: vss, vdd, input, master, master_, clock_, clock, set_;
+   ftls: vss, vdd, master, slave, slave_, clock, clock_, set_;
+   inv:  vss, vdd, slave_, output;
+   inv:  vss, vdd, slave, output_
+
+end;
+
+{**************************************************************
+
+Buffered clocked latch with positive clear and set
+
+Made up of master and slave flow latches connected to opposite
+clocks. The reset and set are asyncronous.
+
+**************************************************************}
+
+cell cltbrs: vss, vdd, input, output, output_, clock, set, reset;
+
+begin
+
+   inv:  vss, vdd, clock, clock_;
+   ftlrs: vss, vdd, input, master, master_, clock_, clock, set, reset;
+   ftlrs: vss, vdd, master, slave, slave_, clock, clock_, set, reset;
+   inv:  vss, vdd, slave_, output;
+   inv:  vss, vdd, slave, output_
+
+end;
+
+{**************************************************************
+
+Set reset latch with negative set/reset
+
+A standard crossed nand latch.
+
+**************************************************************}
+
+cell srln: vss, vdd, set_, reset_, output, output_;
+
+begin
+
+   nand: vss, vdd, set_, output_, output;
+   nand: vss, vdd, reset_, output, output_
+
+end;
+
+{**************************************************************
+
+Set reset latch with positive set/reset
+
+A standard crossed nor latch.
+
+**************************************************************}
+
+cell srl: vss, vdd, set, reset, output, output_;
+
+begin
+
+   nor: vss, vdd, reset, output_, output;
+   nor: vss, vdd, set, output, output_
+
+end;
+
+{**************************************************************
+
+Toggle latch
+
+Changes to opposite state on each clock.
+
+*************************************************************}
+
+cell tog: vss, vdd, output, output_, clock, clock_;
+
+begin
+
+   clt: vss, vdd, output_, output, output_, clock, clock_
+
+end;
+
+{**************************************************************
+
+Toggle latch with positive reset
+
+Changes to opposite state on each clock. Features positive
+reset.
+
+*************************************************************}
+
+cell togr: vss, vdd, output, output_, clock, clock_, reset;
+
+begin
+
+   cltr: vss, vdd, output_, output, output_, clock, clock_, reset
+
+end;
+
+{**************************************************************
+
+Toggle latch with negative set
+
+Changes to opposite state on each clock. Features negative set.
+
+*************************************************************}
+
+cell togs: vss, vdd, output, output_, clock, clock_, set_;
+
+begin
+
+   clts: vss, vdd, output_, output, output_, clock, clock_, set_
+
+end;
+
+{**************************************************************
+
+Buffered clocked JK latch
+
+Made up of master and slave flow latches connected to opposite
+clocks.
+
+**************************************************************}
+
+cell jkb: vss, vdd, j, k, output, output_, clock;
+
+begin
+
+   inv: vss, vdd, clock, clock_; { form clock }
+   nor: vss, vdd, j, output, jq; { process jk function }
+   and: vss, vdd, k, output, kq;
+   nor: vss, vdd, jq, kq, input;
+   { master enters clock low }
+   ftl: vss, vdd, input, master, master_, clock_, clock;
+   { slave enters clock high }
+   ftl: vss, vdd, master, slave, slave_, clock, clock_;
+   inv: vss, vdd, slave_, output; { form outputs }
+   inv: vss, vdd, slave,  output_
+
+end;
+
+{**************************************************************
+
+Buffered clocked JK latch with positive reset
+
+Made up of master and slave flow latches connected to opposite
+clocks.
+
+**************************************************************}
+
+cell jkbr: vss, vdd, j, k, output, output_, clock, reset;
+
+begin
+
+   inv: vss, vdd, clock, clock_; { form clock }
+   nor: vss, vdd, j, output, jq; { process jk function }
+   and: vss, vdd, k, output, kq;
+   nor: vss, vdd, jq, kq, input;
+   { master enters clock low }
+   ftlr: vss, vdd, input, master, master_, clock_, clock, reset;
+   { slave enters clock high }
+   ftlr: vss, vdd, master, slave, slave_, clock, clock_, reset;
+   inv: vss, vdd, slave_, output; { form outputs }
+   inv: vss, vdd, slave,  output_
+
+end;
+
+{**************************************************************
+
+Buffered clocked JK latch with negative set
+
+Made up of master and slave flow latches connected to opposite
+clocks.
+
+**************************************************************}
+
+cell jkbs: vss, vdd, j, k, output, output_, clock, set_;
+
+begin
+
+   inv: vss, vdd, clock, clock_; { form clock }
+   nor: vss, vdd, j, output, jq; { process jk function }
+   and: vss, vdd, k, output, kq;
+   nor: vss, vdd, jq, kq, input;
+   { master enters clock low }
+   ftls: vss, vdd, input, master, master_, clock_, clock, set_;
+   { slave enters clock high }
+   ftls: vss, vdd, master, slave, slave_, clock, clock_, set_;
+   inv: vss, vdd, slave_, output; { form outputs }
+   inv: vss, vdd, slave,  output_
+
+end;
+
+{**************************************************************
+
+Buffered clocked JK latch with positive reset and set
+
+Made up of master and slave flow latches connected to opposite
+clocks.
+
+**************************************************************}
+
+cell jkbrs: vss, vdd, j, k, output, output_, clock, set, reset;
+
+begin
+
+   inv: vss, vdd, clock, clock_; { form clock }
+   nor: vss, vdd, j, output, jq; { process jk function }
+   and: vss, vdd, k, output, kq;
+   nor: vss, vdd, jq, kq, input;
+   { master enters clock low }
+   ftlrs: vss, vdd, input, master, master_, clock_, clock, set, reset;
+   { slave enters clock high }
+   ftlrs: vss, vdd, master, slave, slave_, clock, clock_, set, reset;
+   inv: vss, vdd, slave_, output; { form outputs }
+   inv: vss, vdd, slave,  output_
+
+end;
+
+{**************************************************************
+
+Full adder
+
+Adds a, b and carry to derive the sum and carry outs.
+Not particularly optimized.
+
+**************************************************************}
+
+cell add: vss, vdd, inputa, inputb, cin, sum, cout;
+
+begin
+
+   inv:  vss, vdd, cin, n1;
+   nand: vss, vdd, inputa, inputb, n2;
+   nor:  vss, vdd, inputa, inputb, n3;
+   inv:  vss, vdd, n3, n4;
+   nand: vss, vdd, n2, n4, n5;
+   nand: vss, vdd, cin, n4, n6;
+   xor:  vss, vdd, n1, n5, sum;
+   nand: vss, vdd, n6, n2, cout
+
+end;
+
+{**************************************************************
+
+Pull up
+
+Simply provides weak pullup to "1".
+
+**************************************************************}
+
+cell pup: vss, vdd, line;
+
+begin
+
+   wpeif: vdd, vss, line
+
+end;
+
+{**************************************************************
+
+Pull down
+
+Simply provides weak pulldown to "0".
+
+**************************************************************}
+
+cell pdn: vss, vdd, line;
+
+begin
+
+   wneif: vss, vdd, line
+
+end;
+
+{**************************************************************
+
+Self biased pull up
+
+Simply provides weak pullup to "1".
+
+**************************************************************}
+
+cell pups: vdd, line;
+
+begin
+
+   wneif: vdd, line, line
+
+end;
+
+{**************************************************************
+
+Self biased pull down
+
+Simply provides weak pulldown to "0".
+
+**************************************************************}
+
+cell pdns: vss, line;
+
+begin
+
+   wneif: vss, line, line
+
+end;
+
+{**************************************************************
+
+Schmidt trigger
+
+Provides an inverter with hysterisis trip point for truing
+up signals. Obviously the analog function does not have effect
+in the logic simulator, but it does not hurt, either.
+
+**************************************************************}
+
+cell sct: vss, vdd, input, output_;
+
+begin
+
+   peif:  vdd,     input,    n1;
+   peif:  n1,      input,   output_;
+   wpeif: n1,      output_, vss;
+   neif:  output_, input,   n2;
+   neif:  n2,      input,   vss;
+   wneif: n2,      output_, vdd
+
+end;
+
+{**************************************************************
+
+Tri-state driver
+
+A "better" way to perform tri-state than "trin" is to use
+only a single P and N in the output stage, then use logic
+to develop the signals to drive each for "1", "0", and "Z".
+This difference becomes especially important when we talk
+about pad drivers, for which "trin" becomes clearly impractical.
+
+Transistors: 6
+
+**************************************************************}
+
+cell trid: vss, vdd, input, pdrive, ndrive, enable, enable_;
+
+begin
+
+   peif: vdd,    enable, pdrive;
+   peif: vdd,    input, pdrive;
+   peif: pdrive, enable_, ndrive;
+   neif: pdrive, enable, ndrive;
+   neif: ndrive, enable_, vss;
+   neif: ndrive, input, vss
+
+end;
+
+{**************************************************************
+
+Tri-state driver with positive enable
+
+As "trid", but with single positive enable.
+
+**************************************************************}
+
+cell tridb: vss, vdd, input, pdrive, ndrive, enable;
+
+begin
+
+   inv:  vss, vdd, enable, enable_;
+   trid: vss, vdd, input, pdrive, ndrive, enable, enable_
+
+end;
+
+{**************************************************************
+
+Tri-state driver with negative enable
+
+As "trid", but with single negative enable.
+
+**************************************************************}
+
+cell tridbn: vss, vdd, input, pdrive, ndrive, enable_;
+
+begin
+
+   inv:  vss, vdd, enable_, enable;
+   trid: vss, vdd, input, pdrive, ndrive, enable, enable_
+
+end;
+
+{**************************************************************
+
+Output pad
+
+Simply buffers the signal for output
+
+**************************************************************}
+
+cell outp: vss, vdd, input, pad;
+
+begin
+
+   inv:  vss, vdd, input, pad_; { the predriver }
+   peif: vdd, pad_, pad; { the P pad driver }
+   neif: vss, pad_, pad  { the N pad driver }
+
+end;
+
+{**************************************************************
+
+Input pad
+
+Simply buffers the input signal.
+
+**************************************************************}
+
+cell inp: vss, vdd, output, pad;
+
+begin
+
+   buf: vss, vdd, pad, output { drive from pad }
+
+end;
+
+{**************************************************************
+
+Schmidt input pad
+
+Buffers the input pad with schmidt action.
+
+**************************************************************}
+
+cell insp: vss, vdd, output, pad;
+
+begin
+
+   sct: vss, vdd, pad, output { drive from pad }
+
+end;
+
+{**************************************************************
+
+Tristate output pad
+
+Provides an output pad with positive enable.
+
+**************************************************************}
+
+cell trip: vss, vdd, input, enable, pad;
+
+begin
+
+   tridb: vss, vdd, input, pdrive, ndrive, enable;
+   peif: vdd, pdrive, pad; { the P output gate }
+   neif: vss, ndrive, pad  { the N output gate }
+
+end;
+
+{**************************************************************
+
+Bidirectional pad
+
+This is the "deluxe" pad, featuring both input and output.
+The enable determines the direction, on or off the chip.
+Since pads are one of the more variable sections of a chip,
+and also quite difficult to design, a valid approach where
+we are not pad limited is to layout only the bidirectional
+pad, then use that for all of bidirectional, input only,
+and output only pads. For the case of input only pads,
+the data out and enable lines are tied to vss.
+
+**************************************************************}
+
+cell bip: vss, vdd, input, output, enable, pad;
+
+begin
+
+   tridb: vss, vdd, input, pdrive, ndrive, enable; { prepare pad drive }
+   peif:  vdd, pdrive, pad; { the P output gate }
+   neif:  vss, ndrive, pad; { the N output gate }
+   buf:   vss, vdd, pad, output { buffer pad signal out }
+
+end;
+

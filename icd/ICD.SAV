@@ -1,0 +1,191 @@
+program icd;
+
+uses {$U common.j} common;
+
+label 88, 99; { terminate program }
+
+var i:    btsinx;
+    x, y: integer;
+    vi:   viewinx;
+    si:   sizeinx;
+    tci:  color;
+    bi:   blkinx;
+    pin:  prtinx;
+    li:   laytyp;
+    tim:  integer;
+
+procedure inialpha; cexternal; { initalize character matrix }
+procedure inibut; external; { initalize button array }
+procedure iniscn; cexternal; { initialize display hardware }
+{ initalize printer hardware }
+procedure iniprt(var ptrmax: rpoint; var ptrdpm: real;
+                 var pmax: point; var ptrdl: byte); external;
+procedure resscn; cexternal; { restore display hardware }
+procedure iniptr; external; { initialize pointer hardware }
+procedure command; external; { execute schematic commands }
+procedure dmenu; external; { redraw menu }
+procedure dispcell; external; { display current cell }
+procedure intro; external; { present introduction }
+procedure updptr; external; { update pointer device }
+function kbdrdy: boolean; cexternal; { check keyboard character ready }
+function gettim: integer; cexternal; { get current system time }
+{ find elapsed time }
+function elapsed(t: integer): integer; external;
+procedure wait(t: integer); external; { wait time }
+{ draw block }
+procedure block(x1, y1, x2, y2: integer; c: color); cexternal;
+{}
+{**************************************************************
+
+ABORT PROGRAM
+
+Aborts the entire ICD package. This is used for system errors
+only.
+
+**************************************************************}
+
+procedure abort;
+
+begin
+
+   goto 88
+
+end;
+{}
+{**************************************************************
+
+PROCESS INITALIZATION ERROR
+
+Resets the screen and outputs an initalization error.
+This is used where an error in devices or other critical 
+configuration errors occurs.
+
+**************************************************************}
+
+procedure deverr(e: devcod);
+
+begin
+
+   resscn; { reset screen mode }
+   write('*** ');
+   case e of
+
+      deptr: write('Tablet device not responding correctly');
+
+   end;
+   writeln(' ***');
+   writeln('*** Unable to initalize ICD: procedure aborted ***');
+   wait(detime); { hold to allow message read (windows) }
+   goto 99
+
+end;
+{}
+begin
+
+   inialpha; { initalize character matrix }
+   inibut; { initalize button array }
+   targvp.v.s.x := tgminx; { set target region }
+   targvp.v.s.y := tgminy;
+   targvp.v.e.x := tgmaxx;
+   targvp.v.e.y := tgmaxy;
+   cur.x := ((amaxx - aminx) div 2)+aminx; { reset cursor coordinates }
+   cur.y := ((amaxy - aminy) div 2)+aminy; { to middle of active area }
+   button[bdots].act := true; { set show grid }
+   button[blines].act := true; { set show lines grid }
+   button[bschema].act := true; { set schematic mode active }
+   curscm := [smschema]; { set screen mode as schematic }
+   button[b90].act := true; { set 90 deg line active }
+   button[bwire].act := true; { set wire mode }
+   button[bsnap].act := true; { set snap active }
+   button[bir0].act := true; { set placement at 0 deg }
+   button[bmet1vis].act := true; { set layers active }
+   button[bmet2vis].act := true;
+   button[bpolyvis].act := true;
+   button[bviavis].act := true;
+   button[bcontvis].act := true;
+   button[bndiffvis].act := true;
+   button[bpdiffvis].act := true;
+   button[bnwellvis].act := true;
+   button[bpwellvis].act := true;
+   button[bccutvis].act := true;
+   button[binsides].act := true; { set show insides }
+   button[bprox].act := true; { set proximity active }
+   modbut := bwire; { set wire mode }
+   dsmbut := bwire;
+   smslst := nil; { clear node smash list }
+   bsmlst := nil; { clear bus smash list }
+   for li := ltfig to ltwell do 
+      savlst[li] := nil; { clear save list }
+   namlst := nil; { clear name save list }
+   rw.s.x := -(maxint div scalem div 2); { set real borders }
+   rw.s.y := -(maxint div scalem div 2);
+   rw.e.x := maxint div scalem div 2;
+   rw.e.y := maxint div scalem div 2;
+   pixsiz := dftsiz; { set default virtual pixel size }
+   { find aspect angle }
+   asan := arctan((amaxx-aminx)/(amaxy-aminy));
+   { set print parameters }
+   ptroff.x := 0; { set zero offset }
+   ptroff.y := 0;
+   curbut := bnull; { set no button active }
+   curdwn := false; { set cursor not on screen }
+   zbxdwn := false; { set zoom box not on screen } 
+   mrkdwn := false; { set marker not on screen } 
+   rlmdwn := false; { set ruler mark not on screen }
+   lindwn := false; { set line cursor not on screen }
+   boxdwn := false; { set box cursor not on screen } 
+   cirdwn := false; { set circle cursor not on screen }      
+   arcdwn := false; { set arc cursor not on screen }      
+   tcrdwn := false; { set text cursor not on screen } 
+   cntdrw := false; { reset continous draw mode }
+   tcolor := lblue; { set current trace color }
+   terminate := false; { clear terminate flag }
+   blank := false; { set screen not blanked }
+   { set permissable tracing colors }
+   trcclrs := [lblue, lgreen, lcyan, lred, lmagenta, yellow];
+   trcclr := lcyan; { set first trace color to do }
+   { clear color tracking }
+   for tci := black to white do trctrk[tci] := false; 
+   { clear block saves }
+   for bi := 1 to blkmax do 
+      for li := ltfig to ltwell do
+         blocks[bi].l[li] := nil; 
+   { clear printer parameter saves }
+   for pin := 1 to prtmax do prtsav[pin].a := false;
+   placel := nil; { clear placement cell }
+   new(cellst); { establish inital cell }
+   cellst^.name := '        ';
+   cellst^.schema := nil;
+   cellst^.symbol := nil;
+   cellst^.layout := nil;
+   cellst^.simulate := nil;
+   cellst^.next := nil;
+   curcel := cellst; { set current cell }
+
+   iniscn; { initalize video device }
+   iniptr; { initalize pointer device }
+   iniprt(ptrmax, ptrdpm, pmax, ptrdl); { initalize printer }
+   block(minx, miny, maxx, maxy, white); { clear screen to white}
+
+   { show sign-on screen }
+   intro;
+   tim := gettim; { get current time }
+   updptr; { update puck status }
+   while not kbdrdy and (elapsed(tim) < introt) and 
+         not (puck.b[1].s or puck.b[2].s or
+              puck.b[3].s or puck.b[4].s) do
+      updptr; { update puck status }
+   block(minx, miny, maxx, maxy, white); { clear screen to white}
+   { set up screen }
+   dmenu; { draw menu }
+   dispcell; { startup new cell }
+   command; { execute schematic commands }
+
+   88: { exit program }
+
+   { restore standard video mode }
+   resscn;
+
+   99: { exit program }
+
+end.

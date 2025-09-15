@@ -1,0 +1,128 @@
+{**************************************************************
+
+Syncronous upcounter element
+
+Provides one bit of a syncronous counter. Features load and
+reset controls.
+The counter chain is created by linking carry in's to the lsb
+side, and carry out's to the msb side. The lsb carry in then
+becomes count enable, and the msb becomes overflow.
+The clock may change no faster than the total time to ripple a
+carry down the chain. If the time is too long, a look-ahead
+scheme can be used.
+
+**************************************************************}
+
+cell scnt: vss, vdd, input, output, output_, cin, cout, load, reset,
+           clock, clock_;
+
+begin
+
+   { select by: load = 0, select sum for next,
+     load = 1, select input for next }
+   muxb: vss, vdd, input, sum, next, next_, load_, load;
+   { clocked output stage }
+   cltr: vss, vdd, next, output, output_, clock, clock_;
+   xor: vss, vdd, cin, output, sum; { find next sum }
+   and: vss, vdd, cin, output, cout { find carry out }
+
+end;
+
+{**************************************************************
+
+Syncronous downcounter element
+
+Provides one bit of a syncronous counter. Features load and
+reset controls.
+Constructed as scnt, but counts down.
+
+**************************************************************}
+
+cell scntd: vss, vdd, input, output, output_, cin, cout, load, reset,
+           clock, clock_;
+
+begin
+
+   { select by: load = 0, select sum for next,
+     load = 1, select input for next }
+   muxb: vss, vdd, input, sum, next, next_, load_, load;
+   { clocked output stage }
+   cltr: vss, vdd, next, output, output_, clock, clock_;
+   xor: vss, vdd, cin, output, sum; { find next sum }
+   nor: vss, vdd, cin, output, cout { find carry out }
+
+end;
+
+{**************************************************************
+
+Syncronous up/downcounter element
+
+Provides one bit of a syncronous counter. Features load, reset,
+and up/down controls.
+Constructed as scnt, but counts up or down.
+
+**************************************************************}
+
+cell scntd: vss, vdd, input, output, output_, cin, cout, load, reset,
+            clock, clock_, updown;
+
+begin
+
+   { select by: load = 0, select sum for next,
+     load = 1, select input for next }
+   muxb: vss, vdd, input, sum, next, next_, load_, load;
+   { clocked output stage }
+   cltr: vss, vdd, next, output, output_, clock, clock_;
+   xor: vss, vdd, cin, output, sum; { find next sum }
+   and3: vss, vdd, cin, output, updown, coutu; { find carry out up }
+   nor3: vss, vdd, cin, output, updown, coutd; { find carry out down }
+   or: vss, vdd, coutu, coutd, cout { output carry }
+
+end;
+
+{**************************************************************
+
+Shift with load
+
+One bit slice of a shift register with paralell load and reset.
+
+**************************************************************}
+
+cell shr: vss, vdd, left, output, output_, input, load, load_, clock, clock_,
+          reset;
+
+begin
+
+   { select left on load = 0, input on load = 1 }
+   muxb: vss, vdd, left, input, next, next_, load_, load;
+   cltr: vss, vdd, next, output, output_, clock, clock_
+
+end;
+
+{**************************************************************
+
+Shift left/right with load
+
+One bit slice of a shift register with paralell load and left/right
+capabillity. Buffered and decoded. The selects work as follows:
+
+   s0  s1   Mode
+   ----------------
+   0   0    Hold
+   0   1    Shift left
+   1   0    Shift right
+   1   1    Load input
+
+**************************************************************}
+
+cell shrl: vss, vdd, left, right, output, output_, input, load,
+           sleft, sright, clock, reset;
+
+begin
+
+   { select next source }
+   muxb4: vss, vdd, output, left, right, input, next, next_, s0, s1;
+   clt:   vss, vdd, next, output, output_ { store output }
+
+end;
+

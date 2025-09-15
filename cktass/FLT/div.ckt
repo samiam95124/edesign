@@ -1,0 +1,17 @@
+cell inv: vss, vdd, input, output_;
+
+begin
+
+   peif: vdd, input, output_, 1, 1;
+   neif: vss, input, output_, 1, 1
+
+end;
+
+cell buf: vss, vdd, input, output;
+
+begin
+
+   inv: vss, vdd, input, input_;
+   inv: vss, vdd, input_, output
+
+end;

@@ -1,0 +1,8 @@
+c
+c Compile flattener
+c
+echo Compiling flt.com
+pc flta=fltdef flta #v #c;
+pc fltb=fltdef fltb #v #c;
+lflt;
+

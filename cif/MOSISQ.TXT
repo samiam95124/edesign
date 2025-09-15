@@ -1,0 +1,10 @@
+Questions for MOSIS:
+
+1. Does mosis tolerate overlapping (p/n) wells ?
+
+2. Does mosis prefer flat or heyarchal CIFs ?
+
+3. What is the significance of the origin in CIFs ?
+
+4. Is overlap of same layer tolerated ? required ?
+Can I overlap selects ?

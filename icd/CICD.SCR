@@ -1,0 +1,56 @@
+rem 
+rem structure of ICD program:
+rem
+rem pixel - the pixel set/reset routines and lowest level routines.
+rem         These are the routines that are allways coded in assembly,
+rem         and do not have high level language equivalents.
+rem draw -  Contains various low level display routines. A high level
+rem         language version and any number of assembly level versions
+rem         of this package exist. Except for speed, they are supposed
+rem         to be interchangeable.
+rem
+
+alias pascomp if (now('!!1.pas') >> icdnow) or doall; expr 'compiling !!1.pas...'; svs -c +d !!1.pas; endif
+alias asm if (now('!!1.asm') >> icdnow) or doall; expr 'Assembling !!1.asm...'; ml /c /Cx /Fl!!1.lst !!1.asm; endif
+
+rem This checks if the global file has changed, and
+rem if so, all compiles need to be done (pascal only)
+
+set icdnow now('icd.exe'); rem find time on target
+set doall (now('define.pas') >> icdnow) or (now('cicd.scr') >> icdnow) or (now('common.pas') >> icdnow)
+
+rem This sets the flag to see if any compiles have been done
+
+set comp 'false'; rem set no file recompiled/assembled
+
+rem Compile HLL modules
+
+rem pascomp icd;      if errorlevel # 0; expr '*** Error in icd.pas'; goto term; endif
+rem pascomp icda;     if errorlevel # 0; expr '*** Error in icda.pas'; goto term; endif
+rem pascomp icdb;     if errorlevel # 0; expr '*** Error in icdb.pas'; goto term; endif 
+rem pascomp icdc;     if errorlevel # 0; expr '*** Error in icdc.pas'; goto term; endif
+rem pascomp icdd;     if errorlevel # 0; expr '*** Error in icdd.pas'; goto term; endif
+rem pascomp icde;     if errorlevel # 0; expr '*** Error in icde.pas'; goto term; endif
+rem pascomp icdf;     if errorlevel # 0; expr '*** Error in icdf.pas'; goto term; endif
+rem pascomp icdg;     if errorlevel # 0; expr '*** Error in icdg.pas'; goto term; endif
+rem pascomp icdh;     if errorlevel # 0; expr '*** Error in icdh.pas'; goto term; endif
+
+rem Assemble modules
+
+asm ibmrot;   if errorlevel # 0; expr '*** Error in ibmrot.pas'; goto term; endif
+
+rem If any compiles have been performed, a link is required
+
+rem if comp == 'true'
+
+   expr 'Linking icd.exe...'
+   del icd.lib
+   lib32s icd.lib < cicd.dat
+   svs +d -o icd.exe icd.obj ibmrot.obj icd.lib summasii\position.lib paradise\video.lib fjdl3400\print.lib \svs\lib\libp28.lib
+   dir icd.exe/f
+
+rem endif
+
+if comp == 'false'; expr '*** Dates current: no action taken'; endif
+
+label term

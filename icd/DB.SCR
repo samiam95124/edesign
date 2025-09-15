@@ -1,0 +1,4 @@
+reserve 640*1024
+cv /r /x /50 /m /s !1
+c:\vga\vga1024 13243
+reserve 50*1024

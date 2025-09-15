@@ -1,0 +1,5 @@
+pas test
+if errorlevel = 0
+prolink test c:\propas\pasdoss/s c:\propas\paslibs/s
+dir test.exe/f
+endif

@@ -1,0 +1,18 @@
+# 
+# SVS C3 Example:                                     Date: 07-Oct-91
+#              Make file for Pascal interface to MASM 6.0
+#
+LIBS = -llibp28
+
+default:          pmain.exe
+
+pmain.exe:        pmain.obj protl.obj
+                  $(CC) $(LIBS) pmain.obj protl.obj
+
+pmain.obj:        pmain.p
+                  $(CC) -c pmain.p
+
+protl.obj:        protl.asm
+                  ml -c -Cx protl.asm
+#            ml -c -MX protl.asm       If using MASM 5.1 use -MX instead of -Cx
+
