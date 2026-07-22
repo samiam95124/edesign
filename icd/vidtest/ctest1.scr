@@ -1,3 +1,0 @@
-ml /c /Cx /Flpixel.lst pixel.asm
-svs test1.pas pixel.obj
-dir test1.exe/f

@@ -1,8 +1,0 @@
-# build products (regenerate with ./assemble)
-icd
-icdui.pas
-*.p6
-*.o
-*.s
-*.err
-*.log

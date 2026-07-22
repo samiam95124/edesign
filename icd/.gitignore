@@ -1,0 +1,10 @@
+# Pascal-P6 build products (regenerate with `pc icd`)
+/icd
+*.p6
+*.o
+*.s
+*.err
+# runtime output
+icdprint.ppm
+icdprint.tmp
+*.cel.bak
