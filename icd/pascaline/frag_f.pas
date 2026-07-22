@@ -1699,12 +1699,24 @@ begin
       end;
 
       tbox, tbbox, tmet1, tmet2, tpoly, tvia, tndiff, tpdiff,
-      tnwell, tpwell, tccut, tinter, tcont: begin
+      tnwell, tpwell, tccut, tcont: begin
 
          x1 := b.s.x;
          y1 := b.s.y;
          x2 := b.e.x;
          y2 := b.e.y
+
+      end;
+
+      { port: the original read b on tinter entries (free-union punning
+        under SVS - ir sits at the same offset); P6 variant checking
+        requires the tinter member ir }
+      tinter: begin
+
+         x1 := ir.s.x;
+         y1 := ir.s.y;
+         x2 := ir.e.x;
+         y2 := ir.e.y
 
       end;
 

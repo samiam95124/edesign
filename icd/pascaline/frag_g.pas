@@ -2814,14 +2814,12 @@ begin
       bvss:      selplc;        { place vss }
       blast:     ;              { last page display }
       bnext:     ;              { next page display }
-      bprint:    ;              { print current sheet }
-                                { port: printer pass deferred (doprint) }
+      bprint:    doprint;       { print current sheet }
       bdisplay:  dofiles;       { display avalible files }
-      bmaxx:     ;              { maximum demension printer x }
-      bmaxy:     ;              { maximum demension printer y }
-      boffx:     ;              { offset demension x }
-      boffy:     ;              { offset demension y }
-                                { port: printer pass deferred (strpedt) }
+      bmaxx:     strpedt;       { maximum demension printer x }
+      bmaxy:     strpedt;       { maximum demension printer y }
+      boffx:     strpedt;       { offset demension x }
+      boffy:     strpedt;       { offset demension y }
       bseta:     ;              { print setup saves }
       bsetb:     ;
       bsetc:     ;
@@ -2932,10 +2930,10 @@ begin
       blibv:  dolibv(c, cs); { library }
       bnamev: donnam(c, cs); { node name }
       bnord:  donord(c, cs); { node ordinal }
-      bmaxx:  ; { port: printer pass deferred (dopedt) }
-      bmaxy:  ;
-      boffx:  ;
-      boffy:  ;
+      bmaxx:  dopedt(c, cs, bmaxx, ptrmax.x); { edit print parameters }
+      bmaxy:  dopedt(c, cs, bmaxy, ptrmax.y);
+      boffx:  dopedt(c, cs, boffx, ptroff.x);
+      boffy:  dopedt(c, cs, boffy, ptroff.y);
 
    end
 

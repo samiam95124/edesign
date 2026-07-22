@@ -2246,6 +2246,7 @@ procedure edit(var b:  butrec; { button to edit }
                    cs: char);  { secondary input character }  
 
 var i: btsinx;
+    cx, cy1, cy2: integer; { port: edit cursor pixel coordinates }
 
 begin
 
@@ -2321,28 +2322,29 @@ begin
       plcstr(b.r.s.x, b.r.s.y, b.s, b.l, black, b.icb, true);
    if c <> chr(13) then begin { not end, replace cursor }
 
+      { port: the original positioned the edit cursor with b.r.s.x*16
+        cell math, treating the button's pixel origin as a character
+        cell (pre-existing source damage - the cursor drew off screen).
+        The cursor x is now the button text origin plus the proportional
+        pixel width of the characters left of the cursor, matching how
+        plcstr lays the string out; y spans the button cell }
+      cx := b.r.s.x+uiscl(7)+strwidth(b.s, p); { text margin + prefix }
+      cy1 := b.r.s.y+uiscl(1);
+      cy2 := b.r.s.y+uiscl(23)-1-1;
       if p = 0 then begin { draw left side cursor }
 
-         line(screen, b.r.s.x*16+1, b.r.s.y*16+1,
-              b.r.s.x*16+1, (b.r.s.y+1)*16-1-1, lmagenta);
-         line(screen, b.r.s.x*16+1+1, b.r.s.y*16+1, 
-              b.r.s.x*16+1+1, (b.r.s.y+1)*16-1-1, lmagenta)
+         line(screen, cx+1, cy1, cx+1, cy2, lmagenta);
+         line(screen, cx+2, cy1, cx+2, cy2, lmagenta)
 
       end else if p = b.l then begin { draw right side cursor }
 
-         line(screen, (b.r.s.x+b.l)*16-1-1-1, b.r.s.y*16+1, 
-              (b.r.s.x+b.l)*16-1-1-1, 
-              (b.r.s.y+1)*16-1-1, lmagenta);
-         line(screen, (b.r.s.x+b.l)*16-1-1, b.r.s.y*16+1, 
-              (b.r.s.x+b.l)*16-1-1, 
-              (b.r.s.y+1)*16-1-1, lmagenta)
+         line(screen, cx-1, cy1, cx-1, cy2, lmagenta);
+         line(screen, cx, cy1, cx, cy2, lmagenta)
 
       end else begin { draw between characters cursor }
 
-         line(screen, (b.r.s.x+p)*16-1, b.r.s.y*16+1, 
-              (b.r.s.x+p)*16-1, (b.r.s.y+1)*16-1-1, lmagenta);
-         line(screen, (b.r.s.x+p)*16, b.r.s.y*16+1, 
-              (b.r.s.x+p)*16, (b.r.s.y+1)*16-1-1, lmagenta)
+         line(screen, cx-1, cy1, cx-1, cy2, lmagenta);
+         line(screen, cx, cy1, cx, cy2, lmagenta)
 
       end
 

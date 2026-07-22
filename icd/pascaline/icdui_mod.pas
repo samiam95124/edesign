@@ -15,6 +15,6 @@
 
 module icdui(output);
 
-joins graphics;
+joins graphics, services;
 
 uses icddef;

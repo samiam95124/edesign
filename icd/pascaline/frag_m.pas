@@ -139,6 +139,7 @@ begin
    curwin^.lc := white; { set lit color }
    curwin^.sc := cyan; { set shadow color }
    curwin^.bc := lcyan; { set backround color }
+   iniprt; { port: initialize printer parameters (icde layer) }
    block(screen, minx, miny, maxx, maxy, bakclr); { clear screen }
    dispwin { display window }
 

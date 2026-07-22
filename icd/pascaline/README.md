@@ -5,13 +5,16 @@ VGA hardware) to Pascaline / Pascal-P6 over the Ami `graphics` library.
 
 ## Status
 
-The graphics/windowing stack is ported, builds, and runs: the program
-brings up the ICD window — beveled frame, auto-arranged text-captioned
-button menus, xor crosshair cursor tracking the mouse, mode/button hit
-testing — all rendered by the ported 1992 code through the Pascaline
-graphics library. The schematic command layer (mode dispatch, drawing
-commands, cell database, file I/O, printing) is not yet wired in; see
-"Remaining phases".
+The entire ICD source set is ported and builds into one executable
+(`./assemble` -> `pc icd`). Working: the full windowed interface
+(beveled frame, title bar, auto-arranged mode/tool menus, target view),
+xor rubber-band drawing, wire drawing with net creation into the
+schematic database, zoom/pan/view navigation, Symbol/Schematic/Layout/
+Simulate mode switching with per-mode menus, cell file read/write and
+the file/cell/library dialogs, keyboard field editing, and printing to
+a portable pixmap. Interface geometry scales from the character cell
+(14 point font) per the Ami convention. See the wave sections below for
+detail and the known-issues list for follow-ups.
 
 ## Build
 
@@ -119,15 +122,76 @@ verification, both marked `{ port: }`:
   entry (free-union punning under SVS, caught by P6 variant checking);
   the guard now reads the wire's own `w` field.
 
-## Remaining phases
+## Wave 3 (ported): file I/O, layout, simulate, printer
 
-1. Cell file load/save + file/cell/library dialogs (icda.pas remainder:
-   readsht/wrtsht/loadcell/savecell, dofiles/docells/dolibs — currently
-   no-op stubs in icdui_base.pas).
-2. Layout mode (icdg.pas: setlayout, dolayer, togvis, togins, dointer)
-   and simulate mode (icdh.pas: setsimulate, dowave, dtrace/atrace) —
-   currently no-op stubs.
-3. Printer path (icde.pas) against the graphics page-buffer model;
-   printstop/printpop/doprint stubs.
-4. Quality: verify wire/box/circle drawing interactively once #597 is
-   resolved; xor cursor ghosting under rapid moves; undo/redo (icde).
+The final wave completes every phase. All four fragments are integrated
+and the program builds clean (`./assemble` -> `pc icd`, one 14 MB
+executable):
+
+- **frag_o** (icda remainder): cell file read/write (readsht/wrtsht,
+  loadcell/savecell), the file/cell/library browser dialogs. The DOS
+  directory search is replaced by the Pascaline `services` directory
+  API (module header is now `joins graphics, services;`); the SVS
+  byte-file hack (`file of boolean` + convert) became a proper
+  `file of byte`.
+- **frag_p** (icdg): layout mode -- setlayout, the layer draw command,
+  layer/insides visibility toggles, and the intersection generator.
+- **frag_q** (icdh): simulate mode -- setsimulate, the digital/analog
+  trace renderers (dtrace/atrace), waveform edit (dowave).
+- **frag_r** (icde): the complete print pipeline. The raster primitives
+  (p-variants into the print strip buffer) port intact; the Fujitsu
+  DL3400 port-write back end is replaced by a portable pixmap writer --
+  printing produces `icdprint.ppm` (P3, the same EGA palette).
+
+**Verified interactively** (headless Xvfb + xdotool):
+
+- Layout mode: clicking Layout switches the right menu to the IC layer
+  set (Met1/Met2/Poly/Via/Cont/Ndiff/Pdiff/Nwell/Pwell/Ccut with per-
+  layer Vis toggles, Insides, Place, Drc).
+- Simulate mode: clicking Simulate switches to the waveform tools
+  (Dwave/Awave) and the oscilloscope-style top controls (Postime/
+  Posvolt/Orgtime/Orgvolt/Rultime/Rulvolt).
+- Keyboard field entry: clicking a field enters edit mode, typed
+  characters update the field, and the edit cursor renders in the
+  correct proportional position (the original's `b.r.s.x*16` cursor
+  cell-math -- pre-existing damage that drew the cursor off screen --
+  is repaired to proportional positioning via strwidth).
+- Print: the pipeline runs end to end and emits a structurally valid
+  `icdprint.ppm`.
+
+## More original-source defects repaired this wave (all marked `{ port: }`)
+
+- `tcont` was omitted from the `drwety` variant list though dolayer/
+  dointer store a region on tcont entries (same free-union class as the
+  documented twire fix); moved into the rectangle variant group.
+- `fndbound` read the tcont/tinter rectangle field on the wrong variant
+  arm; tinter given its own arm reading `ir`.
+- `dmenu` is a dangling external (defined only in the pre-refactor
+  icdc.sav; the menu redraw moved into dispwin when the sources froze);
+  setlayout/setsimulate converted to the setschema/setsymbol pattern.
+- `loadlib`'s sheet-skip advanced past 8 figure lists per sheet while
+  readsht/wrtsht handle 11 -- library loads would desync against files
+  this program writes; aligned to 11.
+
+## Known issues / follow-ups
+
+- Print finalize (`pagprt`) copies the raster temp to the PPM
+  character by character -- correct but slow for a full 2520-wide page;
+  a block copy would help. `outbuf` emits rows `0..pbymax` while the
+  buffer clear uses `pmax.y`, which can leave dark margin rows; both are
+  print-pixel polish, not pipeline defects.
+- The print temp `icdprint.tmp` is left on disk: Pascaline's predefined
+  file `delete` is shadowed module-wide by ICD's delete-figure command,
+  so `pagprt` cannot name it.
+- A pgen "out of registers" abort on a 12-argument call with variant-
+  checked member arguments (icdg `intfig`) was worked around by hoisting
+  `p^.b` to a local; may merit an upstream Pascal-P6 report.
+- The simulate top menu can overflow to a second row at small window
+  sizes (cosmetic autoarranger geometry).
+
+## Not ported
+
+Nothing remains unported from the original ICD source set. `scnprt`
+(print-screen) is present but prints blank -- it needs pixel readback
+(`getpix`), which the graphics library does not provide; the structure
+is kept for a future readback path.

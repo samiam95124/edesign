@@ -208,24 +208,31 @@ procedure drwfig(p: drwptr; clr: color; co: boolean; ln: laytyp;
                  r: region); forward;
 procedure drwfigs; forward;
 
-{ ----- wave-3 deferred stubs -----
-  port: these belong to modules not yet ported (icda file UI, icdg layout,
-  icdh simulate); stubbed so the command layer links. Each is a no-op. }
+{ ----- forwards for late-fragment routines -----
+  port: these were no-op stubs while the icda file I/O, icdg layout,
+  icdh simulate and icde printer layers were unported; all are now
+  real and defined in later fragments, forwarded here because earlier
+  fragments call them. }
 
-procedure doloadc;              begin end; { load current cell (icda) }
-procedure dosavec;              begin end; { save current cell (icda) }
-procedure dofiles;              begin end; { file display (icda) }
-procedure docells;              begin end; { cell display (icda) }
-procedure dolibs;               begin end; { library display (icda) }
-procedure setlayout;            begin end; { set layout sheet (icdg) }
-procedure setsimulate;          begin end; { set simulate sheet (icdh) }
-procedure togvis;               begin end; { toggle layer visibility (icdg) }
-procedure togins;               begin end; { toggle insides visibility (icdg) }
-procedure dolayer;              begin end; { perform layer draw (icdg) }
-procedure dowave;               begin end; { waveform edit (icdh) }
-procedure dointer(p: drwptr);   begin end; { create intersections (icdg) }
-procedure dtrace(ts: point; tl: trcptr; r: region);  begin end; { trace (icdh) }
-procedure atrace(ts: point; tl: atrcptr; r: region); begin end; { trace (icdh) }
+procedure doloadc; forward;
+procedure dosavec; forward;
+procedure dofiles; forward;
+procedure docells; forward;
+procedure dolibs; forward;
+procedure setlayout; forward;
+procedure setsimulate; forward;
+procedure togvis; forward;
+procedure togins; forward;
+procedure dolayer; forward;
+procedure dowave; forward;
+procedure dointer(ip: drwptr); forward;
+procedure dtrace(ts: point; tl: trcptr; r: region); forward;
+procedure atrace(ts: point; tl: atrcptr; r: region); forward;
+procedure printstop; forward;
+procedure iniprt; forward;
+procedure doprint; forward;
+procedure strpedt; forward;
+procedure dopedt(c, cs: char; b: buttyp; var r: real); forward;
 
 { reset pointer communication flags (real version ported in the database
   core fragment; forwarded here because the window layer calls it first) }
@@ -236,14 +243,6 @@ procedure resptr; forward;
   forwarded here because the window layer calls it first) }
 
 procedure updtar; forward;
-
-{ stop print in progress. port: stub; printer pass deferred (icde.pas) }
-
-procedure printstop;
-
-begin
-
-end;
 
 { find bounding box view of sheet (from icda.pas); defined after the
   viewport and bounds layers it depends on }
