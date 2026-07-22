@@ -1,0 +1,16 @@
+#!/bin/bash
+#
+# Assemble icdui.pas from the parts, then build. After assembly the
+# program builds with just:
+#
+#    pc icd
+#
+# The definitions live in the separate icddef module (uses icddef).
+#
+cd "$(dirname "$0")"
+cat icdui_mod.pas icdui_base.pas \
+    frag_b.pas frag_c.pas frag_d.pas frag_e.pas frag_n.pas frag_f.pas \
+    frag_i.pas frag_g.pas frag_m.pas icdui_tail.pas > icdui.pas
+export PATH=~/projects/pascal/pascal-p6/bin:$PATH
+export PASCALP6=~/projects/pascal/pascal-p6
+pc "$@" icd
