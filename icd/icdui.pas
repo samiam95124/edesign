@@ -10954,7 +10954,9 @@ begin
       end;
 
    end;
-   resptr { reset pointer device }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
 
 end;
 {}
@@ -11050,7 +11052,9 @@ begin
       end
 
    end;
-   resptr { reset pointer device }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
 
 end;
 {}
@@ -11141,7 +11145,9 @@ begin
       end
 
    end;
-   resptr { reset pointer device }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
 
 end;
 {}
@@ -11412,7 +11418,9 @@ begin
       end
 
    end;
-   resptr { reset pointer device }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
 
 end;
 {}
@@ -11557,7 +11565,9 @@ begin
 
    end else if inactive(cur) and puck.b[1].a then shownode { show node name }
    else if inactive(cur) and puck.b[2].a then setnode; { set node name }
-   resptr { reset pointer device }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
 
 end;
 {}
@@ -12291,7 +12301,9 @@ begin
       dsmbut := bsaveb
 
    end;
-   resptr { reset pointer device }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
 
 end;
 {}
@@ -12630,7 +12642,9 @@ begin
       setcur  { replace cursor }
 
    end;
-   resptr { reset pointer device }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
 
 end;
 {}
@@ -13431,7 +13445,9 @@ begin
       else drmbut := bbbox
 
    end;
-   resptr { reset buttons }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
 
 end;
 {}
@@ -13512,7 +13528,9 @@ begin
       drmbut := bcircle { set circle mode }
 
    end;
-   resptr { reset buttons }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
 
 end;
 {}
@@ -13594,7 +13612,9 @@ begin
       drmbut := barc { set arc mode }
 
    end;
-   resptr { reset buttons }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
 
 end;
 {}
@@ -13649,7 +13669,9 @@ begin
       setcur { replace cursor }
 
    end;
-   resptr { reset buttons }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
 
 end;
 {}
@@ -13841,7 +13863,9 @@ begin
       updbut(bnord) { update }
 
    end;
-   resptr { reset buttons }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
 
 end;
 {}
@@ -13905,7 +13929,9 @@ begin
       updbut(bnord) { update }
 
    end;
-   resptr { reset buttons }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
 
 end;
 {}
@@ -14134,7 +14160,9 @@ begin
       setcur; { replace cursor }
 
    end;
-   resptr { reset buttons }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
 
 end;
 {}
@@ -19504,7 +19532,9 @@ begin
       else if button[bccut].act then drmbut := bccut
 
    end;
-   resptr { reset buttons }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
 
 end;
 {}
@@ -20206,7 +20236,9 @@ begin
       cntdrw := false
 
    end;
-   resptr { reset buttons }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
 
 end;
 {}
