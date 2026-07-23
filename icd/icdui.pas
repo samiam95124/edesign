@@ -16815,6 +16815,14 @@ begin
    sp^.vp.v.e.x := curwin^.ar.e.x;
    sp^.vp.v.e.y := curwin^.ar.e.y;
    fndbnd(sp, sp^.vp.r.s.x, sp^.vp.r.s.y, sp^.vp.s.x); { find bounds view }
+   { port: fndbnd sets only vp.s.x; the ported coordinate transform (viewx
+     uses vp.m) and the vp.r.e.y below also need vp.s.y and the multiplier
+     vp.m, which newsht sets for fresh sheets but readsht omitted -- a
+     loaded sheet drew through a garbage transform and came up blank.
+     Match newsht's convention (square scale, multiplier = scalem). }
+   sp^.vp.s.y := sp^.vp.s.x;
+   sp^.vp.m.x := scalem;
+   sp^.vp.m.y := scalem;
    sp^.vp.r.e.x :=
       sp^.vp.r.s.x+realdist(abs(sp^.vp.v.e.x-sp^.vp.v.s.x)+1, sp^.vp.s.x);
    sp^.vp.r.e.y :=
