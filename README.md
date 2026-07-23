@@ -16,13 +16,9 @@ CIF or Caltech Intermediate form, a polygon database form for ICs. It was
 created and tested against sample CIF files, and is a fairly complete graphical
 editor for same.
 
-At the time it was written, the early 1990s, 32 bit graphical environments were
-not common on home computers, so it was written to bare metal using some of the
-higher resolution VGA graphics cards of the day. Thus it also featured its own
-windowing system modeled after MOTIF, a X-Window look that I still like. It does
-not, however, have any reliance on X-Windows.
-
-The plan is to convert it to run on the Petit-Ami graphical tool kit.
+It was converted to run on the Petit-Ami graphical tool kit. At the present time
+it is incomplete. The idea is it would run as a graphic front end to the simulator
+below.
 
 cktass
 
