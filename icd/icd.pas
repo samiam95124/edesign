@@ -39,7 +39,7 @@ begin
       else if er.etype = graphics.etredraw then
          evredraw { window redraw request }
       else if er.etype = graphics.etresize then
-         evresize { window was resized }
+         evresize(er.rszxg, er.rszyg) { window was resized }
       else if er.etype = graphics.etterm then
          evterm { window close }
 

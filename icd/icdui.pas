@@ -212,6 +212,11 @@ begin
                                 default size, which is also derived
                                 from the display density }
    graphics.binvis;           { text draws foreground only }
+   graphics.buffer(0);        { port: unbuffered mode -- the drawing surface
+                                tracks the window size, and the Ami backend
+                                updates maxxg/maxyg on resize only when
+                                unbuffered (graphics.c: if (!win->bufmod)).
+                                ICD repaints on etredraw so this is fine }
    scnmaxx := graphics.maxxg;
    scnmaxy := graphics.maxyg;
    maxx := scnmaxx;           { set the ICD globals }
@@ -23654,12 +23659,12 @@ end;
 
 { window resize event }
 
-procedure evresize;
+procedure evresize(nx, ny: integer);
 
 begin
 
-   scnmaxx := graphics.maxxg;
-   scnmaxy := graphics.maxyg;
+   scnmaxx := nx; { port: use the size carried by the resize event }
+   scnmaxy := ny;
    maxx := scnmaxx;
    maxy := scnmaxy;
    screen.v.e.x := maxx;
