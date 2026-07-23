@@ -15994,13 +15994,15 @@ command.
   event. The auxillary (scan code) second character path is gone;
   cs is passed as null to the edit handlers }
 
-procedure dokeyboard(c: char);
+procedure dokeyboard(c, cs: char);
 
-var cs: char; { input character }
+{ port: cs (the DOS auxillary scan code) is now supplied by the event
+  pump, which translates the Ami keyboard editing events (etenter,
+  etdelcb, etleft, ...) to the legacy (c, cs) pairs the edit routines
+  expect }
 
 begin
 
-   cs := chr(0); { port: no auxillary codes from the event pump }
    if c = chr(27) then canact { cancel activity }
    { this next is for debugging only }
    else if (c = chr(ord('Q')-64)) then { ctrl-Q }
@@ -23669,11 +23671,11 @@ end;
 
 { keyboard character event }
 
-procedure evkey(c: char);
+procedure evkey(c, cs: char);
 
 begin
 
-   dokeyboard(c); { process keyboard command/entry character }
+   dokeyboard(c, cs); { process keyboard command/entry character }
    dispatch { port: run the command dispatch (was the command loop body) }
 
 end;
