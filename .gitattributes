@@ -1,0 +1,13 @@
+# This repo was migrated from DOS/Windows to Linux. Store all text with
+# LF endings; let git auto-detect text vs binary.
+* text=auto
+
+# Known-binary formats: never apply end-of-line conversion.
+*.cel binary
+*.dwp binary
+*.pdf binary
+*.exe binary
+*.bmp binary
+*.wri binary
+*.pif binary
+*.png binary
