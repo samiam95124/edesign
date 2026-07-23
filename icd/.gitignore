@@ -8,3 +8,5 @@
 icdprint.ppm
 icdprint.tmp
 *.cel.bak
+# generated documentation (regenerate from the .md source)
+/docs/icduser.odt
