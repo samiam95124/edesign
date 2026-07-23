@@ -1,7 +1,6 @@
 # Electronic design suite
 
 <img src="docs/icd-screenshot.png" width="800" alt="ICD editing an IC layout">
-IC design suite
 
 This repo is a series of programs I wrote for electronic design. It is mostly 
 oriented towards integrated circuit design. At the time it was written, it was
