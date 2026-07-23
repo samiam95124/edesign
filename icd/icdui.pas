@@ -31,6 +31,7 @@ module icdui(output);
 joins graphics, services;
 
 uses icddef;
+
 var scnmaxx: integer; { physical screen size x (pixels) }
     scnmaxy: integer; { physical screen size y (pixels) }
 
@@ -866,8 +867,6 @@ procedure arcc(xs, ys,          { start }
                cr:     region); { clip region }
 
 var di, xi, yi: integer;
-    m:          integer; { clipping line slope*100 }
-    b:          integer; { y - intercept }
     as, ae:     real;
 
 procedure setpixcs(x, y: integer);
@@ -1083,8 +1082,7 @@ Draws a connector at the given location and size.
 procedure con(vp:   viewport; { viewport to draw to }
               x, y,           { center }
               r:    integer;  { radius (actually width) }
-              c:    color;    { color }
-              cr:   region);  { clip region }
+              c:    color);   { color }
 
 { port: clip region parameter retained but unused; line clips to vp.c }
 
@@ -1347,10 +1345,8 @@ procedure setasp;
 
 var an:                          real;
     d:                           integer;
-    x1, y1, x2, y2, x2r, y2r, s: integer;
+    x1, y1, x2, y2, s: integer;
     rdw, rde, rdn, rds:          integer; { NEWS to world edge }
-    t:                           integer;
-    t1:                          integer;
     tr:                          real;
     p:                           point;
 
@@ -1497,7 +1493,6 @@ port: converted from save-under to xor rubber banding
 procedure setzoom;
 
 var x1, y1, x2, y2: integer;
-    t:              integer;
     r:              region;
 
 begin
@@ -1574,7 +1569,6 @@ port: converted from save-under to xor rubber banding; draws
 procedure reszoom;
 
 var x1, y1, x2, y2: integer;
-    t:              integer;
     r:              region;
 
 begin
@@ -2482,7 +2476,7 @@ frame.
 
 **************************************************************}
 
-procedure frame(vp: viewport; x1, y1, x2, y2: integer; { rectangle }
+procedure frame(x1, y1, x2, y2: integer; { rectangle }
                 tc1, tc2, bc1, bc2: color);
 
 begin
@@ -2554,7 +2548,7 @@ begin
             bc2 := curwin^.sc
 
          end;
-         frame(screen, r.s.x, r.s.y, r.e.x, r.e.y,
+         frame(r.s.x, r.s.y, r.e.x, r.e.y,
                tc1, tc2, bc1, bc2); { draw frame }
          { set disabled button color }
          if dis then cc := gray else cc := black;
@@ -3534,7 +3528,6 @@ procedure arrbutt(lm, tm, rm, bm: integer); { margins }
 
 var b:    buttyp;  { button index }
     x, y: integer; { screen indexes }
-    t:    integer;
 
 begin
 
@@ -3725,7 +3718,6 @@ var b:    buttyp;  { button index }
     fb:   buttyp;  { first button on line }
     bc:   integer; { buttons on line count }
     x, y: integer; { screen indexes }
-    t:    integer;
     xl:   integer; { screen index for line }
     o:    boolean; { overflow flag }
     b1:   buttyp;  { button index }
@@ -5143,7 +5135,6 @@ procedure getint(var b:   butrec;   { button to parse }
 
 var i:   btsinx;  { current position in string }
     e:   boolean; { end of string flag }
-    c:   char; 
 
 function chkchr: char; { check next character }
 
@@ -5761,7 +5752,6 @@ procedure movcur(newx, newy: integer); { move cursor }
 
 { port: line save index variable deleted (save-under removed) }
 var t:      integer;
-    s:      butstr;
     dx, dy: integer;
 
 begin
@@ -6262,8 +6252,6 @@ box is a box enclosing all drawn points on the screen.
 
 procedure setbound(x, y: integer);
 
-var b: region; { save of bounds }
-
 begin
 
    if not curwin^.cs^.bs then begin { never set, set all points }
@@ -6529,8 +6517,7 @@ then draws the sheet.
 
 procedure newsht;
 
-var p:  drwptr;  { pointer for display list }
-    n:  nodptr;  { pointer for node list }
+var n:  nodptr;  { pointer for node list }
     b:  busptr;  { pointer for bus list }
     vi: viewinx;
     si: sizeinx;
@@ -6795,10 +6782,10 @@ begin
    block(wp^.wv, wp^.ar.e.x+1, wp^.ar.s.y,
          wp^.tr.s.x-1, wp^.tr.e.y, wp^.bc);
    { draw window frame }
-   frame(wp^.wv, wp^.wv.r.s.x, wp^.wv.r.s.y,
+   frame(wp^.wv.r.s.x, wp^.wv.r.s.y,
          wp^.wv.r.e.x, wp^.wv.r.e.y,
          wp^.lc, wp^.lc, wp^.sc, wp^.sc);
-   frame(wp^.wv, wp^.wv.r.s.x+uiscl(2+5), wp^.wv.r.s.y+uiscl(2+5),
+   frame(wp^.wv.r.s.x+uiscl(2+5), wp^.wv.r.s.y+uiscl(2+5),
          wp^.wv.r.e.x-uiscl(2+5), wp^.wv.r.e.y-uiscl(2+5),
          wp^.sc, wp^.lc, wp^.sc, wp^.lc);
    { draw control, move, min and max button frames }
@@ -6813,7 +6800,7 @@ begin
    line(wp^.wv, wp^.wv.r.s.x+uiscl(28)+1, wp^.wv.r.s.y+uiscl(2+5+2),
         wp^.wv.r.s.x+uiscl(28)+1, wp^.wv.r.s.y+uiscl(2+5+2+19)+1,
         wp^.lc);
-   frame(wp^.wv, wp^.wv.r.s.x+uiscl(2+5+2+2), wp^.wv.r.s.y+uiscl(2+5+2+6),
+   frame(wp^.wv.r.s.x+uiscl(2+5+2+2), wp^.wv.r.s.y+uiscl(2+5+2+6),
          wp^.wv.r.s.x+uiscl(2+5+2+19-3), wp^.wv.r.s.y+uiscl(2+5+2+6+7)-1,
          wp^.lc, wp^.lc, wp^.sc, wp^.sc);
    line(wp^.wv, wp^.wv.r.e.x-uiscl(29), wp^.wv.r.s.y+uiscl(2+5+2),
@@ -6823,13 +6810,11 @@ begin
         wp^.wv.r.e.x-uiscl(29)+1, wp^.wv.r.s.y+uiscl(2+5+2+19)+1,
         wp^.lc);
    if button[bmax].act then { button active }
-      frame(wp^.wv,
-            wp^.wv.r.e.x-uiscl(29)+uiscl(2+2), wp^.wv.r.s.y+uiscl(2+5+2+2),
+      frame(wp^.wv.r.e.x-uiscl(29)+uiscl(2+2), wp^.wv.r.s.y+uiscl(2+5+2+2),
             wp^.wv.r.e.x-uiscl(29)+uiscl(2+19-3), wp^.wv.r.s.y+uiscl(2+5+2+2+15)-1,
             wp^.sc, wp^.sc, wp^.lc, wp^.lc)
    else { button inactive }
-      frame(wp^.wv,
-            wp^.wv.r.e.x-uiscl(29)+uiscl(2+2), wp^.wv.r.s.y+uiscl(2+5+2+2),
+      frame(wp^.wv.r.e.x-uiscl(29)+uiscl(2+2), wp^.wv.r.s.y+uiscl(2+5+2+2),
             wp^.wv.r.e.x-uiscl(29)+uiscl(2+19-3), wp^.wv.r.s.y+uiscl(2+5+2+2+15)-1,
             wp^.lc, wp^.lc, wp^.sc, wp^.sc);
    line(wp^.wv, wp^.wv.r.e.x-uiscl(29+19)-uiscl(2), wp^.wv.r.s.y+uiscl(2+5+2),
@@ -6838,8 +6823,7 @@ begin
    line(wp^.wv, wp^.wv.r.e.x-uiscl(29+19)-uiscl(2)+1, wp^.wv.r.s.y+uiscl(2+5+2),
         wp^.wv.r.e.x-uiscl(29+19)-uiscl(2)+1, wp^.wv.r.s.y+uiscl(2+5+2+19)+1,
         wp^.lc);
-   frame(wp^.wv,
-         wp^.wv.r.e.x-uiscl(29+19)+uiscl(6), wp^.wv.r.s.y+uiscl(2+5+2+6),
+   frame(wp^.wv.r.e.x-uiscl(29+19)+uiscl(6), wp^.wv.r.s.y+uiscl(2+5+2+6),
          wp^.wv.r.e.x-uiscl(29+19)+uiscl(19-7), wp^.wv.r.s.y+uiscl(2+5+2+6+7)-1,
          wp^.lc, wp^.lc, wp^.sc, wp^.sc);
    { place move bar breaks }
@@ -6991,7 +6975,6 @@ procedure zoomin;
 
 var x, y, s: integer;
     p:       point;
-    b:       boolean;
 
 begin
 
@@ -7079,7 +7062,6 @@ box.
 procedure zoomout;
 
 var x, y, s: integer;
-    b:          boolean;
 
 begin
 
@@ -7148,8 +7130,7 @@ then refreshing the display.
 
 procedure pan;
 
-var x1, y1, x2, y2, t: integer;
-    b:                 boolean;
+var x1, y1, x2, y2: integer;
 
 begin
 
@@ -7225,8 +7206,6 @@ operating.
 **************************************************************}
 
 procedure ruler;
-
-var b: boolean;
 
 begin
 
@@ -7580,7 +7559,6 @@ the draw and other lists.
 procedure delwire(w: drwptr);
 
 var p: drwptr;
-    n: nodptr;
 
 begin
 
@@ -7737,7 +7715,6 @@ function contained(tx, ty: integer; w: drwptr): boolean;
 
 var t: integer;
     l: region;
-    sx, sy, ex, ey: integer; { line coordinates }
 
 begin
 
@@ -8243,7 +8220,6 @@ procedure lnkwire(d: drwptr);
 var l, l1: drwptr;  { drawing list pointer }
     f:     boolean; { wire found flag }
     n:     nodptr;  { node list pointer }
-    b:     busptr;  { bus pointer }
 
 { place midline junction }
 
@@ -8379,7 +8355,6 @@ procedure lnkbus(d: drwptr);
 
 var l, l1: drwptr;  { drawing list pointer }
     f:     boolean; { wire found flag }
-    n:     nodptr;  { node list pointer }
     b:     busptr;  { bus pointer }
 
 { place midline junction }
@@ -8794,7 +8769,6 @@ figure.
 function mindist(x, y: integer; p: drwptr): integer;
 
 var d, d1:          integer;
-    x1, y1, x2, y2: integer;
     an1, an2, an3:  real;
     inc:            boolean;
 
@@ -8857,7 +8831,7 @@ end;
 
 { find distance to block }
 
-function blockdist(x1, y1, x2, y2, x3, y3: integer): integer;
+function blockdist(x1, y1, x2, y2: integer): integer;
 
 var d: integer;
 
@@ -8873,7 +8847,7 @@ end;
 
 { find distance to predefined cell }
 
-function pdcdist(o: point; rm: rotmod; xl, yl, m: integer): integer;
+function pdcdist(o: point; rm: rotmod; xl, yl: integer): integer;
 
 var d: integer;
 
@@ -8881,9 +8855,9 @@ begin
 
    { cells are treated as if they were filled boxes }
    if rm in [rm0, rm180, rmm0, rmm180] then { normal }
-      d := blockdist(o.x, o.y, o.x+xl*1500, o.y+yl*1500, x, y)
+      d := blockdist(o.x, o.y, o.x+xl*1500, o.y+yl*1500)
    else { on side }
-      d := blockdist(o.x, o.y, o.x+yl*1500, o.y+xl*1500, x, y);
+      d := blockdist(o.x, o.y, o.x+yl*1500, o.y+xl*1500);
    pdcdist := d { return result }
 
 end;
@@ -8944,8 +8918,7 @@ begin
 
       tchar: { vector character }
          { characters are treated as filled blocks }
-         d := blockdist(c.r.s.x, c.r.s.y, c.r.e.x, c.r.e.y,
-                        x, y);
+         d := blockdist(c.r.s.x, c.r.s.y, c.r.e.x, c.r.e.y);
 
       tjunction: begin { wire junction }
 
@@ -8959,40 +8932,37 @@ begin
       tconnect: { connector }
          { connectors are treated as if they were filled boxes }
          d := blockdist(j.x-curwin^.cs^.cs, j.y-curwin^.cs^.cs,
-                        j.x+curwin^.cs^.cs, j.y+curwin^.cs^.cs,
-                        x, y);
+                        j.x+curwin^.cs^.cs, j.y+curwin^.cs^.cs);
 
       tcell: with cr do { subcell }
          { cells are treated as if they were filled boxes }
          if rm in [rm0, rm180, rmm0, rmm180] then { normal }
             d := blockdist(o.x, o.y,
                            o.x+abs(cp^.bbex-cp^.bbsx),
-                           o.y+abs(cp^.bbey-cp^.bbsy),
-                           x, y)
+                           o.y+abs(cp^.bbey-cp^.bbsy))
          else { on side }
             d := blockdist(o.x, o.y,
                            o.x+abs(cp^.bbey-cp^.bbsy),
-                           o.y+abs(cp^.bbex-cp^.bbsx),
-                           x, y);
+                           o.y+abs(cp^.bbex-cp^.bbsx));
 
       tnmos, tpmos:  { xstrs }
-         d := pdcdist(o, rm, 7, 8, 1500); { find distance }
+         d := pdcdist(o, rm, 7, 8); { find distance }
 
       tcap: { capacitor }
-         d := pdcdist(o, rm, 4, 5, 1500); { find distance }
+         d := pdcdist(o, rm, 4, 5); { find distance }
 
       tres: { resistor }
-         d := pdcdist(o, rm, 4, 20, 750); { find distance }
+         d := pdcdist(o, rm, 4, 20); { find distance }
 
       tdiode: { diode }
-         d := pdcdist(o, rm, 4, 8, 1500); { find distance }
+         d := pdcdist(o, rm, 4, 8); { find distance }
 
       tvdd, tvss: { power connectors }
-         d := pdcdist(o, rm, 2, 4, 1500); { find distance }
+         d := pdcdist(o, rm, 2, 4); { find distance }
 
       tmet1, tmet2, tpoly, tvia, tndiff, tpdiff,
       tnwell, tpwell, tcont: { filled layer }
-         d := blockdist(b.s.x, b.s.y, b.e.x, b.e.y, x, y);
+         d := blockdist(b.s.x, b.s.y, b.e.x, b.e.y);
 
       else d := maxint { port: unmatched figure types never selected }
 
@@ -9485,8 +9455,6 @@ var x1, y1, x2, y2: integer;
     x, y, xa:       integer;
     cp:             chrptr;
     tr:             boolean;
-    rc:             rotmod;
-    ra, rb:         0..7;
     co:             point; { cell origin }
     te, be:         boolean; { layer flags }
 
@@ -10392,7 +10360,6 @@ procedure rregion(x1, y1, x2, y2: integer);
 var r:                  region;  { screen coordinates }
     { port: xi/yi/yis grid vector indexes deleted with the grid
       vectors }
-    p:                  drwptr;  { drawing list pointer }
     ln:                 laytyp;  { layer index }
 
 { refresh figures as needed from drawing list }
@@ -10539,7 +10506,6 @@ the length of a screen pixel in real demensions.
 
 procedure clrfig(p: drwptr);
 
-var f:              integer; { fudge factor }
 var x1, y1, x2, y2: integer; { bounding box }
     ln:             laytyp; { layer index }
 
@@ -10569,8 +10535,7 @@ Note that overlap due to bold lines/boxes is not considered.
 
 procedure rebound;
 
-var p:              drwptr;
-    x1, y1, x2, y2: integer;
+var x1, y1, x2, y2: integer;
 
 { bound given list }
 
@@ -10936,7 +10901,7 @@ Finds the closest figure to the cursor and deletes that.
 
 procedure delete;
 
-var p, p1, ps, pj: drwptr;  { figure pointer }
+var p: drwptr;  { figure pointer }
     mx:            integer; { maximum distance to accept }
     d:             integer; { distance to figure }
 
@@ -11303,9 +11268,7 @@ in the name button.
 
 procedure trcnod(n: nodptr; first: boolean);
 
-var ci: color;   { index for colors }
-    f:  boolean; { search flag }
-    i:  btsinx;
+var i:  btsinx;
 
 begin
 
@@ -11344,10 +11307,6 @@ in the name button.
 
 procedure trcbus(b: busptr; first: boolean);
 
-var ci: color;   { index for colors }
-    f:  boolean; { search flag }
-    i:  btsinx;
-
 begin
 
    if b^.bl^.cl = black then begin { not already being traced }
@@ -11380,7 +11339,7 @@ up in a color that changes for each traced net.
 
 procedure tracenet;
 
-var p, p1: drwptr;  { figure pointer }
+var p: drwptr;  { figure pointer }
     mx:    integer; { maximum distance to accept }
     d:     integer; { distance to figure }
     np:    nodptr;
@@ -11627,7 +11586,6 @@ var inside, outside:    boolean;
     l:                  drwptr;
     x1s, y1s, x2s, y2s: integer; { coordinate saves }
     np:                 namptr;
-    t1, t2:             real; { large arithmetic buffers }
 
 procedure setoutcodes(var u: byte; x, y: integer);
 
@@ -11861,9 +11819,7 @@ Clips out or copies and saves a block.
 
 procedure saveblk;
 
-var p, p1, l:       drwptr;
-    v:              boolean; { clipping flag }
-    t:              integer;
+var l:       drwptr;
     x1, y1, x2, y2: integer; { box coordinates }
     tf:             figtyp;  { type of figure }
     nl:             nodptr;  { node "smash" list }
@@ -13034,7 +12990,7 @@ begin
    { port: added screen viewport (the original external declaration of
      frame was stale; the real frame takes a viewport first); the 16
      pixel character cell constant is replaced by chrheight }
-   frame(screen, ((maxx-minx) div 2)-(max div 2), y,
+   frame(((maxx-minx) div 2)-(max div 2), y,
          ((maxx-minx) div 2)+(max div 2), y+chrheight+(12*chrheight)+chrheight,
          baklgt, baklgt, bakshw, bakshw);
    block(screen, ((maxx-minx) div 2)-(max div 2)+2, y+2,
@@ -13266,7 +13222,6 @@ procedure doline;
 var l:      drwptr; { line entry }
     i:      btsinx;
     p:      point;
-    xd, yd: integer;
     el:     boolean; { line was entered }
 
 begin
@@ -13411,7 +13366,6 @@ the start and cursor draw, and the box entry.
 procedure dobox;
 
 var l:              drwptr; { line entry }
-    x1, y1, x2, y2: integer;
 
 begin
 
@@ -13569,7 +13523,6 @@ arc started, then the final arc registered.
 procedure doarc;
 
 var l:                         drwptr; { line entry }
-    sx, sy, ex, ey, cx, cy, r: integer;
 
 begin
 
@@ -14586,7 +14539,6 @@ termination and activation of the field.
 procedure doscl(c, cs: char);
 
 var r: real;
-    i: btsinx;
     e: boolean;
 
 begin
@@ -18282,7 +18234,7 @@ end;
 
 { skip sheet with cell structure read }
 
-procedure skpsht(cp: celptr);
+procedure skpsht;
 
 var b: byte;
     n: integer;
@@ -18420,7 +18372,7 @@ begin
       while b <> ord(ccterm) do begin { read sections }
 
          if (b = ord(ccschema)) or (b = ord(ccsymbol)) then
-            skpsht(cp); { skip entire sheet }
+            skpsht; { skip entire sheet }
          readbyt(f, b) { get next section mark }
 
       end;
@@ -18512,7 +18464,7 @@ begin
                   end else { if sheet is blank anyways }
                      if not boundset(cp^.cross^.schema) then
                         readsht(f, cp^.cross^.schema)
-                  else skpsht(nil) { skip sheet }
+                  else skpsht { skip sheet }
 
                end else if b = ord(ccsymbol) then begin
 
@@ -18526,7 +18478,7 @@ begin
                   end else { if sheet is blank anyways }
                      if not boundset(cp^.cross^.symbol) then
                         readsht(f, cp^.cross^.symbol)
-                  else skpsht(nil) { skip sheet }
+                  else skpsht { skip sheet }
 
                end else if b = ord(cclayout) then begin
 
@@ -18540,11 +18492,11 @@ begin
                   end else { if sheet is blank anyways }
                      if not boundset(cp^.cross^.layout) then
                         readsht(f, cp^.cross^.layout)
-                  else skpsht(nil) { skip sheet }
+                  else skpsht { skip sheet }
 
                end
 
-            end else skpsht(nil) { skip entire sheet }
+            end else skpsht { skip entire sheet }
 
          end;
          readbyt(f, b) { get next section mark }
@@ -19175,7 +19127,6 @@ procedure intfigc(ipc:    drwptr;  { intersect cell }
                   d:      drwptr;  { figure to process }
                   pc:     drwptr;  { cell pointer }
                   p:      shtptr;  { cell sheet }
-                  ct:     celtyp;  { cell type }
                   ox, oy: integer; { cell origin }
                   rt:     rotmod); { cell rotation }
 
@@ -19262,7 +19213,7 @@ begin
       while d <> nil do begin { traverse }
 
          { intersect figure }
-         intfigc(ipc, ip, ipx1, ipy1, ipx2, ipy2, d, pc, p, ct, ox, oy, r);
+         intfigc(ipc, ip, ipx1, ipy1, ipx2, ipy2, d, pc, p, ox, oy, r);
          d := d^.next { next entry }
 
       end;
@@ -19270,7 +19221,7 @@ begin
       while d <> nil do begin { traverse }
 
          { intersect figure }
-         intfigc(ipc, ip, ipx1, ipy1, ipx2, ipy2, d, pc, p, ct, ox, oy, r);
+         intfigc(ipc, ip, ipx1, ipy1, ipx2, ipy2, d, pc, p, ox, oy, r);
          d := d^.next { next entry }
 
       end;
@@ -19278,7 +19229,7 @@ begin
       while d <> nil do begin { traverse }
 
          { intersect figure }
-         intfigc(ipc, ip, ipx1, ipy1, ipx2, ipy2, d, pc, p, ct, ox, oy, r);
+         intfigc(ipc, ip, ipx1, ipy1, ipx2, ipy2, d, pc, p, ox, oy, r);
          d := d^.next { next entry }
 
       end;
@@ -19287,7 +19238,7 @@ begin
       while d <> nil do begin { traverse }
 
          { intersect figure }
-         intfigc(ipc, ip, ipx1, ipy1, ipx2, ipy2, d, pc, p, ct, ox, oy, r);
+         intfigc(ipc, ip, ipx1, ipy1, ipx2, ipy2, d, pc, p, ox, oy, r);
          d := d^.next { next entry }
 
       end
@@ -19397,7 +19348,6 @@ the start and cursor draw, and the box entry.
 procedure dolayer;
 
 var l:              drwptr; { line entry }
-    x1, y1, x2, y2: integer;
 
 begin
 
@@ -19817,7 +19767,6 @@ var tr, tr2: trcptr;  { trace entry pointer }
     st, st2: nodest;  { node state }
     off:     integer; { baseline offset }
     loff:    integer; { last offset }
-    tc:      color;   { trace color }
     tb:      region;  { trace box }
     s, e:    integer; { start and end step time }
     ts, te:  integer; { temp start and end }
@@ -20145,10 +20094,7 @@ Handles the mode, setup and entry of waveforms.
 
 procedure dowave;
 
-var l:      drwptr; { line entry }
-    i:      btsinx;
-    p:      point;
-    xd, yd: integer;
+var p:      point;
     el:     boolean; { line was entered }
 
 begin
@@ -21306,17 +21252,6 @@ procedure plinerr(x1, y1, x2, y2: integer);
 begin
 
    pliner(rotx(x1, y1), roty(x1, y1), rotx(x2, y2), roty(x2, y2), cl)
-
-end;
-
-{ draw rotated real arc }
-
-procedure parcrr(sx, sy, ex, ey, cx, cy, r: integer; c: color);
-
-begin
-
-   parcr(rotx(sx, sy), roty(sx, sy), rotx(ex, ey), roty(ex, ey),
-        rotx(cx, cy), roty(cx, cy), r*s, c)
 
 end;
 
