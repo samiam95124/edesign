@@ -3827,6 +3827,1033 @@ representation.
 
 **************************************************************}
 
+{ stroke-font character: the original 1993 vector font, kept as the
+  clipped fallback renderer for glyphs not fully inside the clip
+  region (Ami text draws cannot be clipped; remove when Ami grows a
+  clip-region api) }
+
+procedure schar(x, y: integer; { location }
+                c:    char;    { character to place }
+                s:    integer; { scale factor }
+                cl:   color;   { color }
+                r:    boolean; { rotate 90 deg }
+                cr:   region); { clip region }
+
+{ rotate single point x }
+
+function rotx(px, py: integer): integer;
+
+begin
+
+   if r then rotx := chrhdt*s-py*s+x
+   else rotx := px*s+x
+
+end;
+
+{ rotate single point y }
+
+function roty(px, py: integer): integer;
+
+begin
+
+   if r then roty := px*s+y 
+   else roty := py*s+y
+
+end;
+
+{ draw rotated real line }
+
+procedure linerr(x1, y1, x2, y2: integer);
+
+begin
+
+   if (x1 = x2) or (y1 = y2) then
+      { orthogonal line, use critical region }
+      liner(rotx(x1, y1), roty(x1, y1), 
+            rotx(x2, y2), roty(x2, y2), cl, cr)
+   else 
+      { else use viewport }
+      liner(rotx(x1, y1), roty(x1, y1), 
+            rotx(x2, y2), roty(x2, y2), cl, curwin^.cs^.vp.v)
+                
+end;
+
+begin
+
+   { check in active area }
+   if (x+chrwdt*s >= curwin^.cs^.vp.r.s.x) and 
+      (x <= curwin^.cs^.vp.r.s.x+(abs(cr.e.x-cr.s.x)*
+                              curwin^.cs^.vp.s.x div scalem)) and
+      (y+chrhdt*s >= curwin^.cs^.vp.r.s.y) and 
+      (y <= curwin^.cs^.vp.r.s.y+(abs(cr.e.y-cr.s.y)*
+                              curwin^.cs^.vp.s.y div scalem)) then
+      case c of { character }
+            
+      '0': begin
+
+              linerr(0, 1, 0, 7);
+              linerr(0, 1, 1, 0);
+              linerr(0, 7, 1, 8);
+              linerr(1, 0, 3, 0);
+              linerr(1, 8, 3, 8);
+              linerr(3, 0, 4, 1);
+              linerr(3, 8, 4, 7);
+              linerr(4, 1, 4, 7);
+              linerr(0, 8, 4, 0)
+
+           end;
+
+      '1': begin
+
+              linerr(2, 0, 2, 8);
+              linerr(0, 2, 2, 0);
+              linerr(0, 8, 4, 8)
+
+           end;
+
+      '2': begin
+
+              linerr(0, 1, 1, 0);
+              linerr(0, 5, 1, 4);
+              linerr(0, 5, 0, 8);
+              linerr(0, 8, 4, 8);
+              linerr(1, 0, 3, 0);
+              linerr(1, 4, 3, 4);
+              linerr(3, 0, 4, 1);
+              linerr(3, 4, 4, 3);
+              linerr(4, 1, 4, 3)
+
+           end;
+
+      '3': begin
+
+              linerr(0, 1, 1, 0);
+              linerr(0, 7, 1, 8);
+              linerr(1, 0, 3, 0);
+              linerr(1, 8, 3, 8);
+              linerr(2, 4, 3, 4);
+              linerr(3, 0, 4, 1);
+              linerr(3, 4, 4, 3);
+              linerr(3, 4, 4, 5);
+              linerr(3, 8, 4, 7);
+              linerr(4, 1, 4, 3);
+              linerr(4, 5, 4, 7)
+
+           end;
+
+      '4': begin
+
+              linerr(3, 0, 3, 8);
+              linerr(0, 4, 3, 0);
+              linerr(0, 4, 4, 4);
+              linerr(2, 8, 4, 8)
+
+           end;
+
+      '5': begin
+
+              linerr(0, 0, 0, 4);
+              linerr(0, 0, 4, 0);
+              linerr(0, 4, 3, 4);
+              linerr(3, 4, 4, 5);
+              linerr(0, 8, 3, 8);
+              linerr(3, 8, 4, 7);
+              linerr(4, 5, 4, 7)
+
+           end;
+
+      '6': begin
+
+              linerr(0, 1, 0, 7);
+              linerr(0, 1, 1, 0);
+              linerr(0, 5, 1, 4);
+              linerr(0, 7, 1, 8);
+              linerr(1, 0, 3, 0);
+              linerr(1, 4, 3, 4);
+              linerr(1, 8, 3, 8);
+              linerr(3, 0, 4, 1);
+              linerr(3, 4, 4, 5);
+              linerr(3, 8, 4, 7);
+              linerr(4, 5, 4, 7)
+
+           end;
+
+      '7': begin
+
+              linerr(0, 0, 4, 0);
+              linerr(0, 8, 4, 0)
+
+           end;
+
+      '8': begin
+
+              linerr(0, 1, 0, 3);
+              linerr(0, 5, 0, 7);
+              linerr(0, 1, 1, 0);
+              linerr(0, 3, 1, 4);
+              linerr(0, 5, 1, 4);
+              linerr(0, 7, 1, 8);
+              linerr(1, 0, 3, 0);
+              linerr(1, 4, 3, 4);
+              linerr(1, 8, 3, 8);
+              linerr(3, 0, 4, 1);
+              linerr(3, 4, 4, 3);
+              linerr(3, 4, 4, 5);
+              linerr(3, 8, 4, 7);
+              linerr(4, 1, 4, 3);
+              linerr(4, 5, 4, 7)
+
+           end;
+
+      '9': begin
+
+              linerr(0, 1, 0, 3);
+              linerr(0, 1, 1, 0);
+              linerr(0, 3, 1, 4);
+              linerr(0, 7, 1, 8);
+              linerr(1, 0, 3, 0);
+              linerr(1, 4, 3, 4);
+              linerr(1, 8, 3, 8);
+              linerr(3, 0, 4, 1);
+              linerr(3, 4, 4, 3);
+              linerr(3, 8, 4, 7);
+              linerr(4, 1, 4, 7)
+
+           end;
+
+      'A': begin
+
+              linerr(0, 1, 0, 8);
+              linerr(4, 1, 4, 8);
+              linerr(1, 0, 3, 0);
+              linerr(0, 4, 4, 4);
+              linerr(0, 1, 1, 0);
+              linerr(3, 0, 4, 1)
+
+           end;
+
+      'B': begin
+
+              linerr(0, 0, 0, 8);
+              linerr(0, 0, 3, 0);
+              linerr(0, 4, 3, 4);
+              linerr(0, 8, 3, 8);
+              linerr(3, 0, 4, 1);
+              linerr(3, 4, 4, 3);
+              linerr(3, 4, 4, 5);
+              linerr(3, 8, 4, 7);
+              linerr(4, 1, 4, 3);
+              linerr(4, 5, 4, 7)
+
+           end;
+
+      'C': begin
+
+              linerr(0, 1, 0, 7);
+              linerr(0, 1, 1, 0);
+              linerr(0, 7, 1, 8);
+              linerr(1, 0, 3, 0);
+              linerr(1, 8, 3, 8);
+              linerr(3, 0, 4, 1);
+              linerr(3, 8, 4, 7)
+
+           end;
+
+      'D': begin
+
+              linerr(0, 0, 0, 8);
+              linerr(0, 0, 3, 0);
+              linerr(0, 8, 3, 8);
+              linerr(3, 0, 4, 1);
+              linerr(3, 8, 4, 7);
+              linerr(4, 1, 4, 7)
+
+           end;
+
+      'E': begin
+
+              linerr(0, 0, 0, 8);
+              linerr(0, 0, 4, 0);
+              linerr(0, 4, 2, 4);
+              linerr(0, 8, 4, 8)
+
+           end;
+
+      'F': begin
+
+              linerr(0, 0, 0, 8);
+              linerr(0, 0, 4, 0);
+              linerr(0, 4, 2, 4)
+
+           end;
+
+      'G': begin
+   
+              linerr(0, 1, 0, 7);
+              linerr(0, 1, 1, 0);
+              linerr(0, 7, 1, 8);
+              linerr(1, 0, 3, 0);
+              linerr(1, 8, 3, 8);
+              linerr(3, 0, 4, 1);
+              linerr(3, 8, 4, 7);
+              linerr(2, 4, 4, 4);
+              linerr(4, 4, 4, 7)
+
+           end;
+
+      'H': begin
+
+              linerr(0, 0, 0, 8);
+              linerr(4, 0, 4, 8);
+              linerr(0, 4, 4, 4)
+
+           end;
+
+      'I': begin
+
+              linerr(0, 0, 4, 0);
+              linerr(0, 8, 4, 8);
+              linerr(2, 0, 2, 8)
+
+           end;
+
+      'J': begin
+
+              linerr(0, 6, 0, 7);
+              linerr(0, 7, 1, 8);
+              linerr(1, 8, 3, 8);
+              linerr(3, 8, 4, 7);
+              linerr(4, 0, 4, 7)
+
+           end;
+
+      'K': begin
+
+              linerr(0, 0, 0, 8);
+              linerr(0, 4, 1, 4);
+              linerr(1, 4, 4, 0);
+              linerr(1, 4, 4, 8)
+
+           end;
+
+      'L': begin
+
+              linerr(0, 0, 0, 8);
+              linerr(0, 8, 4, 8)
+
+           end;
+
+      'M': begin
+
+              linerr(0, 0, 0, 8);
+              linerr(0, 0, 2, 4);
+              linerr(2, 4, 4, 0);
+              linerr(4, 0, 4, 8)
+
+           end;
+
+      'N': begin
+
+              linerr(0, 0, 0, 8);
+              linerr(0, 0, 4, 8);
+              linerr(4, 8, 4, 0)
+
+           end;
+           
+      'O': begin
+
+              linerr(0, 1, 0, 7);
+              linerr(0, 1, 1, 0);
+              linerr(0, 7, 1, 8);
+              linerr(1, 0, 3, 0);
+              linerr(1, 8, 3, 8);
+              linerr(3, 0, 4, 1);
+              linerr(3, 8, 4, 7);
+              linerr(4, 1, 4, 7)
+
+           end;
+
+      'P': begin
+
+              linerr(0, 0, 0, 8);
+              linerr(0, 0, 3, 0);
+              linerr(0, 4, 3, 4);
+              linerr(3, 0, 4, 1);
+              linerr(3, 4, 4, 3);
+              linerr(4, 1, 4, 3)
+
+           end;
+
+      'Q': begin
+
+              linerr(0, 1, 0, 7);
+              linerr(0, 1, 1, 0);
+              linerr(0, 7, 1, 8);
+              linerr(1, 0, 3, 0);
+              linerr(1, 8, 3, 8);
+              linerr(3, 0, 4, 1);
+              linerr(3, 8, 4, 7);
+              linerr(4, 1, 4, 7);
+              linerr(2, 6, 4, 8)
+
+           end;
+
+      'R': begin
+
+              linerr(0, 0, 0, 8);
+              linerr(0, 0, 3, 0);
+              linerr(0, 4, 3, 4);
+              linerr(2, 4, 4, 8);
+              linerr(3, 0, 4, 1);
+              linerr(3, 4, 4, 3);
+              linerr(4, 1, 4, 3)
+
+           end;
+
+      'S': begin
+
+              linerr(0, 1, 0, 3);
+              linerr(0, 1, 1, 0);
+              linerr(0, 3, 1, 4);
+              linerr(0, 7, 1, 8);
+              linerr(1, 0, 3, 0);
+              linerr(1, 4, 3, 4);
+              linerr(1, 8, 3, 8);
+              linerr(3, 0, 4, 1);
+              linerr(3, 4, 4, 5);
+              linerr(3, 8, 4, 7);
+              linerr(4, 5, 4, 7)
+
+           end;
+
+      'T': begin
+
+              linerr(0, 0, 4, 0);
+              linerr(2, 0, 2, 8)
+
+           end;
+
+      'U': begin
+
+              linerr(0, 0, 0, 7);
+              linerr(0, 7, 1, 8);
+              linerr(1, 8, 3, 8);
+              linerr(3, 8, 4, 7);
+              linerr(4, 0, 4, 7)
+
+           end;
+
+      'V': begin
+
+              linerr(0, 0, 2, 8);
+              linerr(2, 8, 4, 0)
+
+           end;
+
+      'W': begin
+
+              linerr(0, 0, 0, 8);
+              linerr(0, 8, 2, 4);
+              linerr(2, 4, 4, 8);
+              linerr(4, 0, 4, 8)
+
+           end;
+
+      'X': begin
+
+              linerr(0, 0, 4, 8);
+              linerr(0, 8, 4, 0)
+
+           end;
+
+      'Y': begin
+
+              linerr(0, 0, 2, 4);
+              linerr(2, 4, 4, 0);
+              linerr(2, 4, 2, 8)
+
+           end;
+
+      'Z': begin
+
+              linerr(0, 0, 4, 0);
+              linerr(4, 0, 0, 8);
+              linerr(0, 8, 4, 8)
+
+           end;
+
+      'a': begin
+
+              linerr(0, 5, 0, 7);
+              linerr(1, 4, 0, 5);
+              linerr(0, 7, 1, 8);
+              linerr(1, 4, 3, 4);
+              linerr(1, 8, 3, 8);
+              linerr(3, 4, 4, 5);
+              linerr(3, 8, 4, 7);
+              linerr(4, 5, 4, 8)
+
+           end;
+
+      'b': begin
+
+              linerr(0, 0, 0, 8);
+              linerr(0, 4, 3, 4);
+              linerr(0, 8, 3, 8);
+              linerr(3, 4, 4, 5);
+              linerr(3, 8, 4, 7);
+              linerr(4, 5, 4, 7)
+
+           end;
+
+      'c': begin
+
+              linerr(0, 5, 0, 7);
+              linerr(0, 5, 1, 4);
+              linerr(0, 7, 1, 8);
+              linerr(1, 4, 3, 4);
+              linerr(1, 8, 3, 8);
+              linerr(3, 4, 4, 5);
+              linerr(3, 8, 4, 7)
+
+           end;
+
+      'd': begin
+
+              linerr(0, 5, 0, 7);
+              linerr(0, 5, 1, 4);
+              linerr(0, 7, 1, 8);
+              linerr(1, 4, 3, 4);
+              linerr(1, 8, 3, 8);
+              linerr(3, 4, 4, 5);
+              linerr(3, 8, 4, 7);
+              linerr(4, 0, 4, 8)
+
+           end;
+
+      'e': begin
+
+              linerr(0, 5, 0, 7);
+              linerr(0, 5, 1, 4);
+              linerr(0, 7, 1, 8);
+              linerr(1, 4, 3, 4);
+              linerr(0, 6, 4, 6);
+              linerr(3, 4, 4, 5);
+              linerr(3, 8, 4, 7);
+              linerr(4, 5, 4, 6);
+              linerr(1, 8, 3, 8)
+
+           end;
+
+      'f': begin
+
+              linerr(0, 4, 2, 4);
+              linerr(1, 1, 1, 8);
+              linerr(1, 1, 2, 0);
+              linerr(2, 0, 3, 0);
+              linerr(3, 0, 4, 1)
+
+           end;
+
+      'g': begin
+
+              linerr(0, 5, 0, 7);
+              linerr(0, 5, 1, 4);
+              linerr(0, 7, 1, 8);
+              linerr(0, 10, 1, 11);
+              linerr(1, 4, 3, 4);
+              linerr(1, 8, 3, 8);
+              linerr(1, 11, 3, 11);
+              linerr(3, 4, 4, 5);
+              linerr(3, 8, 4, 7);
+              linerr(3, 11, 4, 10);
+              linerr(4, 5, 4, 10)
+
+           end;
+
+      'h': begin
+
+              linerr(0, 0, 0, 8);
+              linerr(0, 5, 1, 4);
+              linerr(1, 4, 3, 4);
+              linerr(3, 4, 4, 5);
+              linerr(4, 5, 4, 8)
+
+           end;
+
+      'i': begin
+
+              linerr(1, 4, 2, 4);
+              linerr(1, 8, 3, 8);
+              linerr(2, 2, 2, 3);
+              linerr(2, 4, 2, 8)
+
+           end;
+
+      'j': begin
+
+              linerr(0, 10, 1, 11);
+              linerr(1, 11, 3, 11);
+              linerr(3, 4, 4, 4);
+              linerr(3, 11, 4, 10);
+              linerr(4, 2, 4, 3);
+              linerr(4, 4, 4, 10)
+
+           end;
+
+      'k': begin
+
+              linerr(1, 0, 1, 8);
+              linerr(1, 6, 4, 4);
+              linerr(1, 6, 4, 8)
+
+           end;
+
+      'l': begin
+
+              linerr(1, 0, 2, 0);
+              linerr(1, 8, 3, 8);
+              linerr(2, 0, 2, 8)
+
+           end;
+
+      'm': begin
+
+              linerr(0, 4, 0, 8);
+              linerr(0, 4, 2, 6);
+              linerr(2, 6, 4, 4);
+              linerr(4, 4, 4, 8)
+
+           end;
+
+      'n': begin
+
+              linerr(0, 4, 0, 8);
+              linerr(0, 5, 1, 4);
+              linerr(1, 4, 3, 4);
+              linerr(3, 4, 4, 5);
+              linerr(4, 5, 4, 8)
+
+           end;
+
+      'o': begin
+
+              linerr(0, 5, 0, 7);
+              linerr(0, 5, 1, 4);
+              linerr(0, 7, 1, 8);
+              linerr(1, 4, 3, 4);
+              linerr(1, 8, 3, 8);
+              linerr(3, 4, 4, 5);
+              linerr(3, 8, 4, 7);
+              linerr(4, 5, 4, 7)
+
+           end;
+
+      'p': begin
+
+              linerr(0, 4, 0, 11);
+              linerr(0, 5, 1, 4);
+              linerr(0, 7, 1, 8);
+              linerr(1, 4, 3, 4);
+              linerr(1, 8, 3, 8);
+              linerr(3, 4, 4, 5);
+              linerr(3, 8, 4, 7);
+              linerr(4, 5, 4, 7)
+
+           end;
+
+      'q': begin
+
+              linerr(0, 5, 0, 7);
+              linerr(0, 5, 1, 4);
+              linerr(0, 7, 1, 8);
+              linerr(1, 4, 3, 4);
+              linerr(1, 8, 3, 8);
+              linerr(3, 4, 4, 5);
+              linerr(3, 8, 4, 7);
+              linerr(4, 5, 4, 11)
+
+           end;
+
+      'r': begin
+
+              linerr(0, 4, 0, 8);
+              linerr(0, 5, 1, 4);
+              linerr(1, 4, 3, 4);
+              linerr(3, 4, 4, 5)
+
+           end;
+
+      's': begin
+
+              linerr(0, 5, 1, 4);
+              linerr(0, 5, 1, 6);
+              linerr(0, 7, 1, 8);
+              linerr(1, 4, 3, 4);
+              linerr(1, 6, 3, 6);
+              linerr(1, 8, 3, 8);
+              linerr(3, 4, 4, 5);
+              linerr(3, 6, 4, 7);
+              linerr(3, 8, 4, 7)
+
+           end;
+
+      't': begin
+
+              linerr(0, 2, 4, 2);
+              linerr(2, 0, 2, 8);
+              linerr(2, 8, 3, 8)
+
+           end;
+
+      'u': begin
+
+              linerr(0, 4, 0, 7);
+              linerr(0, 7, 1, 8);
+              linerr(1, 8, 3, 8);
+              linerr(3, 8, 4, 7);
+              linerr(4, 4, 4, 8)
+
+           end;
+
+      'v': begin
+
+              linerr(0, 4, 2, 8);
+              linerr(2, 8, 4, 4)
+
+           end;
+
+      'w': begin
+
+              linerr(0, 4, 0, 8);
+              linerr(0, 8, 2, 6);
+              linerr(2, 6, 4, 8);
+              linerr(4, 4, 4, 8)
+
+           end;
+
+      'x': begin
+
+              linerr(0, 4, 4, 8);
+              linerr(0, 8, 4, 4)
+
+           end;
+
+      'y': begin
+
+              linerr(0, 4, 0, 7);
+              linerr(0, 7, 1, 8);
+              linerr(1, 8, 3, 8);
+              linerr(3, 8, 4, 7);
+              linerr(0, 10, 1, 11);
+              linerr(1, 11, 3, 11);
+              linerr(3, 11, 4, 10);
+              linerr(4, 4, 4, 10)
+
+           end;
+
+      'z': begin
+
+              linerr(0, 4, 4, 4);
+              linerr(0, 8, 4, 4);
+              linerr(0, 8, 4, 8)
+
+           end;
+
+      '!': begin
+
+              linerr(2, 0, 2, 5);
+              linerr(2, 7, 2, 8)
+
+           end;
+
+      '@': begin
+
+              linerr(0, 1, 0, 7);
+              linerr(0, 1, 1, 0);
+              linerr(0, 7, 1, 8);
+              linerr(1, 2, 1, 6);
+              linerr(1, 0, 3, 0);
+              linerr(1, 2, 3, 2);
+              linerr(1, 6, 4, 6);
+              linerr(1, 8, 4, 8);
+              linerr(3, 2, 3, 6);
+              linerr(3, 0, 4, 1);
+              linerr(4, 1, 4, 6)
+
+           end;
+
+      '#': begin
+
+              linerr(1, 0, 1, 8);
+              linerr(3, 0, 3, 8);
+              linerr(0, 3, 4, 3);
+              linerr(0, 5, 4, 5)
+
+           end;
+
+      '$': begin
+
+              linerr(0, 2, 0, 3);
+              linerr(0, 2, 1, 1);
+              linerr(0, 3, 1, 4);
+              linerr(0, 6, 1, 7);
+              linerr(1, 1, 3, 1);
+              linerr(1, 4, 3, 4);
+              linerr(1, 7, 3, 7);
+              linerr(2, 0, 2, 8);
+              linerr(3, 1, 4, 2);
+              linerr(3, 4, 4, 5);
+              linerr(3, 7, 4, 6);
+              linerr(4, 5, 4, 6)
+
+           end;
+
+      '%': begin
+
+              linerr(0, 1, 0, 2);
+              linerr(0, 1, 1, 1);
+              linerr(0, 2, 1, 2);
+              linerr(1, 1, 1, 2);
+              linerr(0, 8, 4, 0);
+              linerr(3, 6, 3, 7);
+              linerr(3, 6, 4, 6);
+              linerr(3, 7, 4, 7);
+              linerr(4, 6, 4, 7)
+
+           end;
+
+      '^': begin
+
+              linerr(0, 2, 2, 0);
+              linerr(2, 0, 4, 2)
+
+           end;
+
+      '&': begin
+
+              linerr(0, 1, 0, 3);
+              linerr(0, 5, 0, 7);
+              linerr(0, 1, 1, 0);
+              linerr(0, 3, 4, 8);
+              linerr(0, 5, 3, 3);
+              linerr(0, 7, 1, 8);
+              linerr(1, 0, 2, 0);
+              linerr(1, 8, 3, 8);
+              linerr(2, 0, 3, 1);
+              linerr(3, 1, 3, 3);
+              linerr(3, 8, 4, 7);
+              linerr(4, 6, 4, 7)
+
+           end;
+
+      '*': begin
+
+              linerr(2, 0, 2, 8);
+              linerr(0, 4, 4, 4);
+              linerr(0, 1, 4, 7);
+              linerr(0, 7, 4, 1)
+
+           end;
+
+      '(': begin
+
+              linerr(3, 0, 2, 1);
+              linerr(2, 1, 1, 3);
+              linerr(1, 3, 1, 5);
+              linerr(1, 5, 2, 7);
+              linerr(2, 7, 3, 8)
+
+           end;
+
+      ')': begin
+
+              linerr(1, 0, 2, 1);
+              linerr(2, 1, 3, 3);
+              linerr(3, 3, 3, 5);
+              linerr(3, 5, 2, 7);
+              linerr(2, 7, 1, 8)
+
+           end;
+
+      '-': begin
+
+              linerr(0, 4, 4, 4)
+
+           end;
+
+      '_': begin
+
+              linerr(0, 8, 4, 8)
+
+           end;
+
+      '+': begin
+
+              linerr(0, 4, 4, 4);
+              linerr(2, 2, 2, 6)
+
+           end;
+
+      '=': begin
+
+              linerr(0, 3, 4, 3);
+              linerr(0, 5, 4, 5)
+
+           end;
+
+      '\\': begin
+
+              linerr(0, 0, 4, 8)
+
+           end;
+
+      '/': begin
+
+              linerr(0, 8, 4, 0)
+
+           end;
+
+      '|': begin
+
+              linerr(2, 0, 2, 3);
+              linerr(2, 5, 2, 8)
+
+           end;
+
+      '[': begin
+
+              linerr(1, 0, 1, 8);
+              linerr(1, 0, 2, 0);
+              linerr(1, 8, 2, 8)
+
+           end;
+
+      ']': begin
+
+              linerr(1, 0, 3, 0);
+              linerr(1, 8, 3, 8);
+              linerr(3, 0, 3, 8)
+
+           end;
+
+      '{': begin
+
+              linerr(0, 4, 1, 4);
+              linerr(1, 4, 2, 3);
+              linerr(1, 4, 2, 5);
+              linerr(2, 1, 2, 3);
+              linerr(2, 5, 2, 7);
+              linerr(2, 1, 3, 0);
+              linerr(2, 7, 3, 8);
+              linerr(3, 0, 4, 0);
+              linerr(3, 8, 4, 8)
+
+           end;
+
+      '}': begin
+
+              linerr(0, 0, 1, 0);
+              linerr(0, 8, 1, 8);
+              linerr(1, 0, 2, 1);
+              linerr(1, 8, 2, 7);
+              linerr(2, 1, 2, 3);
+              linerr(2, 5, 2, 7);
+              linerr(2, 3, 3, 4);
+              linerr(2, 5, 3, 4);
+              linerr(3, 4, 4, 4)
+
+           end;
+
+      ':': begin
+
+              linerr(2, 4, 2, 5);
+              linerr(2, 7, 2, 8)
+
+           end;
+
+      ';': begin
+
+              linerr(2, 4, 2, 5);
+              linerr(2, 7, 2, 8);
+              linerr(1, 9, 2, 8)
+
+           end;
+
+      '"': begin
+
+              linerr(1, 0, 1, 1);
+              linerr(3, 0, 3, 1)
+
+           end;
+
+      '''': begin
+
+              linerr(1, 1, 2, 0)
+
+           end;
+
+      ',': begin
+
+              linerr(2, 7, 2, 8);
+              linerr(1, 9, 2, 8)
+
+           end;
+
+      '.': begin
+
+              linerr(2, 7, 2, 8)
+
+           end;
+
+      '<': begin
+
+              linerr(1, 4, 3, 0);
+              linerr(1, 4, 3, 8)
+
+           end;
+
+      '>': begin
+
+              linerr(1, 0, 3, 4);
+              linerr(1, 8, 3, 4)
+
+           end;
+
+      '?': begin
+
+              linerr(0, 1, 0, 2);
+              linerr(0, 1, 1, 0);
+              linerr(1, 0, 3, 0);
+              linerr(3, 0, 4, 1);
+              linerr(4, 1, 4, 3);
+              linerr(4, 3, 3, 4);
+              linerr(3, 4, 2, 4);
+              linerr(2, 4, 2, 5);
+              linerr(2, 7, 2, 8)
+
+           end;
+
+      '`': begin
+
+              linerr(2, 0, 3, 1)
+
+           end;
+
+      '~': begin
+
+              linerr(0, 2, 1, 0);
+              linerr(1, 0, 3, 2);
+              linerr(3, 2, 4, 0)
+
+           end
+
+      else { port: characters without figures are ignored }
+
+   end
+
+end;
+
 procedure vchar(x, y: integer; { location (real space) }
                 c:    char;    { character to place }
                 s:    integer; { scale factor (real units) }
@@ -3835,17 +4862,19 @@ procedure vchar(x, y: integer; { location (real space) }
                 cr:   region); { clip region (screen space) }
 
 { port: the original drew each glyph as line strokes on a 4x11 unit
-  grid (the 1993 vector font), converting each stroke from real to
-  screen space through liner. The glyphs are now rendered with the Ami
+  grid (the 1993 vector font). Glyphs are now rendered with the Ami
   sign (sans-serif) scalable font, sized to the character cell as it
   appears on screen, so all metrics (pitch, bounds, cursor math,
   stored .cel enclosure boxes) are unchanged. The 90 degree case uses
   the new Ami path() api (angle in circle units, maxint = full circle;
   the default path is maxint div 4 = normal upright text).
 
-  Ami text draws have no clip region, so the glyph is drawn whole when
-  its cell touches the clip region and skipped entirely otherwise; the
-  strokes used to be shaved line by line instead. }
+  Ami text draws cannot be clipped to a region, so the sign font is
+  used only when the glyph cell lies entirely inside the clip region;
+  a glyph that straddles the region edge (or dwarfs it, at deep zoom)
+  falls back to the original stroke renderer (schar above), which
+  clips line by line. When Ami grows a clip-region api the fallback
+  goes away. }
 
 var h0: integer;     { saved interface font height }
     w:  integer;     { rendered glyph width }
@@ -3871,39 +4900,46 @@ begin
    { convert to screen coordinates }
    viewc(s1, curwin^.cs^.vp);
    viewc(e1, curwin^.cs^.vp);
-   { draw only when the cell touches the clip region }
+   { skip entirely when the cell misses the clip region }
    if (e1.x >= cr.s.x) and (s1.x <= cr.e.x) and
       (e1.y >= cr.s.y) and (s1.y <= cr.e.y) then begin
 
-      { find cell height as displayed }
-      if r then hs := e1.x-s1.x else hs := e1.y-s1.y;
-      if hs > 1 then begin { skip degenerate sizes }
+      if (s1.x >= cr.s.x) and (e1.x <= cr.e.x) and
+         (s1.y >= cr.s.y) and (e1.y <= cr.e.y) then begin
 
-         h0 := graphics.chrsizy; { save interface font height }
-         graphics.fontsiz(hs); { scale to the displayed cell height }
-         setfcolor(cl);
-         w := chrwidth(c); { proportional glyph width at this size }
-         if r then begin { rotated 90 degrees }
+         { cell entirely inside the clip region: sign font }
+         if r then hs := e1.x-s1.x else hs := e1.y-s1.y;
+         if hs > 1 then begin { skip degenerate sizes }
 
-            graphics.path(0);
-            { center the glyph across the rotated cell }
-            graphics.cursorg(s1.x, s1.y + ((e1.y-s1.y) - w) div 2);
-            write(c);
-            graphics.path(maxint div 4) { restore normal }
+            h0 := graphics.chrsizy; { save interface font height }
+            graphics.fontsiz(hs); { scale to the displayed cell height }
+            setfcolor(cl);
+            w := chrwidth(c); { proportional glyph width at this size }
+            if r then begin { rotated 90 degrees }
 
-         end else begin
+               graphics.path(0);
+               { center the glyph across the rotated cell }
+               graphics.cursorg(s1.x, s1.y + ((e1.y-s1.y) - w) div 2);
+               write(c);
+               graphics.path(maxint div 4) { restore normal }
 
-            { center the glyph on the stroke cell (chrwdt of the
-              chrwdt+chrspc pitch) }
-            graphics.cursorg(s1.x +
-               ((e1.x-s1.x)*chrwdt div (chrwdt+chrspc) - w) div 2,
-               s1.y);
-            write(c)
+            end else begin
 
-         end;
-         graphics.fontsiz(h0) { restore interface font }
+               { center the glyph on the stroke cell (chrwdt of the
+                 chrwdt+chrspc pitch) }
+               graphics.cursorg(s1.x +
+                  ((e1.x-s1.x)*chrwdt div (chrwdt+chrspc) - w) div 2,
+                  s1.y);
+               write(c)
 
-      end
+            end;
+            graphics.fontsiz(h0) { restore interface font }
+
+         end
+
+      end else
+         { cell crosses the clip edge: clipped stroke fallback }
+         schar(x, y, c, s, cl, r, cr)
 
    end
 
