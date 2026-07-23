@@ -23578,12 +23578,24 @@ end;
 
 procedure evmove(x, y: integer);
 
+var bn: integer; { button index }
+
 begin
 
    puck.ol := puck.cl;
    puck.cl.x := x;
    puck.cl.y := y;
    puck.m := true; { set movement flag }
+   { port: set the drag flag for any held button that has wandered beyond
+     dragmgn from its assertion point. The original updpuck did this via
+     the drag() test; the emulation had omitted it, so zoom/pan/box/
+     circle/arc completion (which need puck.b[n].d and puck.b[n].dg on
+     left-button release) never fired. }
+   for bn := 1 to 4 do
+      if puck.b[bn].s and
+         ((abs(x-puck.b[bn].ap.x) > uiscl(dragmgn)) or
+          (abs(y-puck.b[bn].ap.y) > uiscl(dragmgn))) then
+         puck.b[bn].dg := true;
    movcur(x, y); { track cursor }
    dispatch { port: run the command dispatch (was the command loop body) }
 
@@ -23602,7 +23614,8 @@ begin
       if press then begin
 
          puck.b[bn].a := true; { set assertion CMF }
-         puck.b[bn].ap := cur { record assertion location }
+         puck.b[bn].ap := cur; { record assertion location }
+         puck.b[bn].dg := false { port: clear drag flag on assert }
 
       end else begin
 
