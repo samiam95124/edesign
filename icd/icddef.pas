@@ -567,9 +567,7 @@ type
                  next:   drwptr;   { next entry }
                  case typ: figtyp of { figure type }
 
-                    tend,
-                    tcont:     (); { port: tcont added, all tag values
-                                     must be covered }
+                    tend:      (); { port: all tag values must be covered }
                     tline,
                     tbline:    (l:  region); { line }
                     tbox,
@@ -582,7 +580,14 @@ type
                     tpdiff,
                     tnwell,
                     tpwell,
-                    tccut:     (b:  region); { rectangle }
+                    tccut,
+                    tcont:     (b:  region); { rectangle }
+                               { port: tcont was uncovered in the original
+                                 variant list (SVS tolerated that, and read
+                                 b on tcont entries by free-union punning);
+                                 icdg's dolayer/dointer store rectangles as
+                                 tcont, so under P6 variant checking it
+                                 joins the rectangle group }
                     tinter:    ( { intersection }
 
                        ir: region;  { region }
@@ -697,7 +702,11 @@ type
      devcod = (deptr,  { pointer device initalize }
                devid,  { display device initalize }
                delab); { parameter label too long }
-     bytfil = file of boolean; { byte file }
+     bytfil = file of byte; { byte file }
+                            { port: was file of boolean with a cexternal
+                              "convert" hack; SVS would not accept file of
+                              byte. Pascaline does, so the file is now a
+                              true byte file }
      filinx = 1..fillen; { index for filename }
      { file name }
      filnam = packed array [filinx] of char;
