@@ -17548,12 +17548,14 @@ begin
 
    lstfmt; { place onscreen formatting }
    x := 0; { index 1st character of active area }
-   y := 8;
+   y := 0; { port: start at grid row 0 (client excludes menu) }
    fp := dsplst; { index top of list }
    dn := dspnum; { set number of first entry }
    { find the starting entry }
    while dn <> 1 do begin fp := fp^.next; dn := dn - 1 end;
-   while (fp <> nil) and (x < 56) do begin { process entries }
+   while (fp <> nil) and
+         (curwin^.cs^.vp.v.s.x+x*chrheight < curwin^.cs^.vp.v.e.x) do
+      begin { process entries }
 
       { transfer filename to compatible store }
       bs := '        '; { clear }
@@ -17567,13 +17569,15 @@ begin
       end;
       { place this string }
       { port: 16 pixel cell scaled to chrheight }
-      plcstr(x*chrheight, y*chrheight, bs, 8, black, yellow, true);
+      plcstr(curwin^.cs^.vp.v.s.x+x*chrheight, curwin^.cs^.vp.v.s.y+y*chrheight, bs, 8, black, yellow, true);
       { increment to next character }
-      if y < 47 then y := y + 1
+      { port: wrap by client height; reset to grid row 0 }
+      if curwin^.cs^.vp.v.s.y+(y+2)*chrheight < curwin^.cs^.vp.v.e.y then
+         y := y + 1
       else begin { end of collumn, next }
 
          x := x + 8;
-         y := 8
+         y := 0
 
       end;
       fp := fp^.next { index next entry }
@@ -17635,7 +17639,7 @@ Cusor must be in active area.
 
 procedure chkfile;
 
-var x, y, xi, yi: byte;
+var x, y, xi, yi: integer; { port: widened from byte for client-relative coords }
     f:            boolean; { cell found flag }
     bs:           butstr; { string entry }
     fp:           filptr; { files list }
@@ -17651,7 +17655,7 @@ begin
    if not ((dspbut.x = x) and (dspbut.y = y)) then begin
 
       rescur; { remove cursor }
-      plcstr(x*chrheight, y*chrheight, bs, 8, black, yellow, true);
+      plcstr(curwin^.cs^.vp.v.s.x+x*chrheight, curwin^.cs^.vp.v.s.y+y*chrheight, bs, 8, black, yellow, true);
       setcur; { restore cursor }
       dspbut.x := x; { save selected button }
       dspbut.y := y;
@@ -17664,8 +17668,11 @@ end;
 begin
 
    { port: 16 pixel cell/128 pixel column scaled to chrheight }
-   x := (cur.x - (cur.x mod (8*chrheight))) div chrheight; { find character cell }
-   y := cur.y div chrheight;
+   { port: cursor mapped to a grid cell relative to the client origin,
+     matching the placement in the display procedure }
+   x := ((cur.x-curwin^.cs^.vp.v.s.x)-
+         ((cur.x-curwin^.cs^.vp.v.s.x) mod (8*chrheight))) div chrheight;
+   y := (cur.y-curwin^.cs^.vp.v.s.y) div chrheight;
    if not ((dspbut.x = x) and (dspbut.y = y)) and
       ((dspbut.x <> 0) or (dspbut.y <> 0)) then begin
 
@@ -17673,7 +17680,7 @@ begin
       rescur; { remove cursor }
       { port: the original passed the cell coordinates unscaled here
         (dspbut.x, dspbut.y are character cells, plcstr takes pixels) }
-      plcstr(dspbut.x*chrheight, dspbut.y*chrheight, dspsav, 8, black,
+      plcstr(curwin^.cs^.vp.v.s.x+dspbut.x*chrheight, curwin^.cs^.vp.v.s.y+dspbut.y*chrheight, dspsav, 8, black,
              yellow, true);
       setcur; { replace cursor }
       dspbut.x := 0; { clear selected display button }
@@ -17684,7 +17691,7 @@ begin
 
       { find that button (if it exists) }
       xi := 0; { index 1st character of active area }
-      yi := 8;
+      yi := 0; { port: start at grid row 0 }
       fp := dsplst; { index top of list }
       f := false; { set not found }
       while fp <> nil do begin { process entries }
@@ -17704,7 +17711,7 @@ begin
             if puck.b[1].a then begin { activate cell }
 
                { place this string }
-               plcstr(x*chrheight, y*chrheight, bs, 8, black, lgreen, true);
+               plcstr(curwin^.cs^.vp.v.s.x+x*chrheight, curwin^.cs^.vp.v.s.y+y*chrheight, bs, 8, black, lgreen, true);
                button[bfname].s := bs; { place cell name to filename }
                { update that button }
                updbut(bfname); { update button }
@@ -17758,11 +17765,13 @@ begin
          end else begin
 
             { increment to next character }
-            if yi < 47 then yi := yi + 1
+            { port: wrap by client height; reset to grid row 0 }
+            if curwin^.cs^.vp.v.s.y+(yi+2)*chrheight <
+               curwin^.cs^.vp.v.e.y then yi := yi + 1
             else begin { end of collumn, next }
 
                xi := xi + 8;
-               yi := 8
+               yi := 0
 
             end;
             fp := fp^.next { index next entry }
@@ -17858,7 +17867,7 @@ begin
 
          { place this string }
          { port: 16 pixel cell scaled to chrheight }
-         plcstr(x*chrheight, y*chrheight, p^.name, 8, black, yellow, true);
+         plcstr(curwin^.cs^.vp.v.s.x+x*chrheight, curwin^.cs^.vp.v.s.y+y*chrheight, p^.name, 8, black, yellow, true);
          { increment to next character }
          if y < 47 then y := y + 1
          else begin { end of collumn, next }
@@ -17896,7 +17905,7 @@ Cusor must be in active area.
 
 procedure chkcell;
 
-var x, y, xi, yi: byte;
+var x, y, xi, yi: integer; { port: widened from byte for client-relative coords }
     f:            boolean; { cell found flag }
     bs:           butstr; { string entry }
     p:            celptr; { cell pointer }
@@ -17910,7 +17919,7 @@ begin
    if not ((dspbut.x = x) and (dspbut.y = y)) then begin
 
       rescur; { remove cursor }
-      plcstr(x*chrheight, y*chrheight, bs, 8, black, yellow, true);
+      plcstr(curwin^.cs^.vp.v.s.x+x*chrheight, curwin^.cs^.vp.v.s.y+y*chrheight, bs, 8, black, yellow, true);
       setcur; { restore cursor }
       dspbut.x := x; { save selected button }
       dspbut.y := y;
@@ -17923,15 +17932,18 @@ end;
 begin
 
    { port: 16 pixel cell/128 pixel column scaled to chrheight }
-   x := (cur.x - (cur.x mod (8*chrheight))) div chrheight; { find character cell }
-   y := cur.y div chrheight;
+   { port: cursor mapped to a grid cell relative to the client origin,
+     matching the placement in the display procedure }
+   x := ((cur.x-curwin^.cs^.vp.v.s.x)-
+         ((cur.x-curwin^.cs^.vp.v.s.x) mod (8*chrheight))) div chrheight;
+   y := (cur.y-curwin^.cs^.vp.v.s.y) div chrheight;
    if not ((dspbut.x = x) and (dspbut.y = y)) and
       ((dspbut.x <> 0) or (dspbut.y <> 0)) then begin
 
       { deselect old button }
       rescur; { remove cursor }
       { port: the original passed the cell coordinates unscaled here }
-      plcstr(dspbut.x*chrheight, dspbut.y*chrheight, dspsav, 8, black,
+      plcstr(curwin^.cs^.vp.v.s.x+dspbut.x*chrheight, curwin^.cs^.vp.v.s.y+dspbut.y*chrheight, dspsav, 8, black,
              yellow, true);
       setcur; { replace cursor }
       dspbut.x := 0; { clear selected display button }
@@ -17942,7 +17954,7 @@ begin
 
       { find that button (if it exists) }
       xi := 0; { index 1st character of active area }
-      yi := 8;
+      yi := 0; { port: start at grid row 0 }
       p := cellst; { index top of list }
       f := false; { set not found }
       while p <> nil do begin { process entries }
@@ -17954,7 +17966,7 @@ begin
 
                rescur; { remove cursor }
                { place this string }
-               plcstr(x*chrheight, y*chrheight, bs, 8, black, lgreen, true);
+               plcstr(curwin^.cs^.vp.v.s.x+x*chrheight, curwin^.cs^.vp.v.s.y+y*chrheight, bs, 8, black, lgreen, true);
                setcur; { replace cursor }
                button[bcname].s := bs; { place cell name to cellname }
                { update that button }
@@ -18010,11 +18022,13 @@ begin
          end else begin
 
             { increment to next character }
-            if yi < 47 then yi := yi + 1
+            { port: wrap by client height; reset to grid row 0 }
+            if curwin^.cs^.vp.v.s.y+(yi+2)*chrheight <
+               curwin^.cs^.vp.v.e.y then yi := yi + 1
             else begin { end of collumn, next }
 
                xi := xi + 8;
-               yi := 8
+               yi := 0
 
             end;
             p := p^.next { index next entry }
@@ -18597,7 +18611,7 @@ begin
 
          { place this string }
          { port: 16 pixel cell scaled to chrheight }
-         plcstr(x*chrheight, y*chrheight, p^.name, 8, black, yellow, true);
+         plcstr(curwin^.cs^.vp.v.s.x+x*chrheight, curwin^.cs^.vp.v.s.y+y*chrheight, p^.name, 8, black, yellow, true);
          { increment to next character }
          if y < 47 then y := y + 1
          else begin { end of collumn, next }
@@ -18635,7 +18649,7 @@ Cusor must be in active area.
 
 procedure chklcell;
 
-var x, y, xi, yi: byte;
+var x, y, xi, yi: integer; { port: widened from byte for client-relative coords }
     f:            boolean; { cell found flag }
     bs:           butstr; { string entry }
     p:            celptr; { cell pointer }
@@ -18649,7 +18663,7 @@ begin
    if not ((dspbut.x = x) and (dspbut.y = y)) then begin
 
       rescur; { remove cursor }
-      plcstr(x*chrheight, y*chrheight, bs, 8, black, yellow, true);
+      plcstr(curwin^.cs^.vp.v.s.x+x*chrheight, curwin^.cs^.vp.v.s.y+y*chrheight, bs, 8, black, yellow, true);
       setcur; { restore cursor }
       dspbut.x := x; { save selected button }
       dspbut.y := y;
@@ -18662,15 +18676,18 @@ end;
 begin
 
    { port: 16 pixel cell/128 pixel column scaled to chrheight }
-   x := (cur.x - (cur.x mod (8*chrheight))) div chrheight; { find character cell }
-   y := cur.y div chrheight;
+   { port: cursor mapped to a grid cell relative to the client origin,
+     matching the placement in the display procedure }
+   x := ((cur.x-curwin^.cs^.vp.v.s.x)-
+         ((cur.x-curwin^.cs^.vp.v.s.x) mod (8*chrheight))) div chrheight;
+   y := (cur.y-curwin^.cs^.vp.v.s.y) div chrheight;
    if not ((dspbut.x = x) and (dspbut.y = y)) and
       ((dspbut.x <> 0) or (dspbut.y <> 0)) then begin
 
       { deselect old button }
       rescur; { remove cursor }
       { port: the original passed the cell coordinates unscaled here }
-      plcstr(dspbut.x*chrheight, dspbut.y*chrheight, dspsav, 8, black,
+      plcstr(curwin^.cs^.vp.v.s.x+dspbut.x*chrheight, curwin^.cs^.vp.v.s.y+dspbut.y*chrheight, dspsav, 8, black,
              yellow, true);
       setcur; { replace cursor }
       dspbut.x := 0; { clear selected display button }
@@ -18681,7 +18698,7 @@ begin
 
       { find that button (if it exists) }
       xi := 0; { index 1st character of active area }
-      yi := 8;
+      yi := 0; { port: start at grid row 0 }
       p := libcel; { index top of list }
       f := false; { set not found }
       while p <> nil do begin { process entries }
@@ -18697,7 +18714,7 @@ begin
                while p^.name <> bs do p := p^.next;
                rescur; { remove cursor }
                { place this string }
-               plcstr(x*chrheight, y*chrheight, bs, 8, black, lgreen, true);
+               plcstr(curwin^.cs^.vp.v.s.x+x*chrheight, curwin^.cs^.vp.v.s.y+y*chrheight, bs, 8, black, lgreen, true);
                setcur; { replace cursor }
                button[bcname].s := bs; { place cell name to cellname }
                updbut(bcname); { update button }
@@ -18756,11 +18773,13 @@ begin
          end else begin
 
             { increment to next character }
-            if yi < 47 then yi := yi + 1
+            { port: wrap by client height; reset to grid row 0 }
+            if curwin^.cs^.vp.v.s.y+(yi+2)*chrheight <
+               curwin^.cs^.vp.v.e.y then yi := yi + 1
             else begin { end of collumn, next }
 
                xi := xi + 8;
-               yi := 8
+               yi := 0
 
             end;
             p := p^.next { index next entry }
