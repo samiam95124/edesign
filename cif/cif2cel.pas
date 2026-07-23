@@ -25,8 +25,7 @@
 
 program cif2cel(output, command);
 
-uses stddef,
-     strlib;
+uses strings;
 
 label 99; { terminate program }
 
@@ -228,7 +227,7 @@ var ovf: boolean;
 
 begin
 
-   readsp(command, cmdlin, ovf); { get command line }
+   reads(command, cmdlin, ovf); { get command line }
    if ovf then error(ecmdltl); { command line to long }
    cmdptr := 1 { set 1st character position }
 
@@ -296,24 +295,19 @@ end;
 
 Get filename
 
-Parses a MSDOS format filename from the given line.
+Parses a filename (a whitespace-delimited token) from the command line.
 
 **************************************************************}
 
 procedure getfnm(var n: filnam); 
 
-var fi, i:  lininx;      { index for filename }
-    namlen: 0..9;        { length of filename }
-    extlen: 0..3;        { length of extention }
-    valid:  set of char; { valid MSDOS filename characters }
-    dp:     boolean;     { drive parsed flag }
-    rt:     boolean;     { terminated by '\' }
+var fi, i: lininx; { index for filename }
 
 procedure plcchr(c: char);
 
 begin
 
-   if fi = filmax then error(einvfn); { overflow }
+   if fi = filmax then error(efilntl); { overflow }
    n[fi] := c; { place character }
    fi := fi + 1
 
@@ -323,68 +317,15 @@ begin
 
    for i := 1 to filmax do n[i] := ' '; { clear result }
    fi := 1; { index 1st file character }
-   { valid MSDOS filename characters }
-   valid := ['A'..'Z', 'a'..'z', '0'..'9', '$', '&', 
-             '%', '''', '(', ')', '_', '@', 
-             '{', '}', '!', '#'];
-   dp := false; { set no drive parsed }
-   skpspc; { skip spaces }
-   while chkchr in valid+['\\'] do begin { evaluate sections }
+   skpspc; { skip leading spaces }
+   { Copy the filename as a whitespace-delimited token. Unlike the
+     original, no MSDOS 8.3/drive/section structure is imposed: every
+     character up to the next space or end of line is taken verbatim,
+     so long names, an extension, and path separators all pass through. }
+   while (chkchr <> ' ') and (cmdptr <> 0) do begin
 
-      rt := false;
-      if chkchr = '\\' then begin { section mark }
-
-         plcchr(chkchr); { place }
-         getchr; { next }
-         dp := true; { set drive spec not allowed }
-         rt := true { set terminated by '\' }
-
-      end;
-      namlen := 0; { clear file count }
-      while chkchr in valid do begin
-
-         { place next character }
-         if namlen = 8 then error(einvfn);
-         plcchr(chkchr); 
-         namlen := namlen + 1;
-         getchr;
-         rt := false { set not terminated by '\' } 
-
-      end;
-      if chkchr = ':' then begin { drive specification }
-
-         plcchr(chkchr); { place }
-         getchr; { skip }
-         if (namlen > 1) or (namlen = 0) or dp then 
-            error(einvfn);
-         if chkchr = '\\' then begin { root spec }
-
-            plcchr(chkchr); { place }
-            getchr { next }
-
-         end
-
-      end else if chkchr = '.' then begin { extention }
-   
-         plcchr(chkchr); { place '.' }
-         getchr; { skip }
-         extlen := 0; { clear file count }
-         while chkchr in valid do begin
-
-            { place next character }
-            if extlen > 3 then error(einvfn); { too long }
-            plcchr(chkchr); 
-            extlen := extlen + 1;
-            getchr
-
-         end;
-         if extlen = 0 then 
-            error(einvfn) { no extention present }
-
-      end;
-      dp := true; { set no more drive specs }
-      if (chkchr = '\\') and
-         (namlen = 0) then error(einvfn) { no null sections }
+      plcchr(chkchr); { place character }
+      getchr { next character }
 
    end;
    if fi = 1 then error(einvfn) { no characters processed }
@@ -844,11 +785,24 @@ begin
    assign(fcif, name); { open file }
    reset(fcif);
    lincnt := 1; { clear line counter }
-   getlab(labbuf); { get checksum intro }
-   if labbuf <> 'cif-checksum:       ' then error(eclm);
-   readnum(chksumc); { get comparision checksum }
-   readnum(n); { dispose of byte count }
-   readln(fcif); { skip checksum line }
+   getlab(labbuf); { peek for the MOSIS checksum intro }
+   if labbuf = 'cif-checksum:       ' then begin
+
+      readnum(chksumc); { get comparision checksum }
+      readnum(n); { dispose of byte count }
+      readln(fcif) { skip checksum line }
+
+   end else begin
+
+      { No checksum header: a non-MOSIS .cif that opens with a
+        description comment rather than a cif-checksum: line. Rewind to
+        the start and disable checksum verification, since there is no
+        reference checksum to match against. }
+      reset(fcif);
+      lincnt := 1;
+      onchk := true
+
+   end;
    sepflg := true; { Set the separator flag.}
    chksum := 32; { Initial checksum value.}
    repeat { get commands }

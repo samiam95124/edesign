@@ -15,8 +15,7 @@
 
 program sim(command, output);
 
-uses stddef,
-     strlib;
+uses strings;
 
 label 99; { abort program }
 

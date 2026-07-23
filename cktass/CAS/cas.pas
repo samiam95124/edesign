@@ -36,8 +36,7 @@
 
 program cktass(command, output);
 
-uses stddef,
-     strlib;
+uses strings;
 
 label 99; { abort program }
 
@@ -298,7 +297,7 @@ Determines the number of non-space characters in the label.
 
 **************************************************************}
 
-function len(var n: nodlab): labinx;
+function lenl(var n: nodlab): labinx;
 
 var i: labinx;    { index for label }
     l: 0..labmax; { count }
@@ -308,7 +307,7 @@ begin
    l := 0; { initalize count }
    for i := 1 to labmax do if n[i] <> ' ' then
       l := l + 1; { count non-space character }
-   len := l { return result }
+   lenl := l { return result }
 
 end;
 
@@ -457,8 +456,8 @@ begin
       while np <> nil do begin { output node names }
 
          write(dicfil, 3); { output node code }
-         write(dicfil, len(np^.lab)); { output length }
-         for i := 1 to len(np^.lab) do { output name }
+         write(dicfil, lenl(np^.lab)); { output length }
+         for i := 1 to lenl(np^.lab) do { output name }
             write(dicfil, ord(np^.lab[i]));
          np := np^.next { next entry }
 
@@ -665,13 +664,13 @@ begin
 
          if srclin then begin
 
-            readsp(cktfil, cmdlin, ovf); { get line }
+            reads(cktfil, cmdlin, ovf); { get line }
             if ovf then error(eilovf); { process error }
             readln(cktfil) { skip line end }
 
          end else begin
 
-            readsp(command, cmdlin, ovf); { get the command line }
+            reads(command, cmdlin, ovf); { get the command line }
             if ovf then error(eilovf) { process error }
 
          end;
@@ -1351,9 +1350,9 @@ begin
       cp^.num := celnum; { place cell number }
       cp^.par := nil; { clear parameter list }
       lp := nil; { clear last }
-      writec(dicfil, len(cp^.lab)); { output length }
+      writec(dicfil, lenl(cp^.lab)); { output length }
       { output cell name }
-      for i := 1 to len(cp^.lab) do writec(dicfil, ord(cp^.lab[i]));
+      for i := 1 to lenl(cp^.lab) do writec(dicfil, ord(cp^.lab[i]));
       pc := 0; { set parameter count }
       skpspc; { skip spaces }
       if chkchr = ':' then begin { parameters present }
