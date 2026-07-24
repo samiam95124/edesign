@@ -44,9 +44,37 @@ The 16 EGA colors of ICD are reproduced exactly via ratioed RGB.
 
 ******************************************************************************}
 
-{ set foreground color from ICD color code }
+{ Drawing subwindow.
 
-procedure setfcolor(c: color);
+  The sheet drawing area is an Ami child window placed over the lower
+  left of the main (frame) window. Any drawing that falls within the
+  subwindow region routes to it, in subwindow relative coordinates,
+  and Ami clips it at the subwindow bounds automatically. The frame
+  (title, menus, buttons, target, messages) draws to the main window
+  exactly as before; nothing but sheet content ever draws inside the
+  drawing area, so routing by position needs no call site changes.
+  chksub opens the subwindow when the drawing area first exists and
+  re-places it whenever the layout changes (window resize etc). }
+
+var subin, subout: text;    { subwindow file pair }
+    subon:         boolean; { subwindow is open }
+    subr:          region;  { subwindow region, main window coords }
+
+{ check point lies in the drawing subwindow }
+
+function insub(x, y: integer): boolean;
+
+begin
+
+   insub := subon and
+            (x >= subr.s.x) and (x <= subr.e.x) and
+            (y >= subr.s.y) and (y <= subr.e.y)
+
+end;
+
+{ set foreground color from ICD color code, given window }
+
+procedure setfcolorf(var f: text; c: color);
 
 var third: integer; { 1/3 of full scale }
 
@@ -55,24 +83,34 @@ begin
    third := maxint div 3;
    case c of
 
-      black:    graphics.fcolorg(0, 0, 0);
-      blue:     graphics.fcolorg(0, 0, third*2);
-      green:    graphics.fcolorg(0, third*2, 0);
-      cyan:     graphics.fcolorg(0, third*2, third*2);
-      red:      graphics.fcolorg(third*2, 0, 0);
-      magenta:  graphics.fcolorg(third*2, 0, third*2);
-      brown:    graphics.fcolorg(third*2, third, 0);
-      dwhite:   graphics.fcolorg(third*2, third*2, third*2);
-      gray:     graphics.fcolorg(third, third, third);
-      lblue:    graphics.fcolorg(third, third, maxint);
-      lgreen:   graphics.fcolorg(third, maxint, third);
-      lcyan:    graphics.fcolorg(third, maxint, maxint);
-      lred:     graphics.fcolorg(maxint, third, third);
-      lmagenta: graphics.fcolorg(maxint, third, maxint);
-      yellow:   graphics.fcolorg(maxint, maxint, third);
-      white:    graphics.fcolorg(maxint, maxint, maxint)
+      black:    graphics.fcolorg(f, 0, 0, 0);
+      blue:     graphics.fcolorg(f, 0, 0, third*2);
+      green:    graphics.fcolorg(f, 0, third*2, 0);
+      cyan:     graphics.fcolorg(f, 0, third*2, third*2);
+      red:      graphics.fcolorg(f, third*2, 0, 0);
+      magenta:  graphics.fcolorg(f, third*2, 0, third*2);
+      brown:    graphics.fcolorg(f, third*2, third, 0);
+      dwhite:   graphics.fcolorg(f, third*2, third*2, third*2);
+      gray:     graphics.fcolorg(f, third, third, third);
+      lblue:    graphics.fcolorg(f, third, third, maxint);
+      lgreen:   graphics.fcolorg(f, third, maxint, third);
+      lcyan:    graphics.fcolorg(f, third, maxint, maxint);
+      lred:     graphics.fcolorg(f, maxint, third, third);
+      lmagenta: graphics.fcolorg(f, maxint, third, maxint);
+      yellow:   graphics.fcolorg(f, maxint, maxint, third);
+      white:    graphics.fcolorg(f, maxint, maxint, maxint)
 
    end
+
+end;
+
+{ set foreground color from ICD color code (main window) }
+
+procedure setfcolor(c: color);
+
+begin
+
+   setfcolorf(output, c)
 
 end;
 
@@ -82,8 +120,17 @@ procedure scrsetpix(x, y: integer; c: color);
 
 begin
 
-   setfcolor(c);
-   graphics.setpixel(x, y)
+   if insub(x, y) then begin { drawing area: route to subwindow }
+
+      setfcolorf(subout, c);
+      graphics.setpixel(subout, x-subr.s.x+1, y-subr.s.y+1)
+
+   end else begin
+
+      setfcolor(c);
+      graphics.setpixel(x, y)
+
+   end
 
 end;
 
@@ -93,8 +140,19 @@ procedure scrline(x1, y1, x2, y2: integer; c: color);
 
 begin
 
-   setfcolor(c);
-   graphics.line(x1, y1, x2, y2)
+   if insub(x1, y1) and insub(x2, y2) then begin
+
+      { drawing area: route to subwindow }
+      setfcolorf(subout, c);
+      graphics.line(subout, x1-subr.s.x+1, y1-subr.s.y+1,
+                            x2-subr.s.x+1, y2-subr.s.y+1)
+
+   end else begin
+
+      setfcolor(c);
+      graphics.line(x1, y1, x2, y2)
+
+   end
 
 end;
 
@@ -104,8 +162,19 @@ procedure scrblock(x1, y1, x2, y2: integer; c: color);
 
 begin
 
-   setfcolor(c);
-   graphics.frect(x1, y1, x2, y2)
+   if insub(x1, y1) and insub(x2, y2) then begin
+
+      { drawing area: route to subwindow }
+      setfcolorf(subout, c);
+      graphics.frect(subout, x1-subr.s.x+1, y1-subr.s.y+1,
+                             x2-subr.s.x+1, y2-subr.s.y+1)
+
+   end else begin
+
+      setfcolor(c);
+      graphics.frect(x1, y1, x2, y2)
+
+   end
 
 end;
 
@@ -115,7 +184,8 @@ procedure xormode;
 
 begin
 
-   graphics.fxor
+   graphics.fxor;
+   if subon then graphics.fxor(subout)
 
 end;
 
@@ -125,7 +195,8 @@ procedure ovrmode;
 
 begin
 
-   graphics.fover
+   graphics.fover;
+   if subon then graphics.fover(subout)
 
 end;
 
@@ -158,9 +229,70 @@ procedure plchr(x, y: integer; ch: char; c: color);
 
 begin
 
-   setfcolor(c);
-   graphics.cursorg(x, y);
-   write(ch)
+   if insub(x, y) then begin { drawing area: route to subwindow }
+
+      setfcolorf(subout, c);
+      graphics.cursorg(subout, x-subr.s.x+1, y-subr.s.y+1);
+      write(subout, ch)
+
+   end else begin
+
+      setfcolor(c);
+      graphics.cursorg(x, y);
+      write(ch)
+
+   end
+
+end;
+
+{ Check drawing subwindow placement.
+
+  Opens the subwindow over the drawing area when that area first
+  exists, and re-places it when the layout has changed. Called from
+  the event pump after each event is dispatched. }
+
+procedure chksub;
+
+var r: region;
+
+begin
+
+   if curwin <> nil then if curwin^.cs <> nil then begin
+
+      r := curwin^.cs^.vp.v; { the drawing area, main window coords }
+      if not subon then begin
+
+         if (r.e.x > r.s.x) and (r.e.y > r.s.y) then begin
+
+            { open the subwindow as a child of the main window }
+            graphics.openwin(subin, subout, output, 2);
+            graphics.frame(subout, 0); { no adornments }
+            graphics.auto(subout, false); { free the character grid }
+            graphics.curvis(subout, false); { no text cursor }
+            graphics.font(subout, 3); { sign font, as the main window }
+            { match the interface font size }
+            graphics.fontsiz(subout, graphics.chrsizy);
+            graphics.binvis(subout); { text draws foreground only }
+            graphics.buffer(subout, 0); { unbuffered, as the main window }
+            graphics.setposg(subout, r.s.x, r.s.y);
+            graphics.setsizg(subout, r.e.x-r.s.x+1, r.e.y-r.s.y+1);
+            graphics.front(subout); { above the frame }
+            subr := r;
+            subon := true
+
+         end
+
+      end else if (r.s.x <> subr.s.x) or (r.s.y <> subr.s.y) or
+                  (r.e.x <> subr.e.x) or (r.e.y <> subr.e.y) then begin
+
+         { layout changed: re-place the subwindow }
+         graphics.setposg(subout, r.s.x, r.s.y);
+         graphics.setsizg(subout, r.e.x-r.s.x+1, r.e.y-r.s.y+1);
+         subr := r
+
+      end
+
+   end
 
 end;
 
@@ -277,6 +409,12 @@ procedure dopedt(c, cs: char; b: buttyp; var r: real); forward;
   core fragment; forwarded here because the window layer calls it first) }
 
 procedure resptr; forward;
+
+{ commit any pending text entry to the draw list (defined with the
+  text entry code; called from stopact so that switching modes places
+  the text like any other figure) }
+
+procedure committext; forward;
 
 { update target area contents (real version ported in the icdf fragment;
   forwarded here because the window layer calls it first) }
@@ -3827,1023 +3965,98 @@ representation.
 
 **************************************************************}
 
-procedure vchar(x, y: integer; { location }
+procedure vchar(x, y: integer; { location (real space) }
                 c:    char;    { character to place }
-                s:    integer; { scale factor }
+                s:    integer; { scale factor (real units) }
                 cl:   color;   { color }
                 r:    boolean; { rotate 90 deg }
-                cr:   region); { clip region }
+                cr:   region); { clip region (screen space, unused:
+                                 the drawing subwindow clips } 
 
-{ rotate single point x }
+{ port: the original drew each glyph as line strokes on a 4x11 unit
+  grid (the 1993 vector font). Glyphs are rendered with the Ami sign
+  (sans-serif) scalable font, sized to the character cell as it
+  appears on screen, so all metrics (pitch, bounds, cursor math,
+  stored .cel enclosure boxes) are unchanged. The 90 degree case uses
+  the Ami path() api (angle in circle units, maxint = full circle;
+  the default path is maxint div 4 = normal upright text).
 
-function rotx(px, py: integer): integer;
+  Sheet text draws into the drawing subwindow, which Ami clips at its
+  bounds automatically - a glyph partially outside the drawing area
+  is clipped by the window system, so no region clipping is needed
+  here. }
 
-begin
-
-   if r then rotx := chrhdt*s-py*s+x
-   else rotx := px*s+x
-
-end;
-
-{ rotate single point y }
-
-function roty(px, py: integer): integer;
-
-begin
-
-   if r then roty := px*s+y 
-   else roty := py*s+y
-
-end;
-
-{ draw rotated real line }
-
-procedure linerr(x1, y1, x2, y2: integer);
+var h0: integer;     { interface font height }
+    w:  integer;     { rendered glyph width }
+    hs: integer;     { screen cell height }
+    s1, e1: point;   { character cell, converted to screen }
+    sc: packed array [1..1] of char; { measurement holder }
 
 begin
 
-   if (x1 = x2) or (y1 = y2) then
-      { orthogonal line, use critical region }
-      liner(rotx(x1, y1), roty(x1, y1), 
-            rotx(x2, y2), roty(x2, y2), cl, cr)
-   else 
-      { else use viewport }
-      liner(rotx(x1, y1), roty(x1, y1), 
-            rotx(x2, y2), roty(x2, y2), cl, curwin^.cs^.vp.v)
-                
-end;
-
-begin
-
-   { check in active area }
-   if (x+chrwdt*s >= curwin^.cs^.vp.r.s.x) and 
-      (x <= curwin^.cs^.vp.r.s.x+(abs(cr.e.x-cr.s.x)*
-                              curwin^.cs^.vp.s.x div scalem)) and
-      (y+chrhdt*s >= curwin^.cs^.vp.r.s.y) and 
-      (y <= curwin^.cs^.vp.r.s.y+(abs(cr.e.y-cr.s.y)*
-                              curwin^.cs^.vp.s.y div scalem)) then
-      case c of { character }
-            
-      '0': begin
-
-              linerr(0, 1, 0, 7);
-              linerr(0, 1, 1, 0);
-              linerr(0, 7, 1, 8);
-              linerr(1, 0, 3, 0);
-              linerr(1, 8, 3, 8);
-              linerr(3, 0, 4, 1);
-              linerr(3, 8, 4, 7);
-              linerr(4, 1, 4, 7);
-              linerr(0, 8, 4, 0)
-
-           end;
-
-      '1': begin
-
-              linerr(2, 0, 2, 8);
-              linerr(0, 2, 2, 0);
-              linerr(0, 8, 4, 8)
-
-           end;
-
-      '2': begin
-
-              linerr(0, 1, 1, 0);
-              linerr(0, 5, 1, 4);
-              linerr(0, 5, 0, 8);
-              linerr(0, 8, 4, 8);
-              linerr(1, 0, 3, 0);
-              linerr(1, 4, 3, 4);
-              linerr(3, 0, 4, 1);
-              linerr(3, 4, 4, 3);
-              linerr(4, 1, 4, 3)
-
-           end;
-
-      '3': begin
-
-              linerr(0, 1, 1, 0);
-              linerr(0, 7, 1, 8);
-              linerr(1, 0, 3, 0);
-              linerr(1, 8, 3, 8);
-              linerr(2, 4, 3, 4);
-              linerr(3, 0, 4, 1);
-              linerr(3, 4, 4, 3);
-              linerr(3, 4, 4, 5);
-              linerr(3, 8, 4, 7);
-              linerr(4, 1, 4, 3);
-              linerr(4, 5, 4, 7)
-
-           end;
-
-      '4': begin
-
-              linerr(3, 0, 3, 8);
-              linerr(0, 4, 3, 0);
-              linerr(0, 4, 4, 4);
-              linerr(2, 8, 4, 8)
-
-           end;
-
-      '5': begin
-
-              linerr(0, 0, 0, 4);
-              linerr(0, 0, 4, 0);
-              linerr(0, 4, 3, 4);
-              linerr(3, 4, 4, 5);
-              linerr(0, 8, 3, 8);
-              linerr(3, 8, 4, 7);
-              linerr(4, 5, 4, 7)
-
-           end;
-
-      '6': begin
-
-              linerr(0, 1, 0, 7);
-              linerr(0, 1, 1, 0);
-              linerr(0, 5, 1, 4);
-              linerr(0, 7, 1, 8);
-              linerr(1, 0, 3, 0);
-              linerr(1, 4, 3, 4);
-              linerr(1, 8, 3, 8);
-              linerr(3, 0, 4, 1);
-              linerr(3, 4, 4, 5);
-              linerr(3, 8, 4, 7);
-              linerr(4, 5, 4, 7)
-
-           end;
-
-      '7': begin
-
-              linerr(0, 0, 4, 0);
-              linerr(0, 8, 4, 0)
-
-           end;
-
-      '8': begin
-
-              linerr(0, 1, 0, 3);
-              linerr(0, 5, 0, 7);
-              linerr(0, 1, 1, 0);
-              linerr(0, 3, 1, 4);
-              linerr(0, 5, 1, 4);
-              linerr(0, 7, 1, 8);
-              linerr(1, 0, 3, 0);
-              linerr(1, 4, 3, 4);
-              linerr(1, 8, 3, 8);
-              linerr(3, 0, 4, 1);
-              linerr(3, 4, 4, 3);
-              linerr(3, 4, 4, 5);
-              linerr(3, 8, 4, 7);
-              linerr(4, 1, 4, 3);
-              linerr(4, 5, 4, 7)
-
-           end;
-
-      '9': begin
-
-              linerr(0, 1, 0, 3);
-              linerr(0, 1, 1, 0);
-              linerr(0, 3, 1, 4);
-              linerr(0, 7, 1, 8);
-              linerr(1, 0, 3, 0);
-              linerr(1, 4, 3, 4);
-              linerr(1, 8, 3, 8);
-              linerr(3, 0, 4, 1);
-              linerr(3, 4, 4, 3);
-              linerr(3, 8, 4, 7);
-              linerr(4, 1, 4, 7)
-
-           end;
-
-      'A': begin
-
-              linerr(0, 1, 0, 8);
-              linerr(4, 1, 4, 8);
-              linerr(1, 0, 3, 0);
-              linerr(0, 4, 4, 4);
-              linerr(0, 1, 1, 0);
-              linerr(3, 0, 4, 1)
-
-           end;
-
-      'B': begin
-
-              linerr(0, 0, 0, 8);
-              linerr(0, 0, 3, 0);
-              linerr(0, 4, 3, 4);
-              linerr(0, 8, 3, 8);
-              linerr(3, 0, 4, 1);
-              linerr(3, 4, 4, 3);
-              linerr(3, 4, 4, 5);
-              linerr(3, 8, 4, 7);
-              linerr(4, 1, 4, 3);
-              linerr(4, 5, 4, 7)
-
-           end;
-
-      'C': begin
-
-              linerr(0, 1, 0, 7);
-              linerr(0, 1, 1, 0);
-              linerr(0, 7, 1, 8);
-              linerr(1, 0, 3, 0);
-              linerr(1, 8, 3, 8);
-              linerr(3, 0, 4, 1);
-              linerr(3, 8, 4, 7)
-
-           end;
-
-      'D': begin
-
-              linerr(0, 0, 0, 8);
-              linerr(0, 0, 3, 0);
-              linerr(0, 8, 3, 8);
-              linerr(3, 0, 4, 1);
-              linerr(3, 8, 4, 7);
-              linerr(4, 1, 4, 7)
-
-           end;
-
-      'E': begin
-
-              linerr(0, 0, 0, 8);
-              linerr(0, 0, 4, 0);
-              linerr(0, 4, 2, 4);
-              linerr(0, 8, 4, 8)
-
-           end;
-
-      'F': begin
-
-              linerr(0, 0, 0, 8);
-              linerr(0, 0, 4, 0);
-              linerr(0, 4, 2, 4)
-
-           end;
-
-      'G': begin
-   
-              linerr(0, 1, 0, 7);
-              linerr(0, 1, 1, 0);
-              linerr(0, 7, 1, 8);
-              linerr(1, 0, 3, 0);
-              linerr(1, 8, 3, 8);
-              linerr(3, 0, 4, 1);
-              linerr(3, 8, 4, 7);
-              linerr(2, 4, 4, 4);
-              linerr(4, 4, 4, 7)
-
-           end;
-
-      'H': begin
-
-              linerr(0, 0, 0, 8);
-              linerr(4, 0, 4, 8);
-              linerr(0, 4, 4, 4)
-
-           end;
-
-      'I': begin
-
-              linerr(0, 0, 4, 0);
-              linerr(0, 8, 4, 8);
-              linerr(2, 0, 2, 8)
-
-           end;
-
-      'J': begin
-
-              linerr(0, 6, 0, 7);
-              linerr(0, 7, 1, 8);
-              linerr(1, 8, 3, 8);
-              linerr(3, 8, 4, 7);
-              linerr(4, 0, 4, 7)
-
-           end;
-
-      'K': begin
-
-              linerr(0, 0, 0, 8);
-              linerr(0, 4, 1, 4);
-              linerr(1, 4, 4, 0);
-              linerr(1, 4, 4, 8)
-
-           end;
-
-      'L': begin
-
-              linerr(0, 0, 0, 8);
-              linerr(0, 8, 4, 8)
-
-           end;
-
-      'M': begin
-
-              linerr(0, 0, 0, 8);
-              linerr(0, 0, 2, 4);
-              linerr(2, 4, 4, 0);
-              linerr(4, 0, 4, 8)
-
-           end;
-
-      'N': begin
-
-              linerr(0, 0, 0, 8);
-              linerr(0, 0, 4, 8);
-              linerr(4, 8, 4, 0)
-
-           end;
-           
-      'O': begin
-
-              linerr(0, 1, 0, 7);
-              linerr(0, 1, 1, 0);
-              linerr(0, 7, 1, 8);
-              linerr(1, 0, 3, 0);
-              linerr(1, 8, 3, 8);
-              linerr(3, 0, 4, 1);
-              linerr(3, 8, 4, 7);
-              linerr(4, 1, 4, 7)
-
-           end;
-
-      'P': begin
-
-              linerr(0, 0, 0, 8);
-              linerr(0, 0, 3, 0);
-              linerr(0, 4, 3, 4);
-              linerr(3, 0, 4, 1);
-              linerr(3, 4, 4, 3);
-              linerr(4, 1, 4, 3)
-
-           end;
-
-      'Q': begin
-
-              linerr(0, 1, 0, 7);
-              linerr(0, 1, 1, 0);
-              linerr(0, 7, 1, 8);
-              linerr(1, 0, 3, 0);
-              linerr(1, 8, 3, 8);
-              linerr(3, 0, 4, 1);
-              linerr(3, 8, 4, 7);
-              linerr(4, 1, 4, 7);
-              linerr(2, 6, 4, 8)
-
-           end;
-
-      'R': begin
-
-              linerr(0, 0, 0, 8);
-              linerr(0, 0, 3, 0);
-              linerr(0, 4, 3, 4);
-              linerr(2, 4, 4, 8);
-              linerr(3, 0, 4, 1);
-              linerr(3, 4, 4, 3);
-              linerr(4, 1, 4, 3)
-
-           end;
-
-      'S': begin
-
-              linerr(0, 1, 0, 3);
-              linerr(0, 1, 1, 0);
-              linerr(0, 3, 1, 4);
-              linerr(0, 7, 1, 8);
-              linerr(1, 0, 3, 0);
-              linerr(1, 4, 3, 4);
-              linerr(1, 8, 3, 8);
-              linerr(3, 0, 4, 1);
-              linerr(3, 4, 4, 5);
-              linerr(3, 8, 4, 7);
-              linerr(4, 5, 4, 7)
-
-           end;
-
-      'T': begin
-
-              linerr(0, 0, 4, 0);
-              linerr(2, 0, 2, 8)
-
-           end;
-
-      'U': begin
-
-              linerr(0, 0, 0, 7);
-              linerr(0, 7, 1, 8);
-              linerr(1, 8, 3, 8);
-              linerr(3, 8, 4, 7);
-              linerr(4, 0, 4, 7)
-
-           end;
-
-      'V': begin
-
-              linerr(0, 0, 2, 8);
-              linerr(2, 8, 4, 0)
-
-           end;
-
-      'W': begin
-
-              linerr(0, 0, 0, 8);
-              linerr(0, 8, 2, 4);
-              linerr(2, 4, 4, 8);
-              linerr(4, 0, 4, 8)
-
-           end;
-
-      'X': begin
-
-              linerr(0, 0, 4, 8);
-              linerr(0, 8, 4, 0)
-
-           end;
-
-      'Y': begin
-
-              linerr(0, 0, 2, 4);
-              linerr(2, 4, 4, 0);
-              linerr(2, 4, 2, 8)
-
-           end;
-
-      'Z': begin
-
-              linerr(0, 0, 4, 0);
-              linerr(4, 0, 0, 8);
-              linerr(0, 8, 4, 8)
-
-           end;
-
-      'a': begin
-
-              linerr(0, 5, 0, 7);
-              linerr(1, 4, 0, 5);
-              linerr(0, 7, 1, 8);
-              linerr(1, 4, 3, 4);
-              linerr(1, 8, 3, 8);
-              linerr(3, 4, 4, 5);
-              linerr(3, 8, 4, 7);
-              linerr(4, 5, 4, 8)
-
-           end;
-
-      'b': begin
-
-              linerr(0, 0, 0, 8);
-              linerr(0, 4, 3, 4);
-              linerr(0, 8, 3, 8);
-              linerr(3, 4, 4, 5);
-              linerr(3, 8, 4, 7);
-              linerr(4, 5, 4, 7)
-
-           end;
-
-      'c': begin
-
-              linerr(0, 5, 0, 7);
-              linerr(0, 5, 1, 4);
-              linerr(0, 7, 1, 8);
-              linerr(1, 4, 3, 4);
-              linerr(1, 8, 3, 8);
-              linerr(3, 4, 4, 5);
-              linerr(3, 8, 4, 7)
-
-           end;
-
-      'd': begin
-
-              linerr(0, 5, 0, 7);
-              linerr(0, 5, 1, 4);
-              linerr(0, 7, 1, 8);
-              linerr(1, 4, 3, 4);
-              linerr(1, 8, 3, 8);
-              linerr(3, 4, 4, 5);
-              linerr(3, 8, 4, 7);
-              linerr(4, 0, 4, 8)
-
-           end;
-
-      'e': begin
-
-              linerr(0, 5, 0, 7);
-              linerr(0, 5, 1, 4);
-              linerr(0, 7, 1, 8);
-              linerr(1, 4, 3, 4);
-              linerr(0, 6, 4, 6);
-              linerr(3, 4, 4, 5);
-              linerr(3, 8, 4, 7);
-              linerr(4, 5, 4, 6);
-              linerr(1, 8, 3, 8)
-
-           end;
-
-      'f': begin
-
-              linerr(0, 4, 2, 4);
-              linerr(1, 1, 1, 8);
-              linerr(1, 1, 2, 0);
-              linerr(2, 0, 3, 0);
-              linerr(3, 0, 4, 1)
-
-           end;
-
-      'g': begin
-
-              linerr(0, 5, 0, 7);
-              linerr(0, 5, 1, 4);
-              linerr(0, 7, 1, 8);
-              linerr(0, 10, 1, 11);
-              linerr(1, 4, 3, 4);
-              linerr(1, 8, 3, 8);
-              linerr(1, 11, 3, 11);
-              linerr(3, 4, 4, 5);
-              linerr(3, 8, 4, 7);
-              linerr(3, 11, 4, 10);
-              linerr(4, 5, 4, 10)
-
-           end;
-
-      'h': begin
-
-              linerr(0, 0, 0, 8);
-              linerr(0, 5, 1, 4);
-              linerr(1, 4, 3, 4);
-              linerr(3, 4, 4, 5);
-              linerr(4, 5, 4, 8)
-
-           end;
-
-      'i': begin
-
-              linerr(1, 4, 2, 4);
-              linerr(1, 8, 3, 8);
-              linerr(2, 2, 2, 3);
-              linerr(2, 4, 2, 8)
-
-           end;
-
-      'j': begin
-
-              linerr(0, 10, 1, 11);
-              linerr(1, 11, 3, 11);
-              linerr(3, 4, 4, 4);
-              linerr(3, 11, 4, 10);
-              linerr(4, 2, 4, 3);
-              linerr(4, 4, 4, 10)
-
-           end;
-
-      'k': begin
-
-              linerr(1, 0, 1, 8);
-              linerr(1, 6, 4, 4);
-              linerr(1, 6, 4, 8)
-
-           end;
-
-      'l': begin
-
-              linerr(1, 0, 2, 0);
-              linerr(1, 8, 3, 8);
-              linerr(2, 0, 2, 8)
-
-           end;
-
-      'm': begin
-
-              linerr(0, 4, 0, 8);
-              linerr(0, 4, 2, 6);
-              linerr(2, 6, 4, 4);
-              linerr(4, 4, 4, 8)
-
-           end;
-
-      'n': begin
-
-              linerr(0, 4, 0, 8);
-              linerr(0, 5, 1, 4);
-              linerr(1, 4, 3, 4);
-              linerr(3, 4, 4, 5);
-              linerr(4, 5, 4, 8)
-
-           end;
-
-      'o': begin
-
-              linerr(0, 5, 0, 7);
-              linerr(0, 5, 1, 4);
-              linerr(0, 7, 1, 8);
-              linerr(1, 4, 3, 4);
-              linerr(1, 8, 3, 8);
-              linerr(3, 4, 4, 5);
-              linerr(3, 8, 4, 7);
-              linerr(4, 5, 4, 7)
-
-           end;
-
-      'p': begin
-
-              linerr(0, 4, 0, 11);
-              linerr(0, 5, 1, 4);
-              linerr(0, 7, 1, 8);
-              linerr(1, 4, 3, 4);
-              linerr(1, 8, 3, 8);
-              linerr(3, 4, 4, 5);
-              linerr(3, 8, 4, 7);
-              linerr(4, 5, 4, 7)
-
-           end;
-
-      'q': begin
-
-              linerr(0, 5, 0, 7);
-              linerr(0, 5, 1, 4);
-              linerr(0, 7, 1, 8);
-              linerr(1, 4, 3, 4);
-              linerr(1, 8, 3, 8);
-              linerr(3, 4, 4, 5);
-              linerr(3, 8, 4, 7);
-              linerr(4, 5, 4, 11)
-
-           end;
-
-      'r': begin
-
-              linerr(0, 4, 0, 8);
-              linerr(0, 5, 1, 4);
-              linerr(1, 4, 3, 4);
-              linerr(3, 4, 4, 5)
-
-           end;
-
-      's': begin
-
-              linerr(0, 5, 1, 4);
-              linerr(0, 5, 1, 6);
-              linerr(0, 7, 1, 8);
-              linerr(1, 4, 3, 4);
-              linerr(1, 6, 3, 6);
-              linerr(1, 8, 3, 8);
-              linerr(3, 4, 4, 5);
-              linerr(3, 6, 4, 7);
-              linerr(3, 8, 4, 7)
-
-           end;
-
-      't': begin
-
-              linerr(0, 2, 4, 2);
-              linerr(2, 0, 2, 8);
-              linerr(2, 8, 3, 8)
-
-           end;
-
-      'u': begin
-
-              linerr(0, 4, 0, 7);
-              linerr(0, 7, 1, 8);
-              linerr(1, 8, 3, 8);
-              linerr(3, 8, 4, 7);
-              linerr(4, 4, 4, 8)
-
-           end;
-
-      'v': begin
-
-              linerr(0, 4, 2, 8);
-              linerr(2, 8, 4, 4)
-
-           end;
-
-      'w': begin
-
-              linerr(0, 4, 0, 8);
-              linerr(0, 8, 2, 6);
-              linerr(2, 6, 4, 8);
-              linerr(4, 4, 4, 8)
-
-           end;
-
-      'x': begin
-
-              linerr(0, 4, 4, 8);
-              linerr(0, 8, 4, 4)
-
-           end;
-
-      'y': begin
-
-              linerr(0, 4, 0, 7);
-              linerr(0, 7, 1, 8);
-              linerr(1, 8, 3, 8);
-              linerr(3, 8, 4, 7);
-              linerr(0, 10, 1, 11);
-              linerr(1, 11, 3, 11);
-              linerr(3, 11, 4, 10);
-              linerr(4, 4, 4, 10)
-
-           end;
-
-      'z': begin
-
-              linerr(0, 4, 4, 4);
-              linerr(0, 8, 4, 4);
-              linerr(0, 8, 4, 8)
-
-           end;
-
-      '!': begin
-
-              linerr(2, 0, 2, 5);
-              linerr(2, 7, 2, 8)
-
-           end;
-
-      '@': begin
-
-              linerr(0, 1, 0, 7);
-              linerr(0, 1, 1, 0);
-              linerr(0, 7, 1, 8);
-              linerr(1, 2, 1, 6);
-              linerr(1, 0, 3, 0);
-              linerr(1, 2, 3, 2);
-              linerr(1, 6, 4, 6);
-              linerr(1, 8, 4, 8);
-              linerr(3, 2, 3, 6);
-              linerr(3, 0, 4, 1);
-              linerr(4, 1, 4, 6)
-
-           end;
-
-      '#': begin
-
-              linerr(1, 0, 1, 8);
-              linerr(3, 0, 3, 8);
-              linerr(0, 3, 4, 3);
-              linerr(0, 5, 4, 5)
-
-           end;
-
-      '$': begin
-
-              linerr(0, 2, 0, 3);
-              linerr(0, 2, 1, 1);
-              linerr(0, 3, 1, 4);
-              linerr(0, 6, 1, 7);
-              linerr(1, 1, 3, 1);
-              linerr(1, 4, 3, 4);
-              linerr(1, 7, 3, 7);
-              linerr(2, 0, 2, 8);
-              linerr(3, 1, 4, 2);
-              linerr(3, 4, 4, 5);
-              linerr(3, 7, 4, 6);
-              linerr(4, 5, 4, 6)
-
-           end;
-
-      '%': begin
-
-              linerr(0, 1, 0, 2);
-              linerr(0, 1, 1, 1);
-              linerr(0, 2, 1, 2);
-              linerr(1, 1, 1, 2);
-              linerr(0, 8, 4, 0);
-              linerr(3, 6, 3, 7);
-              linerr(3, 6, 4, 6);
-              linerr(3, 7, 4, 7);
-              linerr(4, 6, 4, 7)
-
-           end;
-
-      '^': begin
-
-              linerr(0, 2, 2, 0);
-              linerr(2, 0, 4, 2)
-
-           end;
-
-      '&': begin
-
-              linerr(0, 1, 0, 3);
-              linerr(0, 5, 0, 7);
-              linerr(0, 1, 1, 0);
-              linerr(0, 3, 4, 8);
-              linerr(0, 5, 3, 3);
-              linerr(0, 7, 1, 8);
-              linerr(1, 0, 2, 0);
-              linerr(1, 8, 3, 8);
-              linerr(2, 0, 3, 1);
-              linerr(3, 1, 3, 3);
-              linerr(3, 8, 4, 7);
-              linerr(4, 6, 4, 7)
-
-           end;
-
-      '*': begin
-
-              linerr(2, 0, 2, 8);
-              linerr(0, 4, 4, 4);
-              linerr(0, 1, 4, 7);
-              linerr(0, 7, 4, 1)
-
-           end;
-
-      '(': begin
-
-              linerr(3, 0, 2, 1);
-              linerr(2, 1, 1, 3);
-              linerr(1, 3, 1, 5);
-              linerr(1, 5, 2, 7);
-              linerr(2, 7, 3, 8)
-
-           end;
-
-      ')': begin
-
-              linerr(1, 0, 2, 1);
-              linerr(2, 1, 3, 3);
-              linerr(3, 3, 3, 5);
-              linerr(3, 5, 2, 7);
-              linerr(2, 7, 1, 8)
-
-           end;
-
-      '-': begin
-
-              linerr(0, 4, 4, 4)
-
-           end;
-
-      '_': begin
-
-              linerr(0, 8, 4, 8)
-
-           end;
-
-      '+': begin
-
-              linerr(0, 4, 4, 4);
-              linerr(2, 2, 2, 6)
-
-           end;
-
-      '=': begin
-
-              linerr(0, 3, 4, 3);
-              linerr(0, 5, 4, 5)
-
-           end;
-
-      '\\': begin
-
-              linerr(0, 0, 4, 8)
-
-           end;
-
-      '/': begin
-
-              linerr(0, 8, 4, 0)
-
-           end;
-
-      '|': begin
-
-              linerr(2, 0, 2, 3);
-              linerr(2, 5, 2, 8)
-
-           end;
-
-      '[': begin
-
-              linerr(1, 0, 1, 8);
-              linerr(1, 0, 2, 0);
-              linerr(1, 8, 2, 8)
-
-           end;
-
-      ']': begin
-
-              linerr(1, 0, 3, 0);
-              linerr(1, 8, 3, 8);
-              linerr(3, 0, 3, 8)
-
-           end;
-
-      '{': begin
-
-              linerr(0, 4, 1, 4);
-              linerr(1, 4, 2, 3);
-              linerr(1, 4, 2, 5);
-              linerr(2, 1, 2, 3);
-              linerr(2, 5, 2, 7);
-              linerr(2, 1, 3, 0);
-              linerr(2, 7, 3, 8);
-              linerr(3, 0, 4, 0);
-              linerr(3, 8, 4, 8)
-
-           end;
-
-      '}': begin
-
-              linerr(0, 0, 1, 0);
-              linerr(0, 8, 1, 8);
-              linerr(1, 0, 2, 1);
-              linerr(1, 8, 2, 7);
-              linerr(2, 1, 2, 3);
-              linerr(2, 5, 2, 7);
-              linerr(2, 3, 3, 4);
-              linerr(2, 5, 3, 4);
-              linerr(3, 4, 4, 4)
-
-           end;
-
-      ':': begin
-
-              linerr(2, 4, 2, 5);
-              linerr(2, 7, 2, 8)
-
-           end;
-
-      ';': begin
-
-              linerr(2, 4, 2, 5);
-              linerr(2, 7, 2, 8);
-              linerr(1, 9, 2, 8)
-
-           end;
-
-      '"': begin
-
-              linerr(1, 0, 1, 1);
-              linerr(3, 0, 3, 1)
-
-           end;
-
-      '''': begin
-
-              linerr(1, 1, 2, 0)
-
-           end;
-
-      ',': begin
-
-              linerr(2, 7, 2, 8);
-              linerr(1, 9, 2, 8)
-
-           end;
-
-      '.': begin
-
-              linerr(2, 7, 2, 8)
-
-           end;
-
-      '<': begin
-
-              linerr(1, 4, 3, 0);
-              linerr(1, 4, 3, 8)
-
-           end;
-
-      '>': begin
-
-              linerr(1, 0, 3, 4);
-              linerr(1, 8, 3, 4)
-
-           end;
-
-      '?': begin
-
-              linerr(0, 1, 0, 2);
-              linerr(0, 1, 1, 0);
-              linerr(1, 0, 3, 0);
-              linerr(3, 0, 4, 1);
-              linerr(4, 1, 4, 3);
-              linerr(4, 3, 3, 4);
-              linerr(3, 4, 2, 4);
-              linerr(2, 4, 2, 5);
-              linerr(2, 7, 2, 8)
-
-           end;
-
-      '`': begin
-
-              linerr(2, 0, 3, 1)
-
-           end;
-
-      '~': begin
-
-              linerr(0, 2, 1, 0);
-              linerr(1, 0, 3, 2);
-              linerr(3, 2, 4, 0)
-
-           end
-
-      else { port: characters without figures are ignored }
+   if subon then begin { drawing subwindow exists }
+
+      { find the character cell in real space }
+      s1.x := x;
+      s1.y := y;
+      if r then begin
+
+         e1.x := x+chrhdt*s;
+         e1.y := y+(chrwdt+chrspc)*s
+
+      end else begin
+
+         e1.x := x+(chrwdt+chrspc)*s;
+         e1.y := y+chrhdt*s
+
+      end;
+      { convert to screen coordinates }
+      viewc(s1, curwin^.cs^.vp);
+      viewc(e1, curwin^.cs^.vp);
+      { skip when the cell misses the subwindow entirely }
+      if (e1.x >= subr.s.x) and (s1.x <= subr.e.x) and
+         (e1.y >= subr.s.y) and (s1.y <= subr.e.y) then begin
+
+         { find cell height as displayed }
+         if r then hs := e1.x-s1.x else hs := e1.y-s1.y;
+         if hs > 1 then begin { skip degenerate sizes }
+
+            h0 := graphics.chrsizy; { interface font height }
+            graphics.fontsiz(subout, hs); { scale to the cell height }
+            setfcolorf(subout, cl);
+            sc[1] := c; { find glyph width at this size }
+            w := graphics.strsiz(subout, sc);
+            { rebase to subwindow coordinates }
+            s1.x := s1.x-subr.s.x+1;
+            s1.y := s1.y-subr.s.y+1;
+            e1.x := e1.x-subr.s.x+1;
+            e1.y := e1.y-subr.s.y+1;
+            if r then begin { rotated 90 degrees }
+
+               graphics.path(subout, 0);
+               { center the glyph across the rotated cell }
+               graphics.cursorg(subout, s1.x,
+                                s1.y + ((e1.y-s1.y) - w) div 2);
+               write(subout, c);
+               { restore normal }
+               graphics.path(subout, maxint div 4)
+
+            end else begin
+
+               { center the glyph on the stroke cell (chrwdt of the
+                 chrwdt+chrspc pitch) }
+               graphics.cursorg(subout, s1.x +
+                  ((e1.x-s1.x)*chrwdt div (chrwdt+chrspc) - w) div 2,
+                  s1.y);
+               write(subout, c)
+
+            end;
+            { restore the interface font size }
+            graphics.fontsiz(subout, h0)
+
+         end
+
+      end
 
    end
 
@@ -5970,6 +5183,17 @@ var ci: color; { index for trace colors }
 
 begin
 
+   { commit any pending text entry: text is a placed object, and
+     switching modes must place it like any other figure (only the
+     explicit cancel, PB3/canact, discards it) }
+   if drmbut = btext then begin
+
+      rescur; { lift cursor }
+      restcur; { remove text cursor }
+      committext;
+      setcur { drop cursor }
+
+   end;
    butina(bline); { deactivate all these buttons }
    butina(bbox);
    butina(bbline);
@@ -6042,6 +5266,17 @@ procedure stopview;
 
 begin
 
+   { commit any pending text entry: a view change redraws the sheet,
+     and entered text is a placed object (see committext) }
+   if drmbut = btext then begin
+
+      rescur; { lift cursor }
+      restcur; { remove text cursor }
+      committext;
+      drmbut := bnull; { text entry completed }
+      setcur { drop cursor }
+
+   end;
    butina(bpan); { deactivate all these buttons }
    butina(bin);
    butina(bout);
@@ -10954,7 +10189,9 @@ begin
       end;
 
    end;
-   resptr { reset pointer device }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
 
 end;
 {}
@@ -11050,7 +10287,9 @@ begin
       end
 
    end;
-   resptr { reset pointer device }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
 
 end;
 {}
@@ -11141,7 +10380,9 @@ begin
       end
 
    end;
-   resptr { reset pointer device }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
 
 end;
 {}
@@ -11412,7 +10653,9 @@ begin
       end
 
    end;
-   resptr { reset pointer device }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
 
 end;
 {}
@@ -11557,7 +10800,9 @@ begin
 
    end else if inactive(cur) and puck.b[1].a then shownode { show node name }
    else if inactive(cur) and puck.b[2].a then setnode; { set node name }
-   resptr { reset pointer device }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
 
 end;
 {}
@@ -12291,7 +11536,9 @@ begin
       dsmbut := bsaveb
 
    end;
-   resptr { reset pointer device }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
 
 end;
 {}
@@ -12630,7 +11877,9 @@ begin
       setcur  { replace cursor }
 
    end;
-   resptr { reset pointer device }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
 
 end;
 {}
@@ -13431,7 +12680,9 @@ begin
       else drmbut := bbbox
 
    end;
-   resptr { reset buttons }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
 
 end;
 {}
@@ -13512,7 +12763,9 @@ begin
       drmbut := bcircle { set circle mode }
 
    end;
-   resptr { reset buttons }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
 
 end;
 {}
@@ -13594,7 +12847,9 @@ begin
       drmbut := barc { set arc mode }
 
    end;
-   resptr { reset buttons }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
 
 end;
 {}
@@ -13626,7 +12881,12 @@ begin
                (puck.b[1].a or puck.b[2].a) then begin
 
       rescur; { remove cursor }
-      if drmbut = btext then restcur; { remove present text cursor }
+      if drmbut = btext then begin
+
+         restcur; { remove present text cursor }
+         committext { commit any pending string as a placed figure }
+
+      end;
       { set rotation status }
       textrot := trnfrm in [rm90, rm270, rmm90, rmm270];
       tcur := cur; { save as text entry cursor }
@@ -13649,7 +12909,39 @@ begin
       setcur { replace cursor }
 
    end;
-   resptr { reset buttons }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
+
+end;
+{}
+{**************************************************************
+
+COMMIT TEXT ENTRY
+
+Commits any pending text entry string to the draw list. Text is a
+placed object like any other figure: the entry commits when the
+entry ends - return, placing a new text cursor, or switching to
+another mode - and only an explicit cancel (PB3) discards it.
+
+**************************************************************}
+
+procedure committext;
+
+begin
+
+   if (drmbut = btext) and (texttop^.c.l <> nil) then begin
+
+      texttop^.next := curwin^.cs^.dl[ltfig]; { enter to draw list }
+      curwin^.cs^.dl[ltfig] := texttop;
+      setbound(texttop^.c.r.s.x, texttop^.c.r.s.y); { set bounds }
+      setbound(texttop^.c.r.e.x, texttop^.c.r.e.y);
+      setsbound(texttop^.c.r.s.x, texttop^.c.r.s.y); { set symbol bounds }
+      setsbound(texttop^.c.r.e.x, texttop^.c.r.e.y);
+      chktar; { check target change }
+      drmbut := bnull { text entry completed (guards double commit) }
+
+   end
 
 end;
 {}
@@ -13774,17 +13066,7 @@ begin
 
       rescur; { remove cursor }
       restcur; { remove text cursor }
-      if texttop^.c.l <> nil then begin { not empty }
-
-         texttop^.next := curwin^.cs^.dl[ltfig]; { enter to draw list }
-         curwin^.cs^.dl[ltfig] := texttop;
-         setbound(texttop^.c.r.s.x, texttop^.c.r.s.y); { set bounds }
-         setbound(texttop^.c.r.e.x, texttop^.c.r.e.y);
-         setsbound(texttop^.c.r.s.x, texttop^.c.r.s.y); { set symbol bounds }
-         setsbound(texttop^.c.r.e.x, texttop^.c.r.e.y);
-         chktar; { check target change }
-
-      end;
+      committext; { commit entered text to the draw list }
       setcur; { replace cursor }
       drmbut := bnull { cancel text mode }
 
@@ -13841,7 +13123,9 @@ begin
       updbut(bnord) { update }
 
    end;
-   resptr { reset buttons }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
 
 end;
 {}
@@ -13905,7 +13189,9 @@ begin
       updbut(bnord) { update }
 
    end;
-   resptr { reset buttons }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
 
 end;
 {}
@@ -14134,7 +13420,9 @@ begin
       setcur; { replace cursor }
 
    end;
-   resptr { reset buttons }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
 
 end;
 {}
@@ -15966,13 +15254,15 @@ command.
   event. The auxillary (scan code) second character path is gone;
   cs is passed as null to the edit handlers }
 
-procedure dokeyboard(c: char);
+procedure dokeyboard(c, cs: char);
 
-var cs: char; { input character }
+{ port: cs (the DOS auxillary scan code) is now supplied by the event
+  pump, which translates the Ami keyboard editing events (etenter,
+  etdelcb, etleft, ...) to the legacy (c, cs) pairs the edit routines
+  expect }
 
 begin
 
-   cs := chr(0); { port: no auxillary codes from the event pump }
    if c = chr(27) then canact { cancel activity }
    { this next is for debugging only }
    else if (c = chr(ord('Q')-64)) then { ctrl-Q }
@@ -19504,7 +18794,9 @@ begin
       else if button[bccut].act then drmbut := bccut
 
    end;
-   resptr { reset buttons }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
 
 end;
 {}
@@ -20206,7 +19498,9 @@ begin
       cntdrw := false
 
    end;
-   resptr { reset buttons }
+   { port: resptr disabled as in doline - a persistent-mode handler must not
+     consume the puck flags, or dobutton(curbut) never sees the click and the
+     screen buttons cannot switch modes }
 
 end;
 {}
@@ -23637,12 +22931,23 @@ end;
 
 { keyboard character event }
 
-procedure evkey(c: char);
+procedure evkey(c, cs: char);
 
 begin
 
-   dokeyboard(c); { process keyboard command/entry character }
+   dokeyboard(c, cs); { process keyboard command/entry character }
    dispatch { port: run the command dispatch (was the command loop body) }
+
+end;
+
+{ mouse move on the drawing subwindow: coordinates arrive subwindow
+  relative; translate to main window coordinates }
+
+procedure evsubmove(x, y: integer);
+
+begin
+
+   evmove(x+subr.s.x-1, y+subr.s.y-1)
 
 end;
 
@@ -23706,6 +23011,8 @@ MODULE CONSTRUCTOR / DESTRUCTOR
 ******************************************************************************}
 
 begin { constructor }
+
+   subon := false { drawing subwindow not yet open }
 
 end;
 
