@@ -410,6 +410,12 @@ procedure dopedt(c, cs: char; b: buttyp; var r: real); forward;
 
 procedure resptr; forward;
 
+{ commit any pending text entry to the draw list (defined with the
+  text entry code; called from stopact so that switching modes places
+  the text like any other figure) }
+
+procedure committext; forward;
+
 { update target area contents (real version ported in the icdf fragment;
   forwarded here because the window layer calls it first) }
 
@@ -5177,6 +5183,17 @@ var ci: color; { index for trace colors }
 
 begin
 
+   { commit any pending text entry: text is a placed object, and
+     switching modes must place it like any other figure (only the
+     explicit cancel, PB3/canact, discards it) }
+   if drmbut = btext then begin
+
+      rescur; { lift cursor }
+      restcur; { remove text cursor }
+      committext;
+      setcur { drop cursor }
+
+   end;
    butina(bline); { deactivate all these buttons }
    butina(bbox);
    butina(bbline);
@@ -5249,6 +5266,17 @@ procedure stopview;
 
 begin
 
+   { commit any pending text entry: a view change redraws the sheet,
+     and entered text is a placed object (see committext) }
+   if drmbut = btext then begin
+
+      rescur; { lift cursor }
+      restcur; { remove text cursor }
+      committext;
+      drmbut := bnull; { text entry completed }
+      setcur { drop cursor }
+
+   end;
    butina(bpan); { deactivate all these buttons }
    butina(bin);
    butina(bout);
@@ -12853,7 +12881,12 @@ begin
                (puck.b[1].a or puck.b[2].a) then begin
 
       rescur; { remove cursor }
-      if drmbut = btext then restcur; { remove present text cursor }
+      if drmbut = btext then begin
+
+         restcur; { remove present text cursor }
+         committext { commit any pending string as a placed figure }
+
+      end;
       { set rotation status }
       textrot := trnfrm in [rm90, rm270, rmm90, rmm270];
       tcur := cur; { save as text entry cursor }
@@ -12879,6 +12912,36 @@ begin
    { port: resptr disabled as in doline - a persistent-mode handler must not
      consume the puck flags, or dobutton(curbut) never sees the click and the
      screen buttons cannot switch modes }
+
+end;
+{}
+{**************************************************************
+
+COMMIT TEXT ENTRY
+
+Commits any pending text entry string to the draw list. Text is a
+placed object like any other figure: the entry commits when the
+entry ends - return, placing a new text cursor, or switching to
+another mode - and only an explicit cancel (PB3) discards it.
+
+**************************************************************}
+
+procedure committext;
+
+begin
+
+   if (drmbut = btext) and (texttop^.c.l <> nil) then begin
+
+      texttop^.next := curwin^.cs^.dl[ltfig]; { enter to draw list }
+      curwin^.cs^.dl[ltfig] := texttop;
+      setbound(texttop^.c.r.s.x, texttop^.c.r.s.y); { set bounds }
+      setbound(texttop^.c.r.e.x, texttop^.c.r.e.y);
+      setsbound(texttop^.c.r.s.x, texttop^.c.r.s.y); { set symbol bounds }
+      setsbound(texttop^.c.r.e.x, texttop^.c.r.e.y);
+      chktar; { check target change }
+      drmbut := bnull { text entry completed (guards double commit) }
+
+   end
 
 end;
 {}
@@ -13003,17 +13066,7 @@ begin
 
       rescur; { remove cursor }
       restcur; { remove text cursor }
-      if texttop^.c.l <> nil then begin { not empty }
-
-         texttop^.next := curwin^.cs^.dl[ltfig]; { enter to draw list }
-         curwin^.cs^.dl[ltfig] := texttop;
-         setbound(texttop^.c.r.s.x, texttop^.c.r.s.y); { set bounds }
-         setbound(texttop^.c.r.e.x, texttop^.c.r.e.y);
-         setsbound(texttop^.c.r.s.x, texttop^.c.r.s.y); { set symbol bounds }
-         setsbound(texttop^.c.r.e.x, texttop^.c.r.e.y);
-         chktar; { check target change }
-
-      end;
+      committext; { commit entered text to the draw list }
       setcur; { replace cursor }
       drmbut := bnull { cancel text mode }
 
